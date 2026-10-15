@@ -6,8 +6,8 @@ native UI on each platform.
 ```
 ┌────────────── sharedLogic ──────────────┐
 │ panel definitions (size, colours, type) │
-│ image pipeline: crop/scale → quantise → │
-│   dither → bit-pack                     │
+│ image pipeline: fill (crop + scale) →   │
+│   dither → rotate + bit-pack            │
 │ protocol state machines → byte commands │
 │ presets                                 │
 └───────────────┬─────────────────────────┘
@@ -51,7 +51,14 @@ drive them with a fake transport that replays recorded exchanges.
 - **Timeouts.** Panel refreshes take seconds. Android timeouts are set
   generously. iOS offers no per-command timeout and limits a tag connection to
   roughly 20 seconds, so writes must be efficient.
-- **Rotation and packing are per panel.** They're covered by unit tests in the
-  core, because they're easy to get subtly wrong.
+- **Image pipeline.** Platforms decode images natively, downsampled to a few
+  megapixels at most. They hand the core non-premultiplied `0xAARRGGBB`
+  pixels (`GrayImage.fromArgb`). The core centre-crops and scales to the
+  panel's view, with no letterboxing, so UIs should preview the crop. It then
+  reduces to black and white (threshold or Floyd–Steinberg), rotates and packs
+  into the panel's memory layout (`encodeFrame`).
+- **Rotation and packing are per panel.** Each panel declares its view
+  orientation (`PanelView`). Unit tests pin the mapping, because it's easy to
+  get subtly wrong.
 
 See [protocols.md](protocols.md) for the tag protocols.

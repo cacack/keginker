@@ -1,2 +1,7 @@
 tagpaper
 Copyright 2026 Chris Clonch
+
+This product includes software derived from Magic ePaper
+(https://github.com/fossasia/magic-epaper-app), Copyright FOSSASIA,
+licensed under the Apache License, Version 2.0. Derived files carry a
+header naming their source and the changes made.

@@ -10,7 +10,8 @@ import io.github.cacack.tagpaper.image.toBlackWhite
  *
  * The image is centre-cropped to the panel's view shape (176 × 264 portrait
  * for the 2.7") and scaled; it is never letterboxed or rotated to fit, so
- * platform UIs should preview the crop.
+ * platform UIs should preview the crop. UIs that preview should call
+ * [renderView] and then [packFrame] instead, so the preview is the frame.
  */
 fun encodeFrame(panel: WavesharePanel, image: GrayImage, dither: Dither = Dither.FloydSteinberg): ByteArray =
     packFrame(panel, renderView(panel, image, dither))

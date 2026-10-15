@@ -12,18 +12,19 @@ import kotlinx.coroutines.withContext
  * [NfcA.setTimeout], so slow steps such as a panel refresh aren't cut short.
  * I/O never runs on the main thread, and calls from all instances are
  * serialized, since only one tag is in the field at a time.
- * Every exchange is logged under the `tagpaper-nfc` tag.
+ * With [logExchanges] (debug builds only, as frames carry the user's image),
+ * every exchange is logged under the `tagpaper-nfc` tag.
  */
-class NfcATransport(private val nfcA: NfcA) : Transport {
+class NfcATransport(private val nfcA: NfcA, private val logExchanges: Boolean) : Transport {
     override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray =
         withContext(nfcIo) {
             if (!nfcA.isConnected) nfcA.connect()
             nfcA.timeout = timeoutMs.coerceIn(1, Int.MAX_VALUE.toLong()).toInt()
-            Log.d(LOG_TAG, "> ${command.toHex()}")
+            if (logExchanges) Log.d(LOG_TAG, "> ${command.toHex()}")
             try {
-                nfcA.transceive(command).also { Log.d(LOG_TAG, "< ${it.toHex()}") }
+                nfcA.transceive(command).also { if (logExchanges) Log.d(LOG_TAG, "< ${it.toHex()}") }
             } catch (e: Exception) {
-                Log.w(LOG_TAG, "! ${e.javaClass.simpleName}: ${e.message}")
+                if (logExchanges) Log.w(LOG_TAG, "! ${e.javaClass.simpleName}: ${e.message}")
                 throw e
             }
         }

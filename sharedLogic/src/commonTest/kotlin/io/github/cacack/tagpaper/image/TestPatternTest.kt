@@ -20,7 +20,7 @@ class TestPatternTest {
     }
 
     @Test
-    fun rampDarkensLeftward() {
+    fun rampBrightensRightward() {
         val y = 132
         assertTrue(pattern[10, y] < pattern[90, y])
         assertTrue(pattern[90, y] < pattern[165, y])

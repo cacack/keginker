@@ -5,7 +5,7 @@ import kotlinx.coroutines.delay
 /**
  * Behaves like a Waveshare classic tag that accepts every command, for
  * exercising the write flow on emulators and simulators without NFC.
- * Debug builds only.
+ * Every write it receives "succeeds", so offer it only in debug builds.
  */
 class SimulatedWaveshareTransport(private val commandDelayMs: Long = 20) : Transport {
     override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {

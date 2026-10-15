@@ -8,6 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 
 private val PANEL = WavesharePanel.EPD_2IN7
@@ -60,6 +61,7 @@ class WriteControllerTest {
         val controller = controller()
         controller.arm(ByteArray(PANEL.frameSize))
 
+        // 9 setup commands precede the 48 data chunks, so command 20 is mid-image.
         controller.onTag(FoundTag.Waveshare(FakeTag(failAfter = 20)))
 
         val failed = assertIs<WriteState.Failed>(controller.state.value)
@@ -78,7 +80,8 @@ class WriteControllerTest {
 
         controller.onTag(FoundTag.Unsupported(byteArrayOf(4, 1, 2, 3, 4, 5, 6)))
 
-        assertIs<WriteState.Failed>(controller.state.value)
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertTrue("isn't supported" in failed.message, failed.message)
     }
 
     @Test
@@ -91,5 +94,35 @@ class WriteControllerTest {
         controller.onTag(FoundTag.Waveshare(second))
 
         assertEquals(0, second.sent)
+        assertTrue(second.closed)
+        assertEquals(WriteState.Done, controller.state.value)
+    }
+
+    @Test
+    fun cancelReturnsToIdleAndIgnoresLaterTags() = runTest {
+        val controller = controller()
+        controller.arm(ByteArray(PANEL.frameSize))
+        val tag = FakeTag()
+
+        controller.cancel()
+        controller.onTag(FoundTag.Waveshare(tag))
+
+        assertEquals(WriteState.Idle, controller.state.value)
+        assertEquals(0, tag.sent)
+    }
+
+    @Test
+    fun cancelledWriteIsReportedAsFailed() = runTest {
+        val controller = WriteController(PANEL) { WaveshareWriter(it.transport, pause = { kotlinx.coroutines.awaitCancellation() }) }
+        controller.arm(ByteArray(PANEL.frameSize))
+        val tag = FakeTag()
+
+        val job = launch { controller.onTag(FoundTag.Waveshare(tag)) }
+        testScheduler.runCurrent()
+        job.cancel()
+        job.join()
+
+        assertIs<WriteState.Failed>(controller.state.value)
+        assertTrue(tag.closed)
     }
 }

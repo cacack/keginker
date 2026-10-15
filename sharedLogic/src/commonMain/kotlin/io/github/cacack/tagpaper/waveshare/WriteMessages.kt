@@ -10,6 +10,17 @@ val WriteStep.activity: String get() = when (this) {
     WriteStep.POWER_OFF -> "finishing the write"
 }
 
-/** A short explanation of a failed write that tells the user how to recover. */
-val WriteResult.Failure.message: String
-    get() = "The write failed while ${step.activity}. Hold the phone still against the tag and try again."
+/**
+ * A short explanation for the user that says how to recover. Diagnostics
+ * belong in [WriteResult.Failure.reason] and [WriteResult.Failure.cause].
+ *
+ * Phones only notice a tag as it arrives, so retrying means presenting it again.
+ */
+val WriteResult.Failure.userMessage: String
+    get() = if (cause != null) {
+        "Lost contact with the tag while ${step.activity}. " +
+            "Lift the phone away, then hold it still against the tag and try again."
+    } else {
+        "The tag gave an unexpected reply while ${step.activity}. " +
+            "Lift the phone away and try again; if it keeps happening, this tag may not be supported."
+    }

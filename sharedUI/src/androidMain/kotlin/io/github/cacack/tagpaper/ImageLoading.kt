@@ -14,14 +14,17 @@ import kotlinx.coroutines.withContext
 /** Longest side photos are decoded to; far more than any panel needs. */
 private const val MAX_SIDE = 1024
 
-/** Decodes a picked image, downsampled and upright, into greyscale. */
+/**
+ * Decodes a picked image, downsampled, into greyscale. Upright on Android 9+;
+ * older versions ignore EXIF rotation, so some camera photos come in sideways.
+ */
 suspend fun loadGrayImage(context: Context, uri: Uri): GrayImage = withContext(Dispatchers.IO) {
     val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
         // ImageDecoder applies EXIF rotation; BitmapFactory doesn't.
         ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
             val largest = maxOf(info.size.width, info.size.height)
-            if (largest > MAX_SIDE) decoder.setTargetSampleSize(largest / MAX_SIDE)
+            if (largest > MAX_SIDE) decoder.setTargetSampleSize((largest + MAX_SIDE - 1) / MAX_SIDE)
         }
     } else {
         decodeWithBitmapFactory(context, uri)

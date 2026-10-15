@@ -29,26 +29,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.cacack.tagpaper.image.Dither
-import io.github.cacack.tagpaper.image.testPattern
 import io.github.cacack.tagpaper.nfc.FoundTag
-import io.github.cacack.tagpaper.waveshare.WavesharePanel
-import io.github.cacack.tagpaper.waveshare.packFrame
-import io.github.cacack.tagpaper.waveshare.renderView
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
-
-private val PANEL = WavesharePanel.EPD_2IN7
 
 /**
  * The write screen: choose an image, preview it as the panel will show it,
@@ -58,26 +49,21 @@ private val PANEL = WavesharePanel.EPD_2IN7
  * [onSimulateTag] is offered in debug builds to exercise the flow without a tag.
  */
 @Composable
-fun App(tags: Flow<FoundTag>, nfcProblem: String?, onSimulateTag: (() -> Unit)? = null) {
+fun App(tags: Flow<FoundTag>, nfcProblem: String? = null, onSimulateTag: (() -> Unit)? = null) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val controller = remember { WriteController(PANEL) }
-    val state by controller.state.collectAsState()
-    var source by remember { mutableStateOf(testPattern(PANEL.viewWidth, PANEL.viewHeight)) }
-    var dither by remember { mutableStateOf<Dither>(Dither.FloydSteinberg) }
-    var loadError by remember { mutableStateOf<String?>(null) }
-    val view = remember(source, dither) { renderView(PANEL, source, dither) }
-    val preview = remember(view) { view.toPreviewBitmap(PANEL.viewWidth).asImageBitmap() }
+    val model: WriteViewModel = viewModel { WriteViewModel() }
+    val state by model.controller.state.collectAsState()
+    val dither by model.dither.collectAsState()
+    val view by model.view.collectAsState()
+    val loadError by model.loadError.collectAsState()
+    val panel = model.panel
+    val preview = remember(view) { view.toPreviewBitmap(panel.viewWidth).asImageBitmap() }
     val busy = state is WriteState.Writing
 
-    LaunchedEffect(tags) { tags.collect { controller.onTag(it) } }
+    LaunchedEffect(tags) { tags.collect(model::onTag) }
 
     val pickPhoto = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
-        if (uri != null) scope.launch {
-            runCatching { loadGrayImage(context, uri) }
-                .onSuccess { source = it; loadError = null; controller.cancel() }
-                .onFailure { loadError = "Couldn't open that image." }
-        }
+        if (uri != null) model.load(context, uri)
     }
 
     MaterialTheme {
@@ -92,7 +78,7 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String?, onSimulateTag: (() -> Unit)? 
                     bitmap = preview,
                     contentDescription = "Preview of the tag",
                     filterQuality = FilterQuality.None,
-                    modifier = Modifier.width(220.dp).aspectRatio(PANEL.viewWidth / PANEL.viewHeight.toFloat())
+                    modifier = Modifier.width(220.dp).aspectRatio(panel.viewWidth / panel.viewHeight.toFloat())
                         .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline)),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -103,10 +89,7 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String?, onSimulateTag: (() -> Unit)? 
                     FilterChip(
                         selected = dither == Dither.FloydSteinberg,
                         enabled = !busy,
-                        onClick = {
-                            dither = if (dither == Dither.FloydSteinberg) Dither.Threshold() else Dither.FloydSteinberg
-                            controller.cancel()
-                        },
+                        onClick = model::toggleDither,
                         label = { Text("Dither") },
                     )
                 }
@@ -115,8 +98,9 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String?, onSimulateTag: (() -> Unit)? 
 
                 WriteStatus(
                     state = state,
-                    onWrite = { controller.arm(packFrame(PANEL, view)) },
-                    onCancel = controller::cancel,
+                    canWrite = nfcProblem == null || onSimulateTag != null,
+                    onWrite = model::write,
+                    onCancel = model.controller::cancel,
                     onSimulateTag = onSimulateTag,
                 )
             }
@@ -125,16 +109,22 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String?, onSimulateTag: (() -> Unit)? 
 }
 
 @Composable
-private fun WriteStatus(state: WriteState, onWrite: () -> Unit, onCancel: () -> Unit, onSimulateTag: (() -> Unit)?) {
+private fun WriteStatus(
+    state: WriteState,
+    canWrite: Boolean,
+    onWrite: () -> Unit,
+    onCancel: () -> Unit,
+    onSimulateTag: (() -> Unit)?,
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         when (state) {
-            WriteState.Idle -> Button(onClick = onWrite) { Text("Write to tag") }
+            WriteState.Idle -> Button(enabled = canWrite, onClick = onWrite) { Text("Write to tag") }
             WriteState.Waiting -> {
-                Text("Hold the back of the phone against the tag and keep it still.")
+                Text("Hold the back of the phone against the tag and keep it still. If it's already there, lift it away and back.")
                 Row {
                     TextButton(onClick = onCancel) { Text("Cancel") }
                     onSimulateTag?.let { TextButton(onClick = it) { Text("Simulate a tag") } }

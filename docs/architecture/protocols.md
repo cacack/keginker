@@ -18,8 +18,10 @@ The write sequence:
 |---|---|
 | Init | `CD 0D` |
 | Select panel type | `CD 00 <type>` |
-| Power and config | `CD 01`…`CD 07`, with short delays |
-| Image data | `CD 08 <len> <bytes>`, repeated in chunks |
+| Power and config | `CD 01`, `CD 02`, `CD 03`, `CD 05`, `CD 06`, with short delays |
+| Prepare data | `CD 07 00` |
+| Image data | most panels: `CD 08 <len> <bytes>` chunks, then `CD 18` |
+| | **2.7":** `CD 18` first, then `CD 19 <len> <bytes>` chunks |
 | Refresh | `CD 09` |
 | Wait | poll `CD 0A` until the reply is `FF 00` |
 | Power off | `CD 04` |
@@ -33,7 +35,7 @@ The write sequence:
 |---|---|---|---|
 | 2.7" | 264 × 176 | `0x10` | 121 bytes |
 
-At 1 bpp a 2.7" frame is 5,808 bytes, which is 48 chunks.
+At 1 bpp a 2.7" frame is 5,808 bytes, which is 48 `CD 19` chunks.
 
 ## Good Display
 

@@ -9,7 +9,9 @@ Panels: 2.13", 2.7", 2.9", 2.9" B, 4.2", 7.5", 7.5" HD.
 
 - **Transport:** ISO 14443-3A raw frames (Android `NfcA`; iOS
   `NFCMiFareTag.sendMiFareCommand`). Not ISO-DEP.
-- **Detection:** reading page 0 returns `WSDZ10m`.
+- **Detection:** the 7-byte NFC-A UID is `WSDZ10m` in ASCII (Android
+  `Tag.id`, iOS `NFCMiFareTag.identifier`). Page 0 holds the UID split by a
+  check byte, so match the UID, not page 0.
 - **Commands:** `CD <cmd> [data]`. A successful reply is `00 00`.
 
 The write sequence:

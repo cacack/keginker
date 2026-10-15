@@ -25,7 +25,7 @@ fun App(tags: Flow<FoundTag>) {
     LaunchedEffect(tags) {
         tags.collect { tag ->
             status = when (tag) {
-                is FoundTag.Waveshare -> "Found a Waveshare tag."
+                is FoundTag.Waveshare -> "Found a Waveshare tag.".also { tag.transport.close() }
                 is FoundTag.Unsupported -> "Unsupported tag (UID ${tag.uid.toHex()})."
             }
         }

@@ -18,13 +18,17 @@ import kotlinx.coroutines.flow.SharedFlow
 class TagReader(private val adapter: NfcAdapter?) {
     private val found = MutableSharedFlow<FoundTag>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-    /** Tags as they're found, classified. */
+    /**
+     * Tags as they're found, classified. Not replayed: a tag found while
+     * nothing collects is dropped, since its transport may already be stale.
+     * Collectors own each Waveshare tag's transport.
+     */
     val tags: SharedFlow<FoundTag> = found
 
     /** Whether this device has NFC hardware at all. */
     val isSupported: Boolean get() = adapter != null
 
-    /** Whether NFC is switched on in system settings. */
+    /** Whether NFC is switched on in system settings; re-read in onResume. */
     val isEnabled: Boolean get() = adapter?.isEnabled == true
 
     /** Call from [Activity.onResume]. */
@@ -39,7 +43,7 @@ class TagReader(private val adapter: NfcAdapter?) {
 
     private fun onTagDiscovered(tag: Tag) {
         val nfcA = NfcA.get(tag) ?: return
-        found.tryEmit(classifyTag(tag.id, NfcATransport(nfcA)))
+        found.tryEmit(classifyTag(tag.id) { NfcATransport(nfcA) })
     }
 
     private companion object {

@@ -4,13 +4,16 @@ import io.github.cacack.tagpaper.waveshare.isWaveshareTag
 
 /** A tag the phone has just found, classified by protocol family. */
 sealed interface FoundTag {
-    /** A Waveshare classic tag, ready to write through [transport]. */
+    /** A Waveshare classic tag, ready to write through [transport], which the receiver must close. */
     class Waveshare(val transport: Transport) : FoundTag
 
     /** A tag no supported protocol recognises. [uid] identifies it in reports. */
     class Unsupported(val uid: ByteArray) : FoundTag
 }
 
-/** Classifies a tag by its NFC-A [uid] without sending it any command. */
-fun classifyTag(uid: ByteArray, transport: Transport): FoundTag =
-    if (isWaveshareTag(uid)) FoundTag.Waveshare(transport) else FoundTag.Unsupported(uid)
+/**
+ * Classifies a tag by its NFC-A [uid] without sending it any command.
+ * [openTransport] is called only for a supported tag.
+ */
+fun classifyTag(uid: ByteArray, openTransport: () -> Transport): FoundTag =
+    if (isWaveshareTag(uid)) FoundTag.Waveshare(openTransport()) else FoundTag.Unsupported(uid)

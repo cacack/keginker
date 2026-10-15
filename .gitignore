@@ -1,0 +1,15 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# direnv cache
+.direnv/
+
+# Add language-specific entries per repo (see https://www.toptal.com/developers/gitignore)

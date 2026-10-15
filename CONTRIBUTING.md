@@ -1,0 +1,30 @@
+# Contributing
+
+## Layout
+
+Kotlin Multiplatform with native UIs:
+
+- `sharedLogic/` — the shared core: panel definitions, image pipeline,
+  tag protocols. Most code and tests live here (`src/commonMain`,
+  `src/commonTest`).
+- `sharedUI/` — Android UI in Compose (Compose Multiplatform, Android target
+  only).
+- `androidApp/` — Android entry point.
+- `iosApp/` — Xcode project; SwiftUI UI. Its build phase runs Gradle to
+  compile `sharedLogic` into a framework.
+
+## Building and testing
+
+Requires JDK 21. iOS builds require macOS with Xcode.
+
+- Shared tests: `./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest`
+- iOS tests (macOS): `./gradlew :sharedLogic:iosSimulatorArm64Test`
+- Android debug APK: `./gradlew :androidApp:assembleDebug`
+- iOS app: open `iosApp/` in Xcode and run.
+
+CI runs all of the above on every pull request; the debug APK is attached to
+each run as an artifact.
+
+## Commits
+
+Conventional commits (`feat:`, `fix:`, `docs:`, `ci:` …).

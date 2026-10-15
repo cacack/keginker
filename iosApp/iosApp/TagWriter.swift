@@ -3,6 +3,7 @@ import SharedLogic
 
 /// Runs one write at a time over a Core NFC session: begin the session, wait
 /// for a tag, write the frame, and report progress in the system NFC sheet.
+/// Mirrors Android's `WriteController`; keep their behaviour in step.
 @MainActor
 final class TagWriter: NSObject, ObservableObject {
     enum State: Equatable {
@@ -13,22 +14,21 @@ final class TagWriter: NSObject, ObservableObject {
     }
 
     @Published private(set) var state: State = .idle
-    var crcMode: CrcMode = .auto
+    /// True from starting a write until both its session and its write have ended.
+    @Published private(set) var isBusy = false
+    @Published var crcMode: CrcMode = .auto
 
     let panel = WavesharePanel.epd2in7
     private var session: NFCTagReaderSession?
+    private var isRunning = false
     private var frame: KotlinByteArray?
 
     static var isNfcAvailable: Bool { NFCTagReaderSession.readingAvailable }
 
-    var isBusy: Bool {
-        if case .writing = state { return true }
-        return session != nil
-    }
-
     /// Opens the NFC sheet and writes [frame] to the first tag presented.
     func write(frame: KotlinByteArray) {
         guard !isBusy else { return }
+        isBusy = true
         self.frame = frame
         state = .idle
         session = NFCTagReaderSession(pollingOption: .iso14443, delegate: self, queue: .main)
@@ -39,25 +39,41 @@ final class TagWriter: NSObject, ObservableObject {
     /// Writes [frame] to a simulated tag that accepts everything. Debug and Simulator only.
     func simulate(frame: KotlinByteArray) {
         guard !isBusy else { return }
+        isBusy = true
         Task { await run(SimulatedWaveshareTransport(commandDelayMs: 20), frame: frame, session: nil) }
     }
 
     private func run(_ transport: Transport, frame: KotlinByteArray, session: NFCTagReaderSession?) async {
+        isRunning = true
         state = .writing(0)
-        defer { transport.close() }
         let writer = WaveshareWriter(transport: transport)
+        let result: State
         do {
-            let result = try await writer.write(panel: panel, frame: frame) { percent in
+            let outcome = try await writer.write(panel: panel, frame: frame) { percent in
                 Task { @MainActor in self.progress(percent.intValue, session: session) }
             }
-            if let failure = result as? WriteResultFailure {
-                finish(.failed(failure.userMessage), session: session)
+            if let failure = outcome as? WriteResultFailure {
+                result = .failed(failure.userMessage)
             } else {
-                finish(.done, session: session)
+                result = .done
             }
         } catch {
-            finish(.failed("The write failed unexpectedly: \(error.localizedDescription)"), session: session)
+            result = .failed("The write failed unexpectedly: \(error.localizedDescription)")
         }
+        transport.close()
+        isRunning = false
+        // The session may already have ended (sheet dismissed, timeout); that
+        // failure stands, and the stale result must not replace it.
+        if case .writing = state { state = result }
+        if let session {
+            if case let .failed(message) = state {
+                session.invalidate(errorMessage: message)
+            } else {
+                session.alertMessage = "Done."
+                session.invalidate()
+            }
+        }
+        settle()
     }
 
     private func progress(_ percent: Int, session: NFCTagReaderSession?) {
@@ -66,14 +82,9 @@ final class TagWriter: NSObject, ObservableObject {
         session?.alertMessage = "Writing \(percent)%. Keep the iPhone still."
     }
 
-    private func finish(_ result: State, session: NFCTagReaderSession?) {
-        state = result
-        if case let .failed(message) = result {
-            session?.invalidate(errorMessage: message)
-        } else {
-            session?.alertMessage = "Done."
-            session?.invalidate()
-        }
+    /// Clears [isBusy] once nothing is left running.
+    private func settle() {
+        if session == nil && !isRunning { isBusy = false }
     }
 
     private func fail(_ message: String, session: NFCTagReaderSession) {
@@ -87,8 +98,12 @@ final class TagWriter: NSObject, ObservableObject {
             session.restartPolling()
             return
         }
-        guard case let .miFare(miFare) = tag, let frame else {
-            fail("This tag isn't supported. tagpaper writes Waveshare NFC e-paper tags.", session: session)
+        guard let frame else {
+            fail("Nothing to write. Try again.", session: session)
+            return
+        }
+        guard case let .miFare(miFare) = tag else {
+            fail(WriteMessagesKt.UNSUPPORTED_TAG_MESSAGE, session: session)
             return
         }
         let crcMode = self.crcMode
@@ -96,7 +111,7 @@ final class TagWriter: NSObject, ObservableObject {
             MiFareTransport(tag: miFare, crcMode: crcMode)
         }
         guard let waveshare = classified as? FoundTagWaveshare else {
-            fail("This tag isn't supported. tagpaper writes Waveshare NFC e-paper tags.", session: session)
+            fail(WriteMessagesKt.UNSUPPORTED_TAG_MESSAGE, session: session)
             return
         }
         session.connect(to: tag) { error in
@@ -121,12 +136,14 @@ extension TagWriter: NFCTagReaderSessionDelegate {
 
     nonisolated func tagReaderSession(_ session: NFCTagReaderSession, didInvalidateWithError error: any Error) {
         MainActor.assumeIsolated {
+            guard session === self.session else { return }
             self.session = nil
             if case .writing = state {
                 state = .failed("The NFC session ended before the write finished. Try again and keep the iPhone still.")
             } else if case .idle = state, (error as? NFCReaderError)?.code != .readerSessionInvalidationErrorUserCanceled {
                 state = .failed(error.localizedDescription)
             }
+            settle()
         }
     }
 }

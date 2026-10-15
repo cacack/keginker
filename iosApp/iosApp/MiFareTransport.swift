@@ -11,7 +11,8 @@ enum CrcMode: String, CaseIterable, Identifiable {
 /// `Transport` over Core NFC's `NFCMiFareTag`: raw ISO 14443-3A frames.
 ///
 /// Core NFC has no per-command timeout, so `timeoutMs` is ignored and the
-/// session's own limits apply. Replies arrive on the session's queue.
+/// session's own limits apply. Commands are issued on the main queue, the
+/// session's queue, whichever thread Kotlin calls from.
 final class MiFareTransport: NSObject, Transport {
     private let tag: NFCMiFareTag
     let appendsCrc: Bool
@@ -34,11 +35,14 @@ final class MiFareTransport: NSObject, Transport {
         if appendsCrc {
             packet.append(SwiftInteropKt.nsData(bytes: CrcAKt.crcA(data: command)) as Data)
         }
-        tag.sendMiFareCommand(commandPacket: packet) { reply, error in
-            if let error {
-                completionHandler(nil, error)
-            } else {
-                completionHandler(SwiftInteropKt.kotlinBytes(data: reply), nil)
+        let tag = self.tag
+        DispatchQueue.main.async {
+            tag.sendMiFareCommand(commandPacket: packet) { reply, error in
+                if let error {
+                    completionHandler(nil, error)
+                } else {
+                    completionHandler(SwiftInteropKt.kotlinBytes(data: reply), nil)
+                }
             }
         }
     }

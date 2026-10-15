@@ -10,6 +10,9 @@ val WriteStep.activity: String get() = when (this) {
     WriteStep.POWER_OFF -> "finishing the write"
 }
 
+/** Shown when a tag isn't one tagpaper can write. */
+const val UNSUPPORTED_TAG_MESSAGE = "This tag isn't supported. tagpaper writes Waveshare NFC e-paper tags."
+
 /**
  * A short explanation for the user that says how to recover. Diagnostics
  * belong in [WriteResult.Failure.reason] and [WriteResult.Failure.cause].

@@ -1,16 +1,23 @@
+import ImageIO
 import SharedLogic
 import UIKit
 
 /// Longest side photos are decoded to; far more than any panel needs.
-private let maxSide: CGFloat = 1024
+private let maxSide = 1024
 
-/// Decodes image data into greyscale, upright and downsampled, then crops
-/// and scales it to [panel]'s view. Transparency is composited over white.
+/// Decodes image data into greyscale, upright and downsampled while
+/// decoding, then crops and scales it to [panel]'s view. Transparency is
+/// composited over white.
 func loadGrayImage(_ data: Data, panel: WavesharePanel) -> GrayImage? {
-    guard let image = UIImage(data: data), image.size.width > 0, image.size.height > 0 else { return nil }
-    let scale = min(1, maxSide / max(image.size.width, image.size.height))
-    let width = max(1, Int(image.size.width * scale))
-    let height = max(1, Int(image.size.height * scale))
+    let options = [
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        kCGImageSourceCreateThumbnailWithTransform: true,
+        kCGImageSourceThumbnailMaxPixelSize: maxSide,
+    ] as CFDictionary
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+          let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else { return nil }
+    let width = image.width
+    let height = image.height
 
     var pixels = [UInt8](repeating: 255, count: width * height)
     let drawn: Bool = pixels.withUnsafeMutableBytes { buffer in
@@ -18,12 +25,7 @@ func loadGrayImage(_ data: Data, panel: WavesharePanel) -> GrayImage? {
             data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
             space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue
         ) else { return false }
-        // UIKit drawing applies the image's orientation; flip into its coordinate space.
-        context.translateBy(x: 0, y: CGFloat(height))
-        context.scaleBy(x: 1, y: -1)
-        UIGraphicsPushContext(context)
-        image.draw(in: CGRect(x: 0, y: 0, width: width, height: height))
-        UIGraphicsPopContext()
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
         return true
     }
     guard drawn else { return nil }

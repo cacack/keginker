@@ -3,6 +3,7 @@ package io.github.cacack.tagpaper
 import io.github.cacack.tagpaper.nfc.FoundTag
 import io.github.cacack.tagpaper.waveshare.WaveshareWriter
 import io.github.cacack.tagpaper.waveshare.WavesharePanel
+import io.github.cacack.tagpaper.waveshare.UNSUPPORTED_TAG_MESSAGE
 import io.github.cacack.tagpaper.waveshare.WriteResult
 import io.github.cacack.tagpaper.waveshare.userMessage
 import kotlin.coroutines.cancellation.CancellationException
@@ -61,8 +62,7 @@ class WriteController(
             return
         }
         when (tag) {
-            is FoundTag.Unsupported -> mutableState.value =
-                WriteState.Failed("This tag isn't supported. tagpaper writes Waveshare NFC e-paper tags.")
+            is FoundTag.Unsupported -> mutableState.value = WriteState.Failed(UNSUPPORTED_TAG_MESSAGE)
             is FoundTag.Waveshare -> {
                 mutableState.value = WriteState.Writing(0)
                 mutableState.value = try {

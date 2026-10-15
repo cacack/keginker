@@ -9,6 +9,9 @@ struct ContentView: View {
     @State private var source: GrayImage?
     @State private var dither = true
     @State private var view: KotlinBooleanArray?
+    /// The preview, built once per render; body re-evaluates on every progress tick.
+    @State private var previewCGImage: CGImage?
+    @State private var loading: Task<Void, Never>?
     @State private var pickerItem: PhotosPickerItem?
     @State private var loadError: String?
 
@@ -46,7 +49,7 @@ struct ContentView: View {
     }
 
     @ViewBuilder private var preview: some View {
-        if let view, let image = previewImage(view, width: Int(panel.viewWidth)) {
+        if let image = previewCGImage {
             Image(decorative: image, scale: 1)
                 .resizable()
                 .interpolation(.none)
@@ -95,15 +98,20 @@ struct ContentView: View {
     private func render() {
         let image = source ?? TestPatternKt.testPattern(width: panel.viewWidth, height: panel.viewHeight)
         let method: Dither = dither ? DitherFloydSteinberg.shared : DitherThreshold(level: 128)
-        view = WaveshareFrameKt.renderView(panel: panel, image: image, dither: method)
+        let rendered = WaveshareFrameKt.renderView(panel: panel, image: image, dither: method)
+        view = rendered
+        previewCGImage = previewImage(rendered, width: Int(panel.viewWidth))
     }
 
     private func load(_ item: PhotosPickerItem?) {
         guard let item else { return }
+        pickerItem = nil
         let panel = self.panel
-        Task {
+        loading?.cancel()
+        loading = Task {
             let data = try? await item.loadTransferable(type: Data.self)
             let image = await Task.detached { data.flatMap { loadGrayImage($0, panel: panel) } }.value
+            guard !Task.isCancelled else { return }
             if let image {
                 source = image
                 loadError = nil

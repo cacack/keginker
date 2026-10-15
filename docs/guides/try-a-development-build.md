@@ -33,5 +33,6 @@ source on a Mac with Xcode:
 2. Open `iosApp/iosApp.xcodeproj`, choose your iPhone, and run.
 
 The Simulator has no NFC; debug builds there write to a simulated tag
-instead. Debug builds also show a **CRC** switch for testing how commands
-are framed (see #10).
+instead. Debug builds also show a **CRC** switch, which chooses whether
+commands carry an NFC checksum; which framing Waveshare tags need on iPhone
+is still being tested.

@@ -50,6 +50,7 @@ class WaveshareWriter(
      *
      * [onProgress] receives 0–100 and never decreases.
      */
+    @Throws(Exception::class)
     suspend fun write(
         panel: WavesharePanel,
         frame: ByteArray,

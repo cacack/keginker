@@ -41,6 +41,11 @@ class TagReader(private val adapter: NfcAdapter?) {
         adapter?.disableReaderMode(activity)
     }
 
+    /** Pretends a Waveshare tag was found, for trying the flow without one. */
+    fun simulateWaveshareTag() {
+        found.tryEmit(FoundTag.Waveshare(SimulatedWaveshareTransport()))
+    }
+
     private fun onTagDiscovered(tag: Tag) {
         val nfcA = NfcA.get(tag) ?: return
         found.tryEmit(classifyTag(tag.id) { NfcATransport(nfcA) })

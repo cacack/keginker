@@ -19,7 +19,8 @@ Debug builds from different machines are signed with different keys. Android
 won't install one over another; it fails with
 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Uninstall the existing app first.
 
-NFC writes need a real phone. The Android emulator has no NFC.
+NFC writes need a real phone. The Android emulator has no NFC, but debug
+builds offer **Simulate a tag** after **Write to tag** to try the flow.
 
 ## iOS
 

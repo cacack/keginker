@@ -14,8 +14,10 @@ import kotlinx.coroutines.flow.SharedFlow
  * Reader mode hands every NFC-A tag to tagpaper and stops Android from
  * dispatching it elsewhere, so a Waveshare tag's launcher record doesn't open
  * the vendor app.
+ *
+ * [debug] enables exchange logging and [simulateWaveshareTag].
  */
-class TagReader(private val adapter: NfcAdapter?) {
+class TagReader(private val adapter: NfcAdapter?, private val debug: Boolean) {
     private val found = MutableSharedFlow<FoundTag>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     /**
@@ -41,9 +43,15 @@ class TagReader(private val adapter: NfcAdapter?) {
         adapter?.disableReaderMode(activity)
     }
 
+    /** Pretends a Waveshare tag was found, for trying the flow without one. Debug only. */
+    fun simulateWaveshareTag() {
+        check(debug) { "Tag simulation is only available in debug builds" }
+        found.tryEmit(FoundTag.Waveshare(SimulatedWaveshareTransport()))
+    }
+
     private fun onTagDiscovered(tag: Tag) {
         val nfcA = NfcA.get(tag) ?: return
-        found.tryEmit(classifyTag(tag.id) { NfcATransport(nfcA) })
+        found.tryEmit(classifyTag(tag.id) { NfcATransport(nfcA, logExchanges = debug) })
     }
 
     private companion object {

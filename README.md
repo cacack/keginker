@@ -1,13 +1,26 @@
-# repo-template
+# tagpaper
 
-Internal template repository seeding new repos with baseline config:
+An open-source Android and iOS app for writing images to battery-free NFC
+e-paper tags. Pick an image, preview it dithered for your panel, tap your
+phone to the tag, and the image stays after you walk away.
 
-- `.github/dependabot.yml` — weekly GitHub Actions updates with `ci(deps)` commit prefix
-- `.editorconfig` — universal whitespace defaults
-- `.gitignore` — OS/editor noise (add language-specific entries per repo)
-- `LICENSE` — MIT (change per repo if needed)
+Built first for keg tap-handle labels on Waveshare's 2.7" NFC-powered
+e-paper, with the goal of supporting as many NFC e-paper displays as
+possible.
 
-Used by the GitHub Terraform module at
-[`home/git-repositories`](https://gitlab.com/home109/git-repositories) when
-new repos opt in via `from_template = true`. This file is replaced when a
-new repo is created from this template.
+## Principles
+
+- **Reliable writes.** Generous timeouts, clear progress, a completion check
+  and clean retry.
+- **Native feel.** SwiftUI on iOS and Jetpack Compose on Android, over a
+  shared Kotlin Multiplatform core.
+- **Minimal permissions.** NFC and the photo picker. No network, accounts
+  or telemetry.
+
+## Status
+
+Early development. Nothing to install yet.
+
+## License
+
+[Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for attributions.

@@ -19,7 +19,17 @@ possible.
 
 ## Status
 
-Early development. Nothing to install yet.
+Early development. See [USAGE.md](USAGE.md) for supported displays and how to
+try a development build.
+
+## Documentation
+
+- [CONSTITUTION.md](CONSTITUTION.md): mission, principles, non-goals
+- [CONTRIBUTING.md](CONTRIBUTING.md): building, testing, layout
+- [docs/architecture/](docs/architecture/): design and tag protocols
+- [docs/decisions/](docs/decisions/): decision records
+- [docs/guides/](docs/guides/): how-tos
+- [docs/operations/](docs/operations/): CI
 
 ## License
 

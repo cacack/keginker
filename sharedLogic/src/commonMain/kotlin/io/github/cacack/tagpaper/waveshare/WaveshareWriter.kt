@@ -41,12 +41,16 @@ class WaveshareWriter(
     private val transport: Transport,
     private val pause: suspend (Long) -> Unit = { delay(it) },
 ) {
+    /** For Swift, which can't supply the suspending [pause]. */
+    constructor(transport: Transport) : this(transport, { delay(it) })
+
     /**
      * Writes [frame] (1 bit per pixel, already rotated and packed for [panel]).
      * Succeeds only once the tag confirms the refresh has completed.
      *
      * [onProgress] receives 0–100 and never decreases.
      */
+    @Throws(Exception::class)
     suspend fun write(
         panel: WavesharePanel,
         frame: ByteArray,

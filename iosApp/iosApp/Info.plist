@@ -4,5 +4,7 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NFCReaderUsageDescription</key>
+	<string>tagpaper writes images to NFC e-paper tags.</string>
 </dict>
 </plist>

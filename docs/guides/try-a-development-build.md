@@ -24,4 +24,14 @@ builds offer **Simulate a tag** after **Write to tag** to try the flow.
 
 ## iOS
 
-Not yet available. iOS builds will be distributed through TestFlight.
+iOS builds will be distributed through TestFlight. Until then, build from
+source on a Mac with Xcode:
+
+1. Set `TEAM_ID` in `iosApp/Configuration/Config.xcconfig` to your Apple
+   Developer team. Writing tags needs the NFC Tag Reading capability, which
+   requires a paid Apple Developer Program membership.
+2. Open `iosApp/iosApp.xcodeproj`, choose your iPhone, and run.
+
+The Simulator has no NFC; debug builds there write to a simulated tag
+instead. Debug builds also show a **CRC** switch for testing how commands
+are framed (see #10).

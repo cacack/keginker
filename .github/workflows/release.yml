@@ -1,0 +1,121 @@
+name: Release
+
+# Pushing a tag vMAJOR.MINOR.PATCH (optionally -suffix) publishes a GitHub
+# Release with an APK signed by the release key. See docs/operations/signing.md.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # Only reviewed code gets the release key and a public release.
+      - name: Require the tag to be on main
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag '$GITHUB_REF_NAME' points at a commit that isn't on main"
+            exit 1
+          fi
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: zulu
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      # versionCode = ((MAJOR*100 + MINOR)*100 + PATCH)*100 + slot, where the
+      # slot orders pre-releases below the final release: alpha.N = N,
+      # beta.N = 32+N, rc.N = 64+N (N 1-31), final = 99.
+      - name: Read version from tag
+        id: version
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-(alpha|beta|rc)\.([0-9]+))?$ ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' isn't vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-(alpha|beta|rc).N"
+            exit 1
+          fi
+          major=$((10#${BASH_REMATCH[1]})) minor=$((10#${BASH_REMATCH[2]})) patch=$((10#${BASH_REMATCH[3]}))
+          stage=${BASH_REMATCH[5]} n=${BASH_REMATCH[6]:+$((10#${BASH_REMATCH[6]}))}
+          if (( major > 213 || minor > 99 || patch > 99 )); then
+            echo "::error::MAJOR must be 0-213 and MINOR, PATCH 0-99 to fit the version code"
+            exit 1
+          fi
+          case "$stage" in
+            "") slot=99 ;;
+            alpha) slot=$n ;;
+            beta) slot=$(( 32 + n )) ;;
+            rc) slot=$(( 64 + n )) ;;
+          esac
+          if [[ -n "$stage" ]] && (( n < 1 || n > 31 )); then
+            echo "::error::Pre-release number must be 1-31"
+            exit 1
+          fi
+          code=$(( ((major * 100 + minor) * 100 + patch) * 100 + slot ))
+          if (( code <= 1 )); then
+            echo "::error::Version code $code wouldn't be above dev builds (1)"
+            exit 1
+          fi
+          {
+            echo "name=${GITHUB_REF_NAME#v}"
+            echo "code=$code"
+            echo "prerelease=$([[ -n "$stage" ]] && echo true || echo false)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Decode release key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 isn't set; releases must be signed"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+
+      - name: Test and build
+        env:
+          TAGPAPER_KEYSTORE: ${{ runner.temp }}/release.jks
+          TAGPAPER_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          TAGPAPER_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          TAGPAPER_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          ./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest :androidApp:assembleRelease \
+            -Ptagpaper.versionName="$VERSION_NAME" -Ptagpaper.versionCode="$VERSION_CODE"
+
+      - name: Verify signature and package
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+        run: |
+          # Gradle names the APK -unsigned.apk when no key is configured, so
+          # this path also fails fast on an unsigned build.
+          apk=androidApp/build/outputs/apk/release/androidApp-release.apk
+          # The newest installed build-tools.
+          apksigner="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 | sort -V | tail -1)/apksigner"
+          "$apksigner" verify --print-certs "$apk"
+          mkdir dist
+          cp "$apk" "dist/tagpaper-$VERSION_NAME.apk"
+          (cd dist && sha256sum "tagpaper-$VERSION_NAME.apk" > "tagpaper-$VERSION_NAME.apk.sha256")
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          flags=(--title "tagpaper $VERSION_NAME" --generate-notes --verify-tag)
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" dist/* "${flags[@]}"

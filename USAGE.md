@@ -29,6 +29,8 @@ Android debug builds log every command: `adb logcat -s tagpaper-nfc`.
 
 ## Trying a development build
 
-Android development builds are produced by CI on every change. See
+Android APKs are published on
+[Releases](https://github.com/cacack/tagpaper/releases), and CI builds one on
+every change. See
 [docs/guides/try-a-development-build.md](docs/guides/try-a-development-build.md).
 iOS builds will be distributed through TestFlight once available.

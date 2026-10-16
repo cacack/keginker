@@ -2,7 +2,16 @@
 
 ## Android
 
-Every push and pull request builds a debug APK in CI.
+The easiest way is a release: download `tagpaper-X.Y.Z.apk` from
+[Releases](https://github.com/cacack/tagpaper/releases), open it on the
+phone, and allow installs from that source. No GitHub account is needed.
+Early releases are marked as pre-releases. To get updates automatically,
+add `https://github.com/cacack/tagpaper` to
+[Obtainium](https://github.com/ImranR98/Obtainium), with pre-releases
+turned on.
+
+For the latest unreleased change, every push and pull request also builds a
+debug APK in CI:
 
 1. Download the APK from the latest successful run on `main`. Either open the
    [Actions tab](https://github.com/cacack/tagpaper/actions/workflows/ci.yml)
@@ -15,9 +24,14 @@ Every push and pull request builds a debug APK in CI.
 2. Install it on a phone (`adb install androidApp-debug.apk`, or open the file
    on the device and allow installs from that source).
 
-Debug builds from different machines are signed with different keys. Android
-won't install one over another; it fails with
-`INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Uninstall the existing app first.
+CI artifacts need a GitHub login and are kept for 14 days.
+
+Releases, CI builds on `main` and maintainers' local builds share one key, so
+they install over each other. Builds signed with another key, such as your
+own local build or any pull request's artifact, fail to install with
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE`. So does going from a release back to a
+dev build, which Android treats as a downgrade. Uninstall first in either
+case. See [signing.md](../operations/signing.md).
 
 NFC writes need a real phone. The Android emulator has no NFC, but debug
 builds offer **Simulate a tag** after **Write to tag** to try the flow.

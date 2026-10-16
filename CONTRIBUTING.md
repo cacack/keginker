@@ -25,6 +25,9 @@ Requires JDK 21. iOS builds require macOS with Xcode.
 CI runs all of the above on every pull request; the debug APK is attached to
 each run as an artifact.
 
+Local builds use the default debug key unless you have the release key; see
+[docs/operations/signing.md](docs/operations/signing.md).
+
 ## Commits
 
 Conventional commits (`feat:`, `fix:`, `docs:`, `ci:` …).

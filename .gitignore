@@ -32,3 +32,6 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Per-developer Xcode settings (signing team)
+iosApp/Configuration/Local.xcconfig

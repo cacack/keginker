@@ -11,8 +11,9 @@ import kotlinx.coroutines.withContext
  * [Transport] over one Android tag technology: [forNfcA] for raw ISO 14443-3A
  * frames, [forIsoDep] for ISO-DEP APDUs (replies include the status word).
  *
- * Connects on first use and applies each command's timeout, so slow steps
- * such as a panel refresh aren't cut short. I/O never runs on the main thread,
+ * Connects on first use and applies each command's timeout, clamped to the
+ * 1..Int.MAX_VALUE ms the tag technology accepts, so slow steps such as a
+ * panel refresh aren't cut short. I/O never runs on the main thread,
  * and calls from all instances are serialized, since only one tag is in the
  * field at a time. With [logExchanges] (debug builds only, as frames carry the
  * user's image), every exchange is logged under the `keginker-nfc` tag.

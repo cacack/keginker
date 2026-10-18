@@ -17,14 +17,16 @@ package io.github.cacack.keginker.nfc
  * - **Timeouts.** Where the platform has a per-command timeout, `timeoutMs`
  *   is applied before the command is sent; elsewhere the platform's own
  *   limits apply.
- * - **One at a time.** Commands never overlap on the tag, whichever thread
- *   or instance they come from.
+ * - **One at a time.** Commands never overlap on the tag. Callers await each
+ *   reply before sending the next command; a transport may also serialize
+ *   calls itself, as Android's does across instances.
  * - **Closing.** Whoever receives a transport owns it and must [close] it
  *   when done, which releases the tag connection. [close] never throws and
  *   may be called more than once.
  *
- * Each platform's transport tests check these clauses against a fake of its
- * NFC API.
+ * Each platform's transport tests check the clauses its transport enforces
+ * against a fake of its NFC API. Threading and timeout clamping differ by
+ * platform; each transport's own KDoc states them, and its tests check them.
  */
 interface Transport : AutoCloseable {
     /** Throws if the exchange fails, including when the tag leaves the field. */

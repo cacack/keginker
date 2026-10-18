@@ -50,8 +50,9 @@ lists which boards have one.
 
 Every implementation keeps the contract stated in `Transport`'s KDoc: reply
 format, failures, framing, timeouts, one command at a time, and closing. Each
-platform's transport tests check it against a fake of its NFC API
-(`androidApp/src/test`, `iosApp/iosAppTests`).
+platform's transport tests check the clauses its transport enforces, plus its
+own threading rules, against a fake of its NFC API (`androidApp/src/test`,
+`iosApp/iosAppTests`).
 
 ## Constraints that shape the design
 

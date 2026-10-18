@@ -19,8 +19,9 @@ You need a debug build and a tag. See
 1. Start capturing the log:
    - **Android:** `adb logcat -c && adb logcat -v raw -s keginker-nfc`
    - **iPhone:** run the app from Xcode and watch its debug console, filtered
-     to the `nfc` category (or Console.app, subsystem
-     `io.github.cacack.keginker`).
+     to the `nfc` category. Console.app also works (subsystem
+     `io.github.cacack.keginker`) with **Action > Include Debug Messages**
+     turned on, since the exchanges are logged at debug level.
 2. Open the app fresh. Leave the test pattern and Dither as they are.
 3. Tap **Write to tag** and hold the phone to the tag until it says **Done**.
 4. Copy the log lines of that one successful write. If you retried, keep only
@@ -53,6 +54,8 @@ Write the recording in this format:
 - Other `#` lines are comments. Blank lines are ignored.
 - Keep only `>` and `<` lines from the log, in order. The test rejects any
   other line, so leave out lines like `Connected` or `Write succeeded`.
+- Each line is just the message text, starting with `>` or `<`. Remove any
+  timestamp, process or category columns your log viewer adds.
 
 Save it as a raw string in a new file in
 `sharedLogic/src/commonTest/kotlin/io/github/cacack/keginker/replay/`, named

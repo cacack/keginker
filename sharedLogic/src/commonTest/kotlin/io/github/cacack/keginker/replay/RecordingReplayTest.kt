@@ -30,14 +30,21 @@ private suspend fun assertReplaysToSuccess(recording: Recording) {
     assertTrue(replay.finished, "Write ended before the recording did: ${recording.notes}")
 }
 
-/** The bytes written to black/white RAM: the data APDUs after selecting register `0x24`. */
+// The Rev2.2 wire format, written out independently of the writer so the test checks it.
+private const val SELECT_BLACK_WHITE_RAM = "74 99 00 0d 01 24"
+private const val WRITE_DATA = "74 9a 00 0e"
+
+/** Bytes before the data in a [WRITE_DATA] APDU: `CLA INS P1 P2 Lc`. */
+private const val WRITE_DATA_HEADER = 5
+
+/** The bytes written to black/white RAM: the data APDUs after [SELECT_BLACK_WHITE_RAM]. */
 private fun imageBytes(recording: Recording): ByteArray {
     val commands = recording.exchanges.map { it.command }
-    val start = commands.indexOfFirst { it.hex() == "74 99 00 0d 01 24" } + 1
+    val start = commands.indexOfFirst { it.hex() == SELECT_BLACK_WHITE_RAM } + 1
     assertTrue(start > 0, "Recording never selects black/white RAM")
     return commands.drop(start)
-        .takeWhile { it.hex().startsWith("74 9a 00 0e") }
-        .fold(ByteArray(0)) { image, apdu -> image + apdu.copyOfRange(5, apdu.size) }
+        .takeWhile { it.hex().startsWith(WRITE_DATA) }
+        .fold(ByteArray(0)) { image, apdu -> image + apdu.copyOfRange(WRITE_DATA_HEADER, apdu.size) }
 }
 
 private fun assertCarriesTheTestPattern(recording: Recording) =
@@ -58,7 +65,7 @@ private suspend fun transcriptOfFakeWrite(): String {
             return reply
         }
     }
-    WaveshareIsoDepWriter(fake, pause = {}).write(PANEL, testPatternFrame())
+    assertEquals(WriteResult.Success, WaveshareIsoDepWriter(fake, pause = {}).write(PANEL, testPatternFrame()))
     return lines.joinToString("\n")
 }
 
@@ -74,7 +81,7 @@ class RecordingReplayTest {
     }
 
     @Test
-    fun checksPassForATranscriptOfTheWriter() = runTest {
+    fun checksPassForATranscriptOfTheWriterMadeInTest() = runTest {
         val recording = parseRecording(transcriptOfFakeWrite())
 
         assertReplaysToSuccess(recording)
@@ -84,7 +91,8 @@ class RecordingReplayTest {
     @Test
     fun aDifferentImageFailsTheChecks() = runTest {
         val lines = transcriptOfFakeWrite().lines().toMutableList()
-        val chunk = lines.indexOfFirst { it.startsWith("> 74 9a 00 0e fa") }
+        val chunk = lines.indexOf("> $SELECT_BLACK_WHITE_RAM") + 2
+        assertTrue(lines[chunk].startsWith("> $WRITE_DATA"), lines[chunk])
         lines[chunk] = lines[chunk].dropLast(2) + if (lines[chunk].endsWith("00")) "01" else "00"
         val recording = parseRecording(lines.joinToString("\n"))
 

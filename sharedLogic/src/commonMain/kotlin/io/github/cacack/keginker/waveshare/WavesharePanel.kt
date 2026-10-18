@@ -35,6 +35,7 @@ enum class WavesharePanel(
     init {
         require(width % 8 == 0) { "Memory rows must be whole bytes" }
         require(controllerRows >= viewHeight) { "The controller must hold every visible row" }
+        require(frameSize % chunkSize == 0) { "A frame must split into whole chunks" }
     }
 
     /** Width of the image as viewed, in pixels. */

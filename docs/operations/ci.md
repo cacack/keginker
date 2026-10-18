@@ -6,7 +6,7 @@ pull request and every push to `main`.
 
 | Job | Runner | What it does |
 |---|---|---|
-| Shared tests | ubuntu | `:sharedLogic` and `:sharedUI` Android host tests (JVM) |
+| Shared tests | ubuntu | `:sharedLogic` and `:sharedUI` Android host tests (JVM), including Robolectric Compose tests of the Android screens |
 | Android APK | ubuntu | `:androidApp:testDebugUnitTest`, then `:androidApp:assembleDebug`, signed with the release key on pushes to `main` (pull requests use the debug key); uploads `keginker-debug-apk` (kept 14 days) |
 | iOS build | macos | `:sharedLogic:iosSimulatorArm64Test`, then an unsigned simulator build of `iosApp`, then its XCTest target (`iosAppTests`) on any available iPhone simulator, then fails if it declares any permission beyond NFC ([constitution](../../CONSTITUTION.md) C4) |
 | CI Success | ubuntu | Gate: fails if any job above failed or was cancelled |

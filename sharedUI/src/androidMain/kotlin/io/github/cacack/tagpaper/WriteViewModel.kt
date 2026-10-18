@@ -10,7 +10,6 @@ import io.github.cacack.tagpaper.image.fill
 import io.github.cacack.tagpaper.image.testPattern
 import io.github.cacack.tagpaper.nfc.FoundTag
 import io.github.cacack.tagpaper.waveshare.WavesharePanel
-import io.github.cacack.tagpaper.waveshare.packFrame
 import io.github.cacack.tagpaper.waveshare.renderView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,7 +41,7 @@ class WriteViewModel : ViewModel() {
         viewModelScope.launch { controller.onTag(tag) }
     }
 
-    fun write() = controller.arm(packFrame(panel, view.value))
+    fun write() = controller.arm(view.value)
 
     fun toggleDither() {
         mutableDither.value = if (mutableDither.value == Dither.FloydSteinberg) Dither.Threshold() else Dither.FloydSteinberg

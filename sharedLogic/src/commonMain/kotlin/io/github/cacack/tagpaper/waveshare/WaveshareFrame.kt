@@ -26,13 +26,11 @@ fun renderView(panel: WavesharePanel, image: GrayImage, dither: Dither = Dither.
 
 /**
  * Rotates a black/white view-orientation image (row-major, [WavesharePanel.viewWidth]
- * wide) into the panel's memory layout and packs it: rows of the memory image,
- * 8 pixels per byte, most significant bit first, 1 = white.
+ * wide) into the classic tag's memory layout and packs it: rows of the memory
+ * image, 8 pixels per byte, most significant bit first, 1 = white.
  */
 fun packFrame(panel: WavesharePanel, white: BooleanArray): ByteArray {
-    require(white.size == panel.viewWidth * panel.viewHeight) {
-        "Expected ${panel.viewWidth}×${panel.viewHeight} pixels, got ${white.size}"
-    }
+    requireViewSize(panel, white)
     val bytesPerRow = panel.width / 8
     val frame = ByteArray(panel.frameSize)
     for (y in 0 until panel.height) {
@@ -48,4 +46,30 @@ fun packFrame(panel: WavesharePanel, white: BooleanArray): ByteArray {
         }
     }
     return frame
+}
+
+/**
+ * Packs a black/white view-orientation image for a Rev2.2 board, which writes
+ * straight into the panel controller's RAM: rows of [WavesharePanel.viewWidth]
+ * pixels, 8 per byte, most significant bit first, 1 = white.
+ *
+ * The frame covers every controller row and is written from the highest
+ * address down. The panel shows only the highest [WavesharePanel.viewHeight]
+ * addresses (32–295 on the 2.7"), highest at the bottom, with RAM column 0 at
+ * the right edge. So the view goes first, turned 180°, landing on the visible
+ * rows; white rows fill the hidden low addresses. Measured on a 2.7" Rev2.2 board.
+ */
+fun packControllerFrame(panel: WavesharePanel, white: BooleanArray): ByteArray {
+    requireViewSize(panel, white)
+    val frame = ByteArray(panel.controllerFrameSize) { 0xFF.toByte() }
+    for (i in white.indices) {
+        if (!white[white.size - 1 - i]) frame[i / 8] = (frame[i / 8].toInt() and (0x80 ushr (i % 8)).inv()).toByte()
+    }
+    return frame
+}
+
+private fun requireViewSize(panel: WavesharePanel, white: BooleanArray) {
+    require(white.size == panel.viewWidth * panel.viewHeight) {
+        "Expected ${panel.viewWidth}×${panel.viewHeight} pixels, got ${white.size}"
+    }
 }

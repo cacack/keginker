@@ -3,6 +3,7 @@ package io.github.cacack.tagpaper.nfc
 import android.app.Activity
 import android.nfc.NfcAdapter
 import android.nfc.Tag
+import android.nfc.tech.IsoDep
 import android.nfc.tech.NfcA
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -50,8 +51,17 @@ class TagReader(private val adapter: NfcAdapter?, private val debug: Boolean) {
     }
 
     private fun onTagDiscovered(tag: Tag) {
-        val nfcA = NfcA.get(tag) ?: return
-        found.tryEmit(classifyTag(tag.id) { NfcATransport(nfcA, logExchanges = debug) })
+        // ISO-DEP tags (Waveshare Rev2.2) also expose NfcA, so check ISO-DEP first.
+        val isoDep = IsoDep.get(tag)
+        val classified = if (isoDep != null) {
+            classifyIsoDepTag(tag.id, isoDep.historicalBytes ?: ByteArray(0)) {
+                NfcTransport.forIsoDep(isoDep, logExchanges = debug)
+            }
+        } else {
+            val nfcA = NfcA.get(tag) ?: return
+            classifyNfcATag(tag.id) { NfcTransport.forNfcA(nfcA, logExchanges = debug) }
+        }
+        found.tryEmit(classified)
     }
 
     private companion object {

@@ -1,8 +1,8 @@
 package io.github.cacack.tagpaper
 
 import io.github.cacack.tagpaper.nfc.FoundTag
+import io.github.cacack.tagpaper.nfc.ImageWriter
 import io.github.cacack.tagpaper.nfc.Transport
-import io.github.cacack.tagpaper.waveshare.WaveshareWriter
 import io.github.cacack.tagpaper.waveshare.WavesharePanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,9 +29,42 @@ private class FakeTag(private val failAfter: Int = Int.MAX_VALUE) : Transport {
     }
 }
 
-private fun controller() = WriteController(PANEL) { WaveshareWriter(it.transport, pause = {}) }
+/** A Rev2.2 tag: every APDU answers `90 00`, and the busy poll says idle. */
+private class FakeIsoDepTag : Transport {
+    val sent = mutableListOf<ByteArray>()
+    var closed = false
+
+    override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+        sent += command
+        val busyPoll = command[1] == 0x9B.toByte()
+        return if (busyPoll) byteArrayOf(0x00, 0x90.toByte(), 0x00) else byteArrayOf(0x90.toByte(), 0x00)
+    }
+
+    override fun close() {
+        closed = true
+    }
+}
+
+private fun testView() = BooleanArray(PANEL.viewWidth * PANEL.viewHeight) { true }
+
+private fun controller() = WriteController(PANEL, ImageWriter(pause = {}))
 
 class WriteControllerTest {
+    @Test
+    fun rev22TagIsWrittenWithItsOwnProtocol() = runTest {
+        val tag = FakeIsoDepTag()
+        val controller = controller()
+        controller.arm(testView())
+
+        controller.onTag(FoundTag.WaveshareIsoDep(tag))
+
+        assertEquals(WriteState.Done, controller.state.value)
+        // The Rev2.2 sequence starts by unlocking the chip.
+        assertEquals(0xB1.toByte(), tag.sent.first()[1])
+        assertTrue(tag.sent.all { it[0] == 0x74.toByte() })
+        assertTrue(tag.closed)
+    }
+
     @Test
     fun ignoresTagsUntilArmed() = runTest {
         val tag = FakeTag()
@@ -49,7 +82,7 @@ class WriteControllerTest {
         val tag = FakeTag()
         val controller = controller()
 
-        controller.arm(ByteArray(PANEL.frameSize))
+        controller.arm(testView())
         controller.onTag(FoundTag.Waveshare(tag))
 
         assertEquals(WriteState.Done, controller.state.value)
@@ -59,7 +92,7 @@ class WriteControllerTest {
     @Test
     fun lostTagFailsWithStepAndRetrySucceeds() = runTest {
         val controller = controller()
-        controller.arm(ByteArray(PANEL.frameSize))
+        controller.arm(testView())
 
         // 9 setup commands precede the 48 data chunks, so command 20 is mid-image.
         controller.onTag(FoundTag.Waveshare(FakeTag(failAfter = 20)))
@@ -67,7 +100,7 @@ class WriteControllerTest {
         val failed = assertIs<WriteState.Failed>(controller.state.value)
         assertTrue("sending the image" in failed.message, failed.message)
 
-        controller.arm(ByteArray(PANEL.frameSize))
+        controller.arm(testView())
         controller.onTag(FoundTag.Waveshare(FakeTag()))
 
         assertEquals(WriteState.Done, controller.state.value)
@@ -76,7 +109,7 @@ class WriteControllerTest {
     @Test
     fun unsupportedTagFailsWithoutWriting() = runTest {
         val controller = controller()
-        controller.arm(ByteArray(PANEL.frameSize))
+        controller.arm(testView())
 
         controller.onTag(FoundTag.Unsupported(byteArrayOf(4, 1, 2, 3, 4, 5, 6)))
 
@@ -87,7 +120,7 @@ class WriteControllerTest {
     @Test
     fun aSecondTagAfterSuccessIsIgnored() = runTest {
         val controller = controller()
-        controller.arm(ByteArray(PANEL.frameSize))
+        controller.arm(testView())
         controller.onTag(FoundTag.Waveshare(FakeTag()))
         val second = FakeTag()
 
@@ -101,7 +134,7 @@ class WriteControllerTest {
     @Test
     fun cancelReturnsToIdleAndIgnoresLaterTags() = runTest {
         val controller = controller()
-        controller.arm(ByteArray(PANEL.frameSize))
+        controller.arm(testView())
         val tag = FakeTag()
 
         controller.cancel()
@@ -113,8 +146,8 @@ class WriteControllerTest {
 
     @Test
     fun cancelledWriteIsReportedAsFailed() = runTest {
-        val controller = WriteController(PANEL) { WaveshareWriter(it.transport, pause = { kotlinx.coroutines.awaitCancellation() }) }
-        controller.arm(ByteArray(PANEL.frameSize))
+        val controller = WriteController(PANEL, ImageWriter(pause = { kotlinx.coroutines.awaitCancellation() }))
+        controller.arm(testView())
         val tag = FakeTag()
 
         val job = launch { controller.onTag(FoundTag.Waveshare(tag)) }

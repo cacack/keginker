@@ -18,12 +18,23 @@ enum class WavesharePanel(
     val chunkSize: Int,
     /** Orientation the image is composed in; verify against hardware for each panel. */
     val view: PanelView,
+    /**
+     * Rev2.2 boards only: rows in the panel controller's RAM, each
+     * [viewWidth] pixels wide. The panel shows the highest [viewHeight] row
+     * addresses; the lower ones are hidden. Measure it on hardware.
+     */
+    val controllerRows: Int,
 ) {
-    /** 2.7" black/white, 264 × 176 memory, viewed 176 × 264. Orientation verified against the vendor codec. */
-    EPD_2IN7(width = 264, height = 176, typeCode = 0x10, chunkSize = 121, view = PanelView.PORTRAIT);
+    /**
+     * 2.7" black/white, 264 × 176 memory, viewed 176 × 264. Classic orientation
+     * verified against the vendor codec; Rev2.2 layout (296-row controller,
+     * image rotated 180°) measured on a Rev2.2 board.
+     */
+    EPD_2IN7(width = 264, height = 176, typeCode = 0x10, chunkSize = 121, view = PanelView.PORTRAIT, controllerRows = 296);
 
     init {
         require(width % 8 == 0) { "Memory rows must be whole bytes" }
+        require(controllerRows >= viewHeight) { "The controller must hold every visible row" }
     }
 
     /** Width of the image as viewed, in pixels. */
@@ -40,4 +51,7 @@ enum class WavesharePanel(
     val frameSize: Int get() = width * height / 8
 
     val chunkCount: Int get() = frameSize / chunkSize
+
+    /** Rev2.2 only: bytes in a frame covering the whole controller RAM. */
+    val controllerFrameSize: Int get() = controllerRows * viewWidth / 8
 }

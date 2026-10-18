@@ -33,6 +33,18 @@ display" entry for unsupported tags (coming soon).
 
 Android debug builds log every command: `adb logcat -s keginker-nfc`.
 
+## Permissions
+
+KegInker asks only for NFC. Choosing an image needs no permission: the
+system photo picker hands the app only the image you pick. There is no
+internet permission. See [PRIVACY.md](PRIVACY.md).
+
+| Platform | Permission | Why |
+|---|---|---|
+| Android | NFC (`android.permission.NFC`) | Talk to the tag while you hold the phone against it |
+| Android | `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | Added automatically by AndroidX so only KegInker can send broadcasts to its own internal receivers; the app defines it itself, it's never shown to you, and it grants no access to anything |
+| iOS | NFC tag reading (`NFCReaderUsageDescription`, reader-session entitlement) | Show the system NFC sheet and talk to the tag |
+
 ## Trying a development build
 
 Android APKs are published on

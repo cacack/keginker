@@ -101,6 +101,21 @@ class WriteSessionTest {
     }
 
     @Test
+    fun aFailedWriteStaysFailedWhenAHeldImageIsShown() = runTest {
+        val session = session()
+        session.write()
+        launch { session.onTag(ScriptedTag(isoDep = false, failAt = 3).found()) }
+        runCurrent()
+        assertIs<WriteState.Writing>(session.controller.state.value)
+
+        session.imageLoaded(GrayImage(1, 1, byteArrayOf(0)))
+        advanceUntilIdle()
+
+        assertTrue(session.view.value.none { it })
+        assertIs<WriteState.Failed>(session.controller.state.value)
+    }
+
+    @Test
     fun ditherAndThresholdAreIgnoredDuringAWrite() = runTest {
         val session = session()
         val written = session.view.value

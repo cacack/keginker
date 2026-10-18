@@ -42,12 +42,17 @@ class WriteSession(
 
     private val writing get() = controller.state.value is WriteState.Writing
 
-    /** Handles a found tag; returns once any write ends, showing an image that loaded meanwhile. */
+    /**
+     * Handles a found tag; returns once any write ends, showing an image that
+     * loaded meanwhile. That clears Done (it was about the old image) but
+     * keeps Failed, so the user still learns the tag may be half-written;
+     * Retry writes the new preview.
+     */
     suspend fun onTag(tag: FoundTag) {
         try {
             controller.onTag(tag)
         } finally {
-            pendingSource?.let { if (!writing) imageLoaded(it) }
+            pendingSource?.let { if (!writing) show(it, keepFailure = true) }
         }
     }
 
@@ -77,14 +82,21 @@ class WriteSession(
             pendingSource = image
             return
         }
-        pendingSource = null
-        source = image
-        rerender()
+        show(image)
     }
 
-    /** Re-renders the preview, disarming any waiting write so a stale view can't go out. */
-    private fun rerender() {
-        controller.cancel()
+    private fun show(image: GrayImage, keepFailure: Boolean = false) {
+        pendingSource = null
+        source = image
+        rerender(keepFailure)
+    }
+
+    /**
+     * Re-renders the preview, disarming any waiting write so a stale view
+     * can't go out. A failure is cleared too unless [keepFailure].
+     */
+    private fun rerender(keepFailure: Boolean = false) {
+        if (!(keepFailure && controller.state.value is WriteState.Failed)) controller.cancel()
         mutableView.value = renderView(panel, source, mutableDither.value)
     }
 }

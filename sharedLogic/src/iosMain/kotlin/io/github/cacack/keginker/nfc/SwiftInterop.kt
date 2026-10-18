@@ -16,6 +16,15 @@ fun kotlinBytes(data: NSData): ByteArray {
     return bytes
 }
 
+/** Copies [data], native-endian 32-bit integers, into a Kotlin [IntArray] in one step, for Swift callers. */
+@OptIn(ExperimentalForeignApi::class)
+fun kotlinInts(data: NSData): IntArray {
+    require(data.length % Int.SIZE_BYTES.toULong() == 0UL) { "${data.length} bytes isn't a whole number of Ints" }
+    val ints = IntArray((data.length / Int.SIZE_BYTES.toULong()).toInt())
+    if (ints.isNotEmpty()) ints.usePinned { memcpy(it.addressOf(0), data.bytes, data.length) }
+    return ints
+}
+
 /** Copies [bytes] into [NSData] in one step, for Swift callers. */
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 fun nsData(bytes: ByteArray): NSData =

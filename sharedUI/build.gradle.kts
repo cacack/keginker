@@ -52,7 +52,18 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
+        getByName("androidHostTest").dependencies {
+            implementation(libs.robolectric)
+            implementation(libs.androidx.testCore)
+        }
     }
+}
+
+// The fixture photos and golden views both platforms' loader tests share.
+val photoFixtures = rootProject.layout.projectDirectory.dir("fixtures/photos")
+tasks.withType<Test>().configureEach {
+    inputs.dir(photoFixtures).withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("keginker.photoFixtures", photoFixtures.asFile.path)
 }
 
 dependencies {

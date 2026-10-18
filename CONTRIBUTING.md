@@ -20,9 +20,15 @@ Requires JDK 21. iOS builds require macOS with Xcode.
 - Shared tests: `./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest`
 - iOS tests (macOS): `./gradlew :sharedLogic:iosSimulatorArm64Test`
 - Android transport tests: `./gradlew :androidApp:testDebugUnitTest`
-- iOS transport tests (macOS): `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'platform=iOS Simulator,name=<an iPhone simulator>' CODE_SIGNING_ALLOWED=NO test`
+- iOS app tests (transports, image loading; macOS): `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'platform=iOS Simulator,name=<an iPhone simulator>' CODE_SIGNING_ALLOWED=NO test`
 - Android debug APK: `./gradlew :androidApp:assembleDebug`
 - iOS app: open `iosApp/` in Xcode and run.
+
+Both platforms' loader tests turn the photos in `fixtures/photos` into the
+golden views beside them (`.pbm`, the expected `renderView` output). The
+Android test (in the shared tests) writes a missing golden and fails; check it
+by eye, commit it, and the iOS test must match it. `generate.py` there remakes
+the photos.
 
 Image pipeline tests check properties over at least 100 seeded inputs
 (`kotlin.random.Random(seed)`); a failure names its seed so it can be replayed.

@@ -63,12 +63,16 @@ own threading rules, against a fake of its NFC API (`androidApp/src/test`,
   generously. iOS offers no per-command timeout and limits a tag connection to
   roughly 20 seconds, so every write fits a 15 s
   [time budget](protocols.md#write-time-budget).
-- **Image pipeline.** Platforms decode images natively, downsampled to a few
-  megapixels at most. They hand the core non-premultiplied `0xAARRGGBB`
-  pixels (`GrayImage.fromArgb`). The core centre-crops and scales to the
+- **Image pipeline.** Platforms decode images natively, upright, from the
+  file's bytes, downsampled to about 1,024 px on the long side. Both hand
+  the core non-premultiplied `0xAARRGGBB` pixels (`GrayImage.fromArgb`), so
+  both convert to grey the same way. The core centre-crops and scales to the
   panel's view, with no letterboxing, so UIs should preview the crop. It then
   reduces to black and white (threshold or Floyd–Steinberg), rotates and packs
-  into the panel's memory layout (`encodeFrame`).
+  into the panel's memory layout (`encodeFrame`). Each platform's loader test
+  turns the fixture photos in `fixtures/photos` into the same golden views.
+  Larger photos can still differ slightly: Android decodes at an integer
+  sample size, iOS to exactly 1,024 px, and the decoders average differently.
 - **Done means the tag shows the preview.** On Android, `WriteSession` holds
   the preview and the write together: changing the preview disarms a waiting
   write, and an image that finishes loading mid-write is shown only once the

@@ -42,6 +42,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.cacack.keginker.diagnostics.AppInfo
+import io.github.cacack.keginker.diagnostics.DeviceInfo
+import io.github.cacack.keginker.diagnostics.formatDiagnosticReport
 import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.waveshare.writeProgressMessage
@@ -53,10 +56,19 @@ import kotlinx.coroutines.flow.Flow
  * then write it to a tag.
  *
  * [nfcProblem] explains why tags can't be read (no NFC, NFC off), if so.
- * [onSimulateTag] is offered in debug builds to exercise the flow without a tag.
+ * [appInfo] and [deviceInfo] go into the diagnostics report offered after a failure.
+ * [onSimulateTag] and [onSimulateFailure] are offered in debug builds to
+ * exercise the flow without a tag.
  */
 @Composable
-fun App(tags: Flow<FoundTag>, nfcProblem: String? = null, onSimulateTag: (() -> Unit)? = null) {
+fun App(
+    tags: Flow<FoundTag>,
+    appInfo: AppInfo,
+    deviceInfo: DeviceInfo,
+    nfcProblem: String? = null,
+    onSimulateTag: (() -> Unit)? = null,
+    onSimulateFailure: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     val model: WriteViewModel = viewModel { WriteViewModel() }
     val state by model.controller.state.collectAsState()
@@ -67,10 +79,15 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String? = null, onSimulateTag: (() -> 
     val preview = remember(view) { view.toPreviewBitmap(panel.viewWidth).asImageBitmap() }
     val busy = state is WriteState.Writing
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
+    // Saved so the report stays open across rotation. The failed state it shows
+    // can't change meanwhile: a tag is only written after Retry, from the main screen.
+    var showReport by rememberSaveable { mutableStateOf(false) }
+    val shownReport = (state as? WriteState.Failed)?.report?.takeIf { showReport }
 
     // Collect here, not in a screen, so tags keep arriving whichever screen shows.
     LaunchedEffect(tags) { tags.collect(model::onTag) }
     BackHandler(enabled = showAdvanced) { showAdvanced = false }
+    BackHandler(enabled = shownReport != null) { showReport = false }
 
     val pickPhoto = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
         if (uri != null) model.load(context, uri)
@@ -80,6 +97,11 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String? = null, onSimulateTag: (() -> 
         Surface(Modifier.fillMaxSize()) {
             if (showAdvanced) {
                 AdvancedScreen(onBack = { showAdvanced = false })
+                return@Surface
+            }
+            shownReport?.let { report ->
+                val text = remember(report) { formatDiagnosticReport(appInfo, deviceInfo, report) }
+                ReportScreen(report = text, onBack = { showReport = false })
                 return@Surface
             }
             Column(
@@ -122,6 +144,8 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String? = null, onSimulateTag: (() -> 
                     onWrite = model::write,
                     onCancel = model.controller::cancel,
                     onSimulateTag = onSimulateTag,
+                    onSimulateFailure = onSimulateFailure,
+                    onShareDetails = { showReport = true },
                 )
             }
         }
@@ -149,6 +173,8 @@ private fun WriteStatus(
     onWrite: () -> Unit,
     onCancel: () -> Unit,
     onSimulateTag: (() -> Unit)?,
+    onSimulateFailure: (() -> Unit)?,
+    onShareDetails: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -162,6 +188,7 @@ private fun WriteStatus(
                 Row {
                     TextButton(onClick = onCancel) { Text("Cancel") }
                     onSimulateTag?.let { TextButton(onClick = it) { Text("Simulate a tag") } }
+                    onSimulateFailure?.let { TextButton(onClick = it) { Text("Simulate a failure") } }
                 }
             }
             is WriteState.Writing -> {
@@ -174,7 +201,12 @@ private fun WriteStatus(
             }
             is WriteState.Failed -> {
                 Text(state.message, color = MaterialTheme.colorScheme.error)
-                Button(onClick = onWrite) { Text("Retry") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onWrite) { Text("Retry") }
+                    if (state.report != null) {
+                        OutlinedButton(onClick = onShareDetails) { Text("Share details") }
+                    }
+                }
             }
         }
     }

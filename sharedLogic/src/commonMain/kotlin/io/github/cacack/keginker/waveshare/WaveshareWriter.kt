@@ -9,6 +9,7 @@
  */
 package io.github.cacack.keginker.waveshare
 
+import io.github.cacack.keginker.diagnostics.ExchangeLog
 import io.github.cacack.keginker.nfc.Transport
 import kotlinx.coroutines.delay
 
@@ -61,6 +62,8 @@ sealed interface WriteResult {
 class WaveshareWriter(
     private val transport: Transport,
     private val pause: suspend (Long) -> Unit = { delay(it) },
+    /** Where to record each exchange, for a diagnostics report. */
+    private val log: ExchangeLog? = null,
 ) {
     /** For Swift, which can't supply the suspending [pause]. */
     constructor(transport: Transport) : this(transport, { delay(it) })
@@ -96,7 +99,15 @@ class WaveshareWriter(
             pause(START_PAUSE_MS)
 
             for (chunk in 0 until panel.chunkCount) {
-                sendOk(WriteStep.SEND_DATA, dataPacket(panel, frame, chunk), "chunk ${chunk + 1}/${panel.chunkCount}")
+                val start = chunk * panel.chunkSize
+                transport.exchangeImageOk(
+                    WriteStep.SEND_DATA,
+                    command(0xCD, 0x19, panel.chunkSize),
+                    frame.copyOfRange(start, start + panel.chunkSize),
+                    ::isOk,
+                    "chunk ${chunk + 1}/${panel.chunkCount}",
+                    log,
+                )
                 onProgress((chunk + 1) * DATA_PROGRESS / panel.chunkCount)
                 pause(CHUNK_PAUSE_MS)
             }
@@ -112,7 +123,7 @@ class WaveshareWriter(
 
     private suspend fun awaitRefresh(maxPolls: Int) {
         repeat(maxPolls) {
-            if (isDone(transport.exchange(WriteStep.WAIT_FOR_REFRESH, command(0xCD, 0x0A)))) return
+            if (isDone(transport.exchange(WriteStep.WAIT_FOR_REFRESH, command(0xCD, 0x0A), log = log))) return
             pause(POLL_PAUSE_MS)
         }
         throw StepFailed(WriteStep.WAIT_FOR_REFRESH, FailureKind.REFRESH_UNCONFIRMED, "Refresh not confirmed after $maxPolls polls")
@@ -127,8 +138,8 @@ class WaveshareWriter(
         pollPauseMs = POLL_PAUSE_MS,
     )
 
-    private suspend fun sendOk(step: WriteStep, command: ByteArray, detail: String? = null) =
-        transport.exchangeOk(step, command, ::isOk, detail)
+    private suspend fun sendOk(step: WriteStep, command: ByteArray) =
+        transport.exchangeOk(step, command, ::isOk, log = log)
 
     private companion object {
         const val DATA_PROGRESS = IMAGE_SENT_PROGRESS
@@ -144,11 +155,6 @@ class WaveshareWriter(
         val POWER_ON_SEQUENCE = listOf(0x01 to 20L, 0x02 to 20L, 0x03 to 20L, 0x05 to 20L, 0x06 to 10L)
 
         fun command(vararg bytes: Int) = ByteArray(bytes.size) { bytes[it].toByte() }
-
-        fun dataPacket(panel: WavesharePanel, frame: ByteArray, chunk: Int): ByteArray {
-            val start = chunk * panel.chunkSize
-            return command(0xCD, 0x19, panel.chunkSize) + frame.copyOfRange(start, start + panel.chunkSize)
-        }
 
         fun isOk(reply: ByteArray) = reply.size >= 2 && reply[0] == 0x00.toByte() && reply[1] == 0x00.toByte()
 

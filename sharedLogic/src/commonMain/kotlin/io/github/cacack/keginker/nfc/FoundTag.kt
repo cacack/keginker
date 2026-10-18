@@ -5,6 +5,9 @@ import io.github.cacack.keginker.waveshare.isWaveshareTag
 
 /** A tag the phone has just found, classified by protocol family. */
 sealed interface FoundTag {
+    /** What the phone learned about the tag, for reports; null if not captured. */
+    val info: TagInfo?
+
     /**
      * A tag KegInker can write; write it with [ImageWriter], which uses the
      * right protocol for each kind. The receiver owns [transport] and must close it.
@@ -14,21 +17,44 @@ sealed interface FoundTag {
     }
 
     /** A Waveshare classic board: raw NFC-A frames. */
-    class Waveshare(override val transport: Transport) : Writable
+    class Waveshare(override val transport: Transport, override val info: TagInfo?) : Writable {
+        constructor(transport: Transport) : this(transport, null)
+    }
 
     /** A Waveshare Rev2.2 board: ISO-DEP with a YZRCOS chip. */
-    class WaveshareIsoDep(override val transport: Transport) : Writable
+    class WaveshareIsoDep(override val transport: Transport, override val info: TagInfo?) : Writable {
+        constructor(transport: Transport) : this(transport, null)
+    }
 
-    /** A tag no supported protocol recognises. [uid] identifies it in reports. */
-    class Unsupported(val uid: ByteArray) : FoundTag
+    /** A tag no supported protocol recognises; [info] always has at least its UID. */
+    class Unsupported(override val info: TagInfo) : FoundTag {
+        /** For Swift until iOS captures [TagInfo] (#50): the UID only, no technologies. */
+        constructor(uid: ByteArray) : this(TagInfo(technologies = emptyList(), uid = uid))
+
+        val uid: ByteArray get() = info.uid
+    }
+}
+
+/** The protocol a report names for this tag. */
+val FoundTag.protocolName: String get() = when (this) {
+    is FoundTag.Waveshare -> "Waveshare classic (NFC-A)"
+    is FoundTag.WaveshareIsoDep -> "Waveshare Rev2.2 (ISO-DEP)"
+    is FoundTag.Unsupported -> "unsupported"
 }
 
 /**
  * Classifies an NFC-A tag that isn't ISO-DEP by its [uid], without sending it
  * any command. [openTransport] is called only for a supported tag.
+ *
+ * The `uid` overloads and the transport-only constructors serve Swift; remove
+ * them once iOS captures [TagInfo] (#50).
  */
 fun classifyNfcATag(uid: ByteArray, openTransport: () -> Transport): FoundTag =
-    if (isWaveshareTag(uid)) FoundTag.Waveshare(openTransport()) else FoundTag.Unsupported(uid)
+    classifyNfcA(uid, null, openTransport)
+
+/** Like the `uid` overload, and the result carries [info] for reports. */
+fun classifyNfcATag(info: TagInfo, openTransport: () -> Transport): FoundTag =
+    classifyNfcA(info.uid, info, openTransport)
 
 /**
  * Classifies an ISO-DEP tag by its ATS [historicalBytes] (empty if it has
@@ -36,4 +62,26 @@ fun classifyNfcATag(uid: ByteArray, openTransport: () -> Transport): FoundTag =
  * a supported tag.
  */
 fun classifyIsoDepTag(uid: ByteArray, historicalBytes: ByteArray, openTransport: () -> Transport): FoundTag =
-    if (isWaveshareIsoDepTag(historicalBytes)) FoundTag.WaveshareIsoDep(openTransport()) else FoundTag.Unsupported(uid)
+    classifyIsoDep(uid, historicalBytes, null, openTransport)
+
+/** Like the `uid` overload, taking the historical bytes from [info], and the result carries [info] for reports. */
+fun classifyIsoDepTag(info: TagInfo, openTransport: () -> Transport): FoundTag =
+    classifyIsoDep(info.uid, info.historicalBytes ?: ByteArray(0), info, openTransport)
+
+private fun classifyNfcA(uid: ByteArray, info: TagInfo?, openTransport: () -> Transport): FoundTag =
+    if (isWaveshareTag(uid)) FoundTag.Waveshare(openTransport(), info) else unsupported(uid, info)
+
+private fun classifyIsoDep(
+    uid: ByteArray,
+    historicalBytes: ByteArray,
+    info: TagInfo?,
+    openTransport: () -> Transport,
+): FoundTag =
+    if (isWaveshareIsoDepTag(historicalBytes)) {
+        FoundTag.WaveshareIsoDep(openTransport(), info)
+    } else {
+        unsupported(uid, info)
+    }
+
+private fun unsupported(uid: ByteArray, info: TagInfo?) =
+    if (info != null) FoundTag.Unsupported(info) else FoundTag.Unsupported(uid)

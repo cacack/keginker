@@ -1,5 +1,6 @@
 package io.github.cacack.keginker.waveshare
 
+import io.github.cacack.keginker.diagnostics.ExchangeLog
 import io.github.cacack.keginker.nfc.Transport
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -51,15 +52,18 @@ internal inline fun runSteps(steps: () -> Unit): WriteResult =
         WriteResult.Failure(failure.step, failure.kind, failure.reason, failure.cause)
     }
 
-/** Sends [command] as part of [step]; a communication error fails the step. */
-internal suspend fun Transport.exchange(step: WriteStep, command: ByteArray, detail: String? = null): ByteArray =
-    try {
-        transceive(command, TRANSCEIVE_TIMEOUT_MS)
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        throw StepFailed(step, FailureKind.LOST_CONTACT, listOfNotNull("Tag communication failed", detail).joinToString(" at "), e)
-    }
+/**
+ * Sends [command], which carries no image data, as part of [step]; a
+ * communication error fails the step. Records the exchange, success or not,
+ * in [log] in full. Image data goes through [exchangeImageOk] instead, so it
+ * can never reach the log.
+ */
+internal suspend fun Transport.exchange(
+    step: WriteStep,
+    command: ByteArray,
+    detail: String? = null,
+    log: ExchangeLog? = null,
+): ByteArray = send(step, command, imageBytes = 0, detail, log)
 
 /** Like [exchange], and the step also fails unless [isOk] accepts the reply. */
 internal suspend fun Transport.exchangeOk(
@@ -67,8 +71,44 @@ internal suspend fun Transport.exchangeOk(
     command: ByteArray,
     isOk: (ByteArray) -> Boolean,
     detail: String? = null,
-) {
-    val reply = exchange(step, command, detail)
+    log: ExchangeLog? = null,
+) = checkReply(step, exchange(step, command, detail, log), isOk, detail)
+
+/**
+ * Sends [header] followed by [image] as one command, like [exchangeOk]. The
+ * log keeps only [header] and the size of [image]: reports are shared
+ * publicly with a promise that they hold no image data.
+ */
+internal suspend fun Transport.exchangeImageOk(
+    step: WriteStep,
+    header: ByteArray,
+    image: ByteArray,
+    isOk: (ByteArray) -> Boolean,
+    detail: String? = null,
+    log: ExchangeLog? = null,
+) = checkReply(step, send(step, header + image, imageBytes = image.size, detail, log), isOk, detail)
+
+/** Sends [command], recording it in [log] without its last [imageBytes]. */
+private suspend fun Transport.send(
+    step: WriteStep,
+    command: ByteArray,
+    imageBytes: Int,
+    detail: String?,
+    log: ExchangeLog?,
+): ByteArray {
+    val atMs = log?.elapsedMs() ?: 0L
+    val reply = try {
+        transceive(command, TRANSCEIVE_TIMEOUT_MS)
+    } catch (e: Exception) {
+        log?.record(atMs, step, command, imageBytes, reply = null, error = e)
+        if (e is CancellationException) throw e
+        throw StepFailed(step, FailureKind.LOST_CONTACT, listOfNotNull("Tag communication failed", detail).joinToString(" at "), e)
+    }
+    log?.record(atMs, step, command, imageBytes, reply = reply, error = null)
+    return reply
+}
+
+private fun checkReply(step: WriteStep, reply: ByteArray, isOk: (ByteArray) -> Boolean, detail: String?) {
     if (!isOk(reply)) {
         throw StepFailed(step, FailureKind.UNEXPECTED_REPLY, listOfNotNull("Unexpected reply ${reply.toHex()}", detail).joinToString(" at "))
     }

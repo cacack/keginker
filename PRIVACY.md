@@ -22,6 +22,17 @@ it anywhere.
 When you write a tag, the label goes over NFC to the tag you hold against
 your phone, and nowhere else.
 
+## Diagnostics reports
+
+On Android, when a write fails or a tag isn't recognised, **Share details**
+builds a plain-text report of what happened: the app and phone versions,
+what the tag reported about itself, which step failed, and the commands
+exchanged with the tag, with the tag's replies as it sent them. It contains
+no image data, and shows only the start of the tag's ID. The app keeps
+the report in memory, shows it to you in full, and doesn't save it. It
+leaves your phone only if you share or copy it yourself; KegInker never
+sends it.
+
 ## What stays on your phone
 
 KegInker stores only its own settings on the device, such as the iOS CRC

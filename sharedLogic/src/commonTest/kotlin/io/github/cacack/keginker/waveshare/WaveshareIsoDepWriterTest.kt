@@ -1,5 +1,6 @@
 package io.github.cacack.keginker.waveshare
 
+import io.github.cacack.keginker.diagnostics.ExchangeLog
 import io.github.cacack.keginker.nfc.Transport
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -89,6 +90,37 @@ class WaveshareIsoDepWriterTest {
         assertTrue(chunks.all { it.isIns(0x9A) && (it[4].toInt() and 0xFF) == it.size - 5 })
         assertEquals(List(26) { 250 } + 12, chunks.map { it.size - 5 })
         assertContentEquals(frame, chunks.fold(ByteArray(0)) { acc, apdu -> acc + apdu.copyOfRange(5, apdu.size) })
+    }
+
+    @Test
+    fun logKeepsOnlyTheHeaderOfRamChunksAndRegisterWritesInFull() = runTest {
+        val tag = FakeIsoDepTag()
+        val log = ExchangeLog()
+
+        WaveshareIsoDepWriter(tag, pause = {}, log = log).write(PANEL, testFrame())
+
+        val entries = log.entries
+        assertEquals(tag.sent.size, entries.size)
+        val chunks = entries.drop(SETUP_APDUS).dropLast(REFRESH_APDUS)
+        assertEquals(List(26) { "74 9a 00 0e fa" } + "74 9a 00 0e 0c", chunks.map { it.command.hex() })
+        assertEquals(List(26) { 250 } + 12, chunks.map { it.imageBytes })
+        // Unlock, resets, register writes and refresh are recorded exactly as sent.
+        val others = entries.zip(tag.sent).take(SETUP_APDUS) + entries.zip(tag.sent).takeLast(REFRESH_APDUS)
+        assertTrue(others.all { (entry, sent) -> entry.imageBytes == 0 && entry.command.contentEquals(sent) })
+        assertTrue(others.any { (entry, _) -> entry.command.hex() == "74 9a 00 0e 03 27 01 01" })
+    }
+
+    @Test
+    fun logRecordsTheFailedChunk() = runTest {
+        val tag = FakeIsoDepTag { cmd, index -> if (index == SETUP_APDUS + 1) error("tag lost") else FakeIsoDepTag.defaultReply(cmd) }
+        val log = ExchangeLog()
+
+        WaveshareIsoDepWriter(tag, pause = {}, log = log).write(PANEL, testFrame())
+
+        val last = log.entries.last()
+        assertEquals(WriteStep.SEND_DATA, last.step)
+        assertEquals("IllegalStateException: tag lost", last.error)
+        assertEquals("74 9a 00 0e fa", last.command.hex())
     }
 
     @Test

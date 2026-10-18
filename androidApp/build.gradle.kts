@@ -26,13 +26,13 @@ fun signingSetting(envName: String, localName: String): String? =
 fun requiredSigningSetting(envName: String, localName: String): String = signingSetting(envName, localName)
     ?: error("A release keystore is set, but $envName (env) / $localName (local.properties) isn't")
 
-val releaseKeystore = signingSetting("TAGPAPER_KEYSTORE", "tagpaper.keystore")
+val releaseKeystore = signingSetting("KEGINKER_KEYSTORE", "keginker.keystore")
 
 /** Version from the release workflow (see docs/operations/signing.md); dev builds use the defaults. */
-val releaseVersionCode = providers.gradleProperty("tagpaper.versionCode").orNull?.let {
-    it.toIntOrNull() ?: error("tagpaper.versionCode must be an integer, got '$it'")
+val releaseVersionCode = providers.gradleProperty("keginker.versionCode").orNull?.let {
+    it.toIntOrNull() ?: error("keginker.versionCode must be an integer, got '$it'")
 }
-val releaseVersionName = providers.gradleProperty("tagpaper.versionName").orNull
+val releaseVersionName = providers.gradleProperty("keginker.versionName").orNull
 
 dependencies {
     implementation(project(":sharedUI"))
@@ -45,11 +45,11 @@ dependencies {
 }
 
 android {
-    namespace = "io.github.cacack.tagpaper"
+    namespace = "io.github.cacack.keginker"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "io.github.cacack.tagpaper"
+        applicationId = "io.github.cacack.keginker"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = releaseVersionCode ?: 1
@@ -61,9 +61,9 @@ android {
                 storeFile = rootProject.file(releaseKeystore).also {
                     require(it.isFile) { "Release keystore not found: $it" }
                 }
-                storePassword = requiredSigningSetting("TAGPAPER_KEYSTORE_PASSWORD", "tagpaper.keystorePassword")
-                keyAlias = requiredSigningSetting("TAGPAPER_KEY_ALIAS", "tagpaper.keyAlias")
-                keyPassword = requiredSigningSetting("TAGPAPER_KEY_PASSWORD", "tagpaper.keyPassword")
+                storePassword = requiredSigningSetting("KEGINKER_KEYSTORE_PASSWORD", "keginker.keystorePassword")
+                keyAlias = requiredSigningSetting("KEGINKER_KEY_ALIAS", "keginker.keyAlias")
+                keyPassword = requiredSigningSetting("KEGINKER_KEY_PASSWORD", "keginker.keyPassword")
             }
         }
     }

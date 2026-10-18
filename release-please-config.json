@@ -17,7 +17,7 @@
   ],
   "packages": {
     ".": {
-      "package-name": "tagpaper",
+      "package-name": "keginker",
       "changelog-path": "CHANGELOG.md"
     }
   }

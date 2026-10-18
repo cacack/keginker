@@ -1,4 +1,4 @@
-rootProject.name = "tagpaper"
+rootProject.name = "keginker"
 
 pluginManagement {
     repositories {

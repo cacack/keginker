@@ -1,4 +1,4 @@
-# tagpaper
+# KegInker
 
 An open-source Android and iOS app for writing images to battery-free NFC
 e-paper tags. Pick an image, preview it dithered for your panel, tap your

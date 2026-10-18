@@ -5,7 +5,7 @@
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>NFCReaderUsageDescription</key>
-	<string>tagpaper writes images to NFC e-paper tags.</string>
+	<string>KegInker writes images to NFC e-paper tags.</string>
 	<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
 	<array>
 		<string>D2760000850101</string>

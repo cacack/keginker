@@ -19,10 +19,10 @@ first, then `local.properties`:
 
 | Environment variable | `local.properties` key | Value |
 |---|---|---|
-| `TAGPAPER_KEYSTORE` | `tagpaper.keystore` | Path to the keystore file |
-| `TAGPAPER_KEYSTORE_PASSWORD` | `tagpaper.keystorePassword` | Keystore password |
-| `TAGPAPER_KEY_ALIAS` | `tagpaper.keyAlias` | Key alias |
-| `TAGPAPER_KEY_PASSWORD` | `tagpaper.keyPassword` | Key password |
+| `KEGINKER_KEYSTORE` | `keginker.keystore` | Path to the keystore file |
+| `KEGINKER_KEYSTORE_PASSWORD` | `keginker.keystorePassword` | Keystore password |
+| `KEGINKER_KEY_ALIAS` | `keginker.keyAlias` | Key alias |
+| `KEGINKER_KEY_PASSWORD` | `keginker.keyPassword` | Key password |
 
 With no keystore set, debug builds use the default debug key and release
 builds are unsigned. That's the normal case for contributors and for every
@@ -37,8 +37,8 @@ Don't hand them to testers in place of a release.
 Keep the keystore outside the repository.
 
 ```sh
-keytool -genkeypair -keystore tagpaper-release.jks -alias tagpaper \
-  -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=tagpaper"
+keytool -genkeypair -keystore keginker-release.jks -alias keginker \
+  -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=keginker"
 ```
 
 The keystore is PKCS12, so the key password is the keystore password.
@@ -47,14 +47,14 @@ Add it to GitHub. Each `gh secret set` without input prompts for the value,
 so passwords stay out of your shell history:
 
 ```sh
-base64 -i tagpaper-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 -R cacack/tagpaper
-gh secret set ANDROID_KEYSTORE_PASSWORD -R cacack/tagpaper
-gh secret set ANDROID_KEY_ALIAS -R cacack/tagpaper      # tagpaper
-gh secret set ANDROID_KEY_PASSWORD -R cacack/tagpaper   # same as the keystore password
+base64 -i keginker-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 -R cacack/keginker
+gh secret set ANDROID_KEYSTORE_PASSWORD -R cacack/keginker
+gh secret set ANDROID_KEY_ALIAS -R cacack/keginker      # the alias given to keytool
+gh secret set ANDROID_KEY_PASSWORD -R cacack/keginker   # same as the keystore password
 ```
 
-To sign local builds too, add the four `tagpaper.*` keys to
-`local.properties`, using an absolute path for `tagpaper.keystore`.
+To sign local builds too, add the four `keginker.*` keys to
+`local.properties`, using an absolute path for `keginker.keystore`.
 
 ## Backups
 
@@ -118,11 +118,11 @@ The tag triggers [`release.yml`](../../.github/workflows/release.yml), which:
    hand-pushed tag) or that don't match the format above
 2. runs the shared tests
 3. builds a release APK signed with the key, passing
-   `-Ptagpaper.versionName` (the tag without the `v`) and
-   `-Ptagpaper.versionCode` to Gradle
+   `-Pkeginker.versionName` (the tag without the `v`) and
+   `-Pkeginker.versionCode` to Gradle
 4. refuses to publish if the APK isn't signed
-5. attaches `tagpaper-X.Y.Z.apk` and its SHA-256 to the release, titles it
-   `tagpaper X.Y.Z` and marks tags with a suffix as pre-releases
+5. attaches `keginker-X.Y.Z.apk` and its SHA-256 to the release, titles it
+   `KegInker X.Y.Z` and marks tags with a suffix as pre-releases
 
 ### The release-please app (once)
 
@@ -137,8 +137,8 @@ trigger `release.yml`.
 2. Generate a private key for it and add both secrets:
 
 ```sh
-gh secret set RELEASE_PLEASE_APP_ID -R cacack/tagpaper
-gh secret set RELEASE_PLEASE_APP_PRIVATE_KEY -R cacack/tagpaper < app-private-key.pem
+gh secret set RELEASE_PLEASE_APP_ID -R cacack/keginker
+gh secret set RELEASE_PLEASE_APP_PRIVATE_KEY -R cacack/keginker < app-private-key.pem
 ```
 
 Then delete the downloaded `.pem`; a new key can be generated if needed.

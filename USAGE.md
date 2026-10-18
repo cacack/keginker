@@ -1,6 +1,6 @@
 # Usage
 
-tagpaper is in early development.
+KegInker is in early development.
 
 ## Supported displays
 
@@ -17,7 +17,7 @@ families involved.
 
 ## Writing a tag
 
-1. Open tagpaper. The preview shows exactly what the tag will display; it
+1. Open KegInker. The preview shows exactly what the tag will display; it
    starts with a test pattern whose solid corner marks the top-left.
 2. Optionally tap **Choose image**. Photos are centre-cropped to the panel.
    Turn **Dither** off for text and logos; the slider that appears sets which
@@ -31,12 +31,12 @@ families involved.
 Diagnostics live under **Advanced** (top right), including a "Report a
 display" entry for unsupported tags (coming soon).
 
-Android debug builds log every command: `adb logcat -s tagpaper-nfc`.
+Android debug builds log every command: `adb logcat -s keginker-nfc`.
 
 ## Trying a development build
 
 Android APKs are published on
-[Releases](https://github.com/cacack/tagpaper/releases), and CI builds one on
+[Releases](https://github.com/cacack/keginker/releases), and CI builds one on
 every change. See
 [docs/guides/try-a-development-build.md](docs/guides/try-a-development-build.md).
 iOS builds will be distributed through TestFlight once available.

@@ -42,7 +42,7 @@ class ResizeTest {
     }
 
     @Test
-    fun downscalingByAnUnevenRatioAveragesUnevenBlocks() {
+    fun downscalingByAnUnevenRatioWeightsPartlyCoveredPixels() {
         val image = gray(
             3, 3,
             0, 30, 60,
@@ -50,7 +50,8 @@ class ResizeTest {
             180, 210, 240,
         )
 
-        // Output cells cover source rows/columns [0] and [1, 2].
-        assertEquals(listOf(0, 45, 135, 180), image.fill(2, 2).values())
+        // Each output cell covers 1.5 source rows and columns: one whole, one half.
+        // Top-left: (4·0 + 2·30 + 2·90 + 1·120) / 9 = 40.
+        assertEquals(listOf(40, 80, 160, 200), image.fill(2, 2).values())
     }
 }

@@ -10,6 +10,13 @@ add `https://github.com/cacack/keginker` to
 [Obtainium](https://github.com/ImranR98/Obtainium), with pre-releases
 turned on.
 
+To check that a downloaded APK was built by this repository's CI from its
+release tag, use the [GitHub CLI](https://cli.github.com):
+
+```sh
+gh attestation verify keginker-X.Y.Z.apk -R cacack/keginker
+```
+
 For the latest unreleased change, every push and pull request also builds a
 debug APK in CI:
 

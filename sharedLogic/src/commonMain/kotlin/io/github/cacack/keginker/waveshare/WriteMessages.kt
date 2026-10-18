@@ -25,6 +25,11 @@ fun writeProgressMessage(percent: Int, phone: String): String =
 /** Shown when a tag isn't one KegInker can write. */
 const val UNSUPPORTED_TAG_MESSAGE = "This tag isn't supported. KegInker writes Waveshare NFC e-paper tags."
 
+/** Shown when the display never confirmed it finished refreshing. */
+const val REFRESH_UNCONFIRMED_MESSAGE =
+    "The display didn't confirm it finished updating. " +
+        "Lift the phone away, then hold it still against the tag and try again."
+
 /**
  * A short explanation for the user that says how to recover. Diagnostics
  * belong in [WriteResult.Failure.reason] and [WriteResult.Failure.cause].
@@ -39,7 +44,5 @@ val WriteResult.Failure.userMessage: String
         FailureKind.UNEXPECTED_REPLY ->
             "The tag gave an unexpected reply while ${step.activity}. " +
                 "Lift the phone away and try again; if it keeps happening, this tag may not be supported."
-        FailureKind.REFRESH_UNCONFIRMED ->
-            "The display didn't confirm it finished updating. " +
-                "Lift the phone away, then hold it still against the tag and try again."
+        FailureKind.REFRESH_UNCONFIRMED -> REFRESH_UNCONFIRMED_MESSAGE
     }

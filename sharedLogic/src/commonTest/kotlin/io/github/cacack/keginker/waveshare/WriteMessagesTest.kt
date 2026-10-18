@@ -40,7 +40,11 @@ class WriteMessagesTest {
             "Refresh not confirmed after 240 polls",
         ).userMessage
 
-        assertEquals(REFRESH_UNCONFIRMED_MESSAGE, message)
+        assertEquals(
+            "The display didn't confirm it finished updating. " +
+                "Lift the phone away, then hold it still against the tag and try again.",
+            message,
+        )
         assertTrue("not be supported" !in message, message)
     }
 
@@ -50,8 +54,3 @@ class WriteMessagesTest {
         assertEquals("Updating the display. Keep the phone still.", writeProgressMessage(IMAGE_SENT_PROGRESS, "phone"))
     }
 }
-
-/** The message for a refresh the display never confirmed. */
-internal const val REFRESH_UNCONFIRMED_MESSAGE =
-    "The display didn't confirm it finished updating. " +
-        "Lift the phone away, then hold it still against the tag and try again."

@@ -10,7 +10,6 @@
 package io.github.cacack.tagpaper.waveshare
 
 import io.github.cacack.tagpaper.nfc.Transport
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 
 /** The stages of a Waveshare write, used to say where one failed. */
@@ -24,6 +23,15 @@ enum class WriteStep {
     REFRESH,
     WAIT_FOR_REFRESH,
     POWER_OFF,
+
+    /** Rev2.2 only: unlocking the chip. */
+    UNLOCK,
+
+    /** Rev2.2 only: resetting the panel controller. */
+    RESET,
+
+    /** Rev2.2 only: setting up the controller's RAM window. */
+    CONFIGURE,
 }
 
 sealed interface WriteResult {
@@ -59,7 +67,7 @@ class WaveshareWriter(
         require(frame.size == panel.frameSize) {
             "Frame is ${frame.size} bytes; ${panel.name} needs ${panel.frameSize}"
         }
-        return try {
+        return runSteps {
             sendOk(WriteStep.INIT, command(0xCD, 0x0D))
             sendOk(WriteStep.SELECT_PANEL, command(0xCD, 0x00, panel.typeCode))
             pause(50)
@@ -86,46 +94,22 @@ class WaveshareWriter(
             awaitRefresh()
             sendOk(WriteStep.POWER_OFF, command(0xCD, 0x04))
             onProgress(100)
-            WriteResult.Success
-        } catch (failure: StepFailed) {
-            WriteResult.Failure(failure.step, failure.reason, failure.cause)
         }
     }
 
     private suspend fun awaitRefresh() {
         repeat(MAX_BUSY_POLLS) {
-            if (isDone(send(WriteStep.WAIT_FOR_REFRESH, command(0xCD, 0x0A)))) return
+            if (isDone(transport.exchange(WriteStep.WAIT_FOR_REFRESH, command(0xCD, 0x0A)))) return
             pause(25)
         }
         throw StepFailed(WriteStep.WAIT_FOR_REFRESH, "Refresh not confirmed after $MAX_BUSY_POLLS polls")
     }
 
-    private suspend fun sendOk(step: WriteStep, command: ByteArray, detail: String? = null) {
-        val reply = send(step, command, detail)
-        if (!isOk(reply)) {
-            throw StepFailed(step, listOfNotNull("Unexpected reply ${reply.toHex()}", detail).joinToString(" at "))
-        }
-    }
-
-    private suspend fun send(step: WriteStep, command: ByteArray, detail: String? = null): ByteArray =
-        try {
-            transport.transceive(command, TRANSCEIVE_TIMEOUT_MS)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            throw StepFailed(step, listOfNotNull("Tag communication failed", detail).joinToString(" at "), e)
-        }
-
-    private class StepFailed(
-        val step: WriteStep,
-        val reason: String,
-        cause: Throwable? = null,
-    ) : Exception(reason, cause)
+    private suspend fun sendOk(step: WriteStep, command: ByteArray, detail: String? = null) =
+        transport.exchangeOk(step, command, ::isOk, detail)
 
     private companion object {
-        const val TRANSCEIVE_TIMEOUT_MS = 3_000L
-        const val MAX_BUSY_POLLS = 240
-        const val DATA_PROGRESS = 90
+        const val DATA_PROGRESS = IMAGE_SENT_PROGRESS
 
         /** Power and configuration commands, each followed by a pause in ms. */
         val POWER_ON_SEQUENCE = listOf(0x01 to 20L, 0x02 to 20L, 0x03 to 20L, 0x05 to 20L, 0x06 to 10L)
@@ -140,7 +124,5 @@ class WaveshareWriter(
         fun isOk(reply: ByteArray) = reply.size >= 2 && reply[0] == 0x00.toByte() && reply[1] == 0x00.toByte()
 
         fun isDone(reply: ByteArray) = reply.size >= 2 && reply[0] == 0xFF.toByte() && reply[1] == 0x00.toByte()
-
-        fun ByteArray.toHex() = joinToString(" ") { (it.toInt() and 0xFF).toString(16).padStart(2, '0').uppercase() }
     }
 }

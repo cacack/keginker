@@ -1,13 +1,15 @@
 # Usage
 
-tagpaper is in early development. Android and iOS builds can write an image
-to a Waveshare 2.7" tag; this hasn't yet been confirmed on hardware.
+tagpaper is in early development.
 
 ## Supported displays
 
 | Vendor | Panel | Status |
 |---|---|---|
-| Waveshare | 2.7" NFC-Powered e-Paper (black/white) | First target |
+| Waveshare | 2.7" NFC e-Paper, Rev2.2 board (black/white) | Works on iPhone; Android untested |
+| Waveshare | 2.7" NFC e-Paper, earlier boards (black/white) | Implemented, not yet tested on hardware |
+
+The board revision is printed on the back of the driver board.
 
 More panels are planned; see
 [docs/architecture/protocols.md](docs/architecture/protocols.md) for the

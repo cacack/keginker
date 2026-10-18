@@ -1,0 +1,39 @@
+package io.github.cacack.tagpaper.nfc
+
+import io.github.cacack.tagpaper.waveshare.WaveshareIsoDepWriter
+import io.github.cacack.tagpaper.waveshare.WavesharePanel
+import io.github.cacack.tagpaper.waveshare.WaveshareWriter
+import io.github.cacack.tagpaper.waveshare.WriteResult
+import io.github.cacack.tagpaper.waveshare.packControllerFrame
+import io.github.cacack.tagpaper.waveshare.packFrame
+import kotlinx.coroutines.delay
+
+/**
+ * Writes an image to whichever kind of tag was found, packing it in the layout
+ * that tag's protocol needs. Platform UIs only deal in views (from
+ * `renderView`); they don't need to know which board revision they're talking to.
+ */
+class ImageWriter(private val pause: suspend (Long) -> Unit) {
+    /** For Swift, which can't supply the suspending [pause]. */
+    constructor() : this({ delay(it) })
+
+    /**
+     * Writes [view] (row-major, [WavesharePanel.viewWidth] wide, `true` is
+     * white) to [tag]. Doesn't close the tag's transport.
+     *
+     * Problems with the tag (lost contact, unexpected replies, an unconfirmed
+     * refresh) are returned as [WriteResult.Failure]. Only programming errors,
+     * such as a view of the wrong size, and cancellation are thrown.
+     */
+    @Throws(Exception::class)
+    suspend fun write(
+        tag: FoundTag.Writable,
+        panel: WavesharePanel,
+        view: BooleanArray,
+        onProgress: (Int) -> Unit,
+    ): WriteResult = when (tag) {
+        is FoundTag.Waveshare -> WaveshareWriter(tag.transport, pause).write(panel, packFrame(panel, view), onProgress)
+        is FoundTag.WaveshareIsoDep ->
+            WaveshareIsoDepWriter(tag.transport, pause).write(panel, packControllerFrame(panel, view), onProgress)
+    }
+}

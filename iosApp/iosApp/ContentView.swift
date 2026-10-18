@@ -66,7 +66,7 @@ struct ContentView: View {
             writeButton("Write to tag")
         case let .writing(percent):
             ProgressView(value: Double(percent), total: 100)
-            Text("Writing \(percent)%. Keep the iPhone still.")
+            Text(WriteMessagesKt.writeProgressMessage(percent: Int32(percent), phone: "iPhone"))
         case .done:
             Text("Done. The tag keeps this image without power.")
             writeButton("Write another tag")
@@ -79,8 +79,7 @@ struct ContentView: View {
     private func writeButton(_ title: String) -> some View {
         Button(title) {
             guard let view else { return }
-            let frame = WaveshareFrameKt.packFrame(panel: panel, white: view)
-            if canSimulate { writer.simulate(frame: frame) } else { writer.write(frame: frame) }
+            if canSimulate { writer.simulate(view: view) } else { writer.write(view: view) }
         }
         .buttonStyle(.borderedProminent)
         .disabled(writer.isBusy || !(TagWriter.isNfcAvailable || canSimulate))

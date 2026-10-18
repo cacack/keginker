@@ -21,46 +21,50 @@ final class TagWriter: NSObject, ObservableObject {
     let panel = WavesharePanel.epd2in7
     private var session: NFCTagReaderSession?
     private var isRunning = false
-    private var frame: KotlinByteArray?
+    private var view: KotlinBooleanArray?
 
     static var isNfcAvailable: Bool { NFCTagReaderSession.readingAvailable }
 
-    /// Opens the NFC sheet and writes [frame] to the first tag presented.
-    func write(frame: KotlinByteArray) {
+    /// Opens the NFC sheet and writes [view] (from `renderView`) to the first
+    /// tag presented, packed for whichever kind of tag it is.
+    func write(view: KotlinBooleanArray) {
         guard !isBusy else { return }
         isBusy = true
-        self.frame = frame
+        self.view = view
         state = .idle
         session = NFCTagReaderSession(pollingOption: .iso14443, delegate: self, queue: .main)
         session?.alertMessage = "Hold the top of your iPhone against the tag and keep it still."
+        NfcLog.log("Session starting (CRC \(crcMode.rawValue))")
         session?.begin()
     }
 
-    /// Writes [frame] to a simulated tag that accepts everything. Debug and Simulator only.
-    func simulate(frame: KotlinByteArray) {
+    /// Writes [view] to a simulated tag that accepts everything. Debug and Simulator only.
+    func simulate(view: KotlinBooleanArray) {
         guard !isBusy else { return }
         isBusy = true
-        Task { await run(SimulatedWaveshareTransport(commandDelayMs: 20), frame: frame, session: nil) }
+        let tag = FoundTagWaveshare(transport: SimulatedWaveshareTransport(commandDelayMs: 20))
+        Task { await run(tag, view: view, session: nil) }
     }
 
-    private func run(_ transport: Transport, frame: KotlinByteArray, session: NFCTagReaderSession?) async {
+    private func run(_ tag: FoundTagWritable, view: KotlinBooleanArray, session: NFCTagReaderSession?) async {
         isRunning = true
         state = .writing(0)
-        let writer = WaveshareWriter(transport: transport)
         let result: State
         do {
-            let outcome = try await writer.write(panel: panel, frame: frame) { percent in
+            let outcome = try await ImageWriter().write(tag: tag, panel: panel, view: view) { percent in
                 Task { @MainActor in self.progress(percent.intValue, session: session) }
             }
             if let failure = outcome as? WriteResultFailure {
+                NfcLog.log("Write failed at \(failure.step.name): \(failure.reason)")
                 result = .failed(failure.userMessage)
             } else {
+                NfcLog.log("Write succeeded")
                 result = .done
             }
         } catch {
             result = .failed("The write failed unexpectedly: \(error.localizedDescription)")
         }
-        transport.close()
+        tag.transport.close()
         isRunning = false
         // The session may already have ended (sheet dismissed, timeout); that
         // failure stands, and the stale result must not replace it.
@@ -79,7 +83,7 @@ final class TagWriter: NSObject, ObservableObject {
     private func progress(_ percent: Int, session: NFCTagReaderSession?) {
         guard case .writing = state else { return }
         state = .writing(percent)
-        session?.alertMessage = "Writing \(percent)%. Keep the iPhone still."
+        session?.alertMessage = WriteMessagesKt.writeProgressMessage(percent: Int32(percent), phone: "iPhone")
     }
 
     /// Clears [isBusy] once nothing is left running.
@@ -93,42 +97,56 @@ final class TagWriter: NSObject, ObservableObject {
     }
 
     private func found(_ tags: [NFCTag], session: NFCTagReaderSession) {
+        NfcLog.log("Detected \(tags.count) tag(s): \(tags.map(NfcLog.describe).joined(separator: "; "))")
         guard tags.count == 1, let tag = tags.first else {
             session.alertMessage = "More than one tag found. Hold just one tag to the iPhone."
             session.restartPolling()
             return
         }
-        guard let frame else {
+        guard let view else {
             fail("Nothing to write. Try again.", session: session)
             return
         }
-        guard case let .miFare(miFare) = tag else {
+        let classified: FoundTag
+        switch tag {
+        case let .miFare(miFare):
+            let crcMode = self.crcMode
+            classified = FoundTagKt.classifyNfcATag(uid: SwiftInteropKt.kotlinBytes(data: miFare.identifier)) {
+                MiFareTransport(tag: miFare, crcMode: crcMode)
+            }
+        case let .iso7816(iso7816):
+            classified = FoundTagKt.classifyIsoDepTag(
+                uid: SwiftInteropKt.kotlinBytes(data: iso7816.identifier),
+                historicalBytes: SwiftInteropKt.kotlinBytes(data: iso7816.historicalBytes ?? Data())
+            ) { Iso7816Transport(tag: iso7816) }
+        default:
             fail(WriteMessagesKt.UNSUPPORTED_TAG_MESSAGE, session: session)
             return
         }
-        let crcMode = self.crcMode
-        let classified = FoundTagKt.classifyTag(uid: SwiftInteropKt.kotlinBytes(data: miFare.identifier)) {
-            MiFareTransport(tag: miFare, crcMode: crcMode)
-        }
-        guard let waveshare = classified as? FoundTagWaveshare else {
+        guard let writable = classified as? FoundTagWritable else {
             fail(WriteMessagesKt.UNSUPPORTED_TAG_MESSAGE, session: session)
             return
         }
+        NfcLog.log("Classified as \(writable is FoundTagWaveshareIsoDep ? "Waveshare Rev2.2 (ISO-DEP)" : "Waveshare classic")")
         session.connect(to: tag) { error in
             MainActor.assumeIsolated {
-                if error != nil {
-                    waveshare.transport.close()
+                if let error {
+                    NfcLog.log("Connect failed: \(error.localizedDescription)")
+                    writable.transport.close()
                     self.fail("Couldn't connect to the tag. Hold it still and try again.", session: session)
                     return
                 }
-                Task { await self.run(waveshare.transport, frame: frame, session: session) }
+                NfcLog.log("Connected")
+                Task { await self.run(writable, view: view, session: session) }
             }
         }
     }
 }
 
 extension TagWriter: NFCTagReaderSessionDelegate {
-    nonisolated func tagReaderSessionDidBecomeActive(_ session: NFCTagReaderSession) {}
+    nonisolated func tagReaderSessionDidBecomeActive(_ session: NFCTagReaderSession) {
+        NfcLog.log("Session active; waiting for a tag")
+    }
 
     nonisolated func tagReaderSession(_ session: NFCTagReaderSession, didDetect tags: [NFCTag]) {
         MainActor.assumeIsolated { found(tags, session: session) }
@@ -136,6 +154,8 @@ extension TagWriter: NFCTagReaderSessionDelegate {
 
     nonisolated func tagReaderSession(_ session: NFCTagReaderSession, didInvalidateWithError error: any Error) {
         MainActor.assumeIsolated {
+            let code = (error as? NFCReaderError)?.code.rawValue ?? -1
+            NfcLog.log("Session ended (code \(code)): \(error.localizedDescription)")
             guard session === self.session else { return }
             self.session = nil
             if case .writing = state {

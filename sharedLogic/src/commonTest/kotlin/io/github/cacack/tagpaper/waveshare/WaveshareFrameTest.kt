@@ -9,6 +9,9 @@ import kotlin.test.assertTrue
 
 private val PANEL = WavesharePanel.EPD_2IN7
 
+/** Bytes holding the visible view in a Rev2.2 frame: 264 rows of 22 bytes. */
+private const val VIEW_BYTES = 264 * 22
+
 /** A white view-orientation image with black pixels at the given (x, y) points. */
 private fun viewWithBlack(vararg points: Pair<Int, Int>): BooleanArray =
     BooleanArray(PANEL.viewWidth * PANEL.viewHeight) { true }.also { view ->
@@ -56,6 +59,25 @@ class WaveshareFrameTest {
     @Test
     fun rejectsAViewOfTheWrongSize() {
         assertFailsWith<IllegalArgumentException> { packFrame(PANEL, BooleanArray(264 * 176 - 1)) }
+    }
+
+    @Test
+    fun controllerFrameSendsTheViewTurned180ThenWhitePadding() {
+        // View bottom-right goes first; view top-left is the last image byte.
+        assertEquals(mapOf(0 to 0x7F), packControllerFrame(PANEL, viewWithBlack(175 to 263)).nonWhite())
+        assertEquals(mapOf(VIEW_BYTES - 1 to 0xFE), packControllerFrame(PANEL, viewWithBlack(0 to 0)).nonWhite())
+        // Rows are 22 bytes; view row 262's right edge starts the second row.
+        assertEquals(mapOf(22 to 0x7F), packControllerFrame(PANEL, viewWithBlack(175 to 262)).nonWhite())
+    }
+
+    @Test
+    fun controllerFrameCoversAll296RowsWithHiddenRowsWhite() {
+        val frame = packControllerFrame(PANEL, BooleanArray(PANEL.viewWidth * PANEL.viewHeight))
+
+        assertEquals(296 * 22, frame.size)
+        assertTrue(frame.copyOfRange(0, VIEW_BYTES).all { it == 0.toByte() })
+        assertTrue(frame.copyOfRange(VIEW_BYTES, frame.size).all { it == 0xFF.toByte() })
+        assertFailsWith<IllegalArgumentException> { packControllerFrame(PANEL, BooleanArray(10)) }
     }
 
     @Test

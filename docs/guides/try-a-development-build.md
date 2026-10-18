@@ -50,5 +50,6 @@ source on a Mac with Xcode:
 
 The Simulator has no NFC; debug builds there write to a simulated tag
 instead. Debug builds also show a **CRC** switch, which chooses whether
-commands carry an NFC checksum; which framing Waveshare tags need on iPhone
-is still being tested.
+commands to earlier (classic) Waveshare boards carry an NFC checksum. Which
+framing those boards need on iPhone is still untested; Rev2.2 boards don't
+use it. Debug builds log every NFC exchange to Xcode's console under `nfc`.

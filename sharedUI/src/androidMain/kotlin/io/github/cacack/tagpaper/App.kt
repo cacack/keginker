@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.cacack.tagpaper.image.Dither
 import io.github.cacack.tagpaper.nfc.FoundTag
+import io.github.cacack.tagpaper.waveshare.writeProgressMessage
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -132,7 +133,7 @@ private fun WriteStatus(
             }
             is WriteState.Writing -> {
                 LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())
-                Text("Writing ${state.percent}%. Keep the phone still.")
+                Text(writeProgressMessage(state.percent, phone = "phone"))
             }
             WriteState.Done -> {
                 Text("Done. The tag keeps this image without power.")

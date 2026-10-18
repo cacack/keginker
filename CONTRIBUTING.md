@@ -13,6 +13,15 @@ Kotlin Multiplatform with native UIs:
 - `iosApp/` — Xcode project; SwiftUI UI. Its build phase runs Gradle to
   compile `sharedLogic` into a framework.
 
+## Testing a promise
+
+[docs/architecture/testing.md](docs/architecture/testing.md) maps each promise
+the app makes to the check that guards it. A change that touches a promise
+adds a check that would fail if the promise broke (a seeded property, a
+simulator comparison or a recording, not only an example worked out from the
+new code), updates that table, and says what to run by hand if CI can't
+check it.
+
 ## Building and testing
 
 Requires JDK 21. iOS builds require macOS with Xcode.

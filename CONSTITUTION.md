@@ -2,15 +2,16 @@
 
 ## Mission
 
-Make battery-free NFC e-paper tags pleasant and dependable to use from a phone:
-pick an image, see exactly how it will look, tap, and trust that it worked.
+Keep every tap handle showing what's pouring. KegInker writes labels to
+battery-free NFC e-paper tags on keg tap handles from a phone: pick the beer,
+see exactly how the label will look, tap, and trust that it worked.
 
 ## Audience
 
-People who use NFC e-paper tags as small rewritable labels. The first and
-defining case is homebrewers labelling keg tap handles, who rewrite a tag
-every time a keg changes. Anyone else with these tags should find the app
-equally useful.
+Homebrewers labelling keg tap handles, who rewrite a tag every time a keg
+changes. Taprooms, restaurants and breweries rotating many taps are just as
+welcome, and the app should grow with them. Anyone using these tags another
+way can still write any image to them.
 
 ## Principles
 
@@ -23,24 +24,50 @@ equally useful.
    access, accounts, analytics or telemetry. Works fully offline.
 4. **Open and auditable.** Apache-2.0, buildable from source, free of
    proprietary SDKs, and suitable for F-Droid.
-5. **Many displays, one app.** Support as many NFC e-paper displays as
-   possible, across vendors, behind one consistent flow.
+5. **Displays that fit a tap handle, over display count.** Support the NFC
+   e-paper panels that suit tap handles, across vendors, behind one
+   consistent flow. Add a panel when tap-handle users need it.
 
 ## Non-goals
 
-- Dynamic content: weather, calendars, feeds or anything else fetched over a
-  network.
-- Battery-powered or Bluetooth electronic shelf labels.
-- A general graphics editor. Light composition (text, crop, rotate) yes; a
-  drawing suite no.
-- Cloud sync, accounts or sharing services.
+Where we put our effort instead; other uses keep working as they do today.
+
+- Labels made on the phone. Content comes from the user, not from weather,
+  calendars, feeds or anything else fetched over a network.
+- Tags powered by the phone's NFC field, rather than battery-powered or
+  Bluetooth electronic shelf labels.
+- Light composition: text, templates, crop and rotate. Full drawing is left
+  to graphics apps.
+- Everything stays on the phone, with no cloud sync, accounts or sharing
+  services.
+- Features designed around tap handles. Writing any image stays available
+  for custom labels and every other use.
+- Showing what's on tap. Keg inventory, volume and pour tracking are left to
+  the tools built for them.
 
 ## Success criteria
 
-- A full write to a supported panel succeeds on the first tap in the large
-  majority of attempts, on both iOS and Android, including Samsung and Pixel
-  phones.
-- Every failed write tells the user what happened and offers a retry.
-- Re-labelling a tap from a saved preset takes no more than a few taps plus
-  the write itself.
-- The release builds request no permissions beyond NFC and photo access.
+**C1 — A full write to a supported panel succeeds on the first tap in the
+large majority of attempts, on both iOS and Android, including Samsung and
+Pixel phones.**
+Check: judgement call — measured by hand on real tags and phones, because CI
+has no NFC hardware; a tally of attempts during device testing settles it.
+
+**C2 — Every failed write tells the user what happened and offers a retry.**
+Check: `./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest`
+exits 0; the write-controller and write-message tests cover failures naming
+the step, retry, unsupported tags and cancel.
+
+**C3 — Re-labelling a tap from a saved preset takes no more than a few taps
+plus the write itself.**
+Check: judgement call — count the taps from opening the app to the write on
+a device; a tap count is a UX walkthrough, not something a test can settle.
+
+**C4 — The release builds request no permissions beyond NFC and photo
+access.**
+Check: the `Check permissions (C4)` step in
+[`release.yml`](.github/workflows/release.yml) passes on each release.
+
+---
+
+*Last refreshed: 2026-10-18*

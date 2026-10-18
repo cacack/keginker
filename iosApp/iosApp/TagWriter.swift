@@ -16,7 +16,11 @@ final class TagWriter: NSObject, ObservableObject {
     @Published private(set) var state: State = .idle
     /// True from starting a write until both its session and its write have ended.
     @Published private(set) var isBusy = false
-    @Published var crcMode: CrcMode = .auto
+    /// Debug option for classic boards (see AdvancedView); remembered across launches.
+    @Published var crcMode: CrcMode = CrcMode(rawValue: UserDefaults.standard.string(forKey: crcModeKey) ?? "") ?? .auto {
+        didSet { UserDefaults.standard.set(crcMode.rawValue, forKey: Self.crcModeKey) }
+    }
+    private static let crcModeKey = "crcMode"
 
     let panel = WavesharePanel.epd2in7
     private var session: NFCTagReaderSession?

@@ -49,7 +49,7 @@ source on a Mac with Xcode:
 2. Open `iosApp/iosApp.xcodeproj`, choose your iPhone, and run.
 
 The Simulator has no NFC; debug builds there write to a simulated tag
-instead. Debug builds also show a **CRC** switch, which chooses whether
-commands to earlier (classic) Waveshare boards carry an NFC checksum. Which
-framing those boards need on iPhone is still untested; Rev2.2 boards don't
-use it. Debug builds log every NFC exchange to Xcode's console under `nfc`.
+instead. In debug builds, **Advanced** also has a **CRC framing** option,
+which chooses whether commands to earlier (classic) Waveshare boards carry an
+NFC checksum. Which framing those boards need on iPhone is still untested;
+Rev2.2 boards don't use it. Debug builds log every NFC exchange to Xcode's console under `nfc`.

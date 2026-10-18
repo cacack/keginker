@@ -33,9 +33,12 @@ def exif_rotated():
 
 def transparent():
     """Transparent black background, an opaque black square and a half-
-    transparent black band: white, black and mid grey once over white."""
+    transparent black band: white, black and mid grey once over white. A
+    half-transparent white band stays white only if the loader undoes
+    premultiplied alpha (white at alpha 128 round-trips exactly)."""
     image = Image.new("RGBA", (176, 264), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 8, 175, 39), fill=(255, 255, 255, 128))
     draw.rectangle((48, 48, 127, 127), fill=(0, 0, 0, 255))
     draw.rectangle((0, 176, 175, 231), fill=(0, 0, 0, 128))
     image.save(HERE / "transparent.png")

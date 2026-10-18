@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.renderView
 import java.io.File
+import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -56,8 +57,9 @@ class ImageLoadingTest {
             deleteOnExit()
             writeText("not an image")
         }
-        // WriteViewModel shows "Couldn't open that image." for any failure.
-        assertFailsWith<Exception> { runBlocking { loadGrayImage(context, Uri.fromFile(notAnImage)) } }
+        // WriteViewModel shows "Couldn't open that image." for any failure;
+        // the loader's own failures are IOExceptions.
+        assertFailsWith<IOException> { runBlocking { loadGrayImage(context, Uri.fromFile(notAnImage)) } }
     }
 
     private fun checkGolden(name: String) {

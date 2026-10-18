@@ -2,6 +2,7 @@ package io.github.cacack.keginker.image
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 private fun gray(width: Int, height: Int, vararg values: Int) =
@@ -54,6 +55,12 @@ class ResizeTest {
         // Each output cell covers 1.5 source rows and columns: one whole, one half.
         // Top-left: (4·0 + 2·30 + 2·90 + 1·120) / 9 = 40.
         assertEquals(listOf(40, 80, 160, 200), image.fill(2, 2).values())
+    }
+
+    @Test
+    fun rejectsAnEmptyTarget() {
+        assertFailsWith<IllegalArgumentException> { gray(1, 1, 42).fill(0, 1) }
+        assertFailsWith<IllegalArgumentException> { gray(1, 1, 42).fill(1, 0) }
     }
 
     @Test

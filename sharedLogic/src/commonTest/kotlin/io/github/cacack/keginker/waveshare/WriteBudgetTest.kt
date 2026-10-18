@@ -3,6 +3,7 @@ package io.github.cacack.keginker.waveshare
 import io.github.cacack.keginker.nfc.Transport
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -66,6 +67,15 @@ class WriteBudgetTest {
 
             assertEquals(WriteStep.WAIT_FOR_REFRESH, assertIs<WriteResult.Failure>(result).step)
             assertFitsTheBudget(scheduledMs(tag, pauses), pollPauseMs = 200)
+        }
+    }
+
+    @Test
+    fun aBudgetWithRoomForOnePollAllowsOne() {
+        val onePoll = COMMAND_ALLOWANCE_MS + 200
+        assertEquals(1, busyPollLimit(pausesMs = WRITE_BUDGET_MS - onePoll, commands = 0, pollPauseMs = 200))
+        assertFailsWith<IllegalStateException> {
+            busyPollLimit(pausesMs = WRITE_BUDGET_MS - onePoll + 1, commands = 0, pollPauseMs = 200)
         }
     }
 }

@@ -7,8 +7,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
-private val PANEL = WavesharePanel.EPD_2IN7
-
 /** Answers every command with [reply] and counts them. */
 private class CountingTag(private val reply: ByteArray) : Transport {
     var commands = 0
@@ -44,26 +42,30 @@ private fun assertFitsTheBudget(scheduled: Long, pollPauseMs: Long) {
 class WriteBudgetTest {
     @Test
     fun classicRefreshThatNeverConfirmsFailsWithinTheBudget() = runTest {
-        // `00 00` accepts every command but never reports the refresh done.
-        val tag = CountingTag(byteArrayOf(0x00, 0x00))
-        val pauses = PauseTotal()
+        for (panel in WavesharePanel.entries) {
+            // `00 00` accepts every command but never reports the refresh done.
+            val tag = CountingTag(byteArrayOf(0x00, 0x00))
+            val pauses = PauseTotal()
 
-        val result = WaveshareWriter(tag, pauses.pause).write(PANEL, ByteArray(PANEL.frameSize))
+            val result = WaveshareWriter(tag, pauses.pause).write(panel, ByteArray(panel.frameSize))
 
-        assertEquals(WriteStep.WAIT_FOR_REFRESH, assertIs<WriteResult.Failure>(result).step)
-        // The budget counts the power-off command that follows a confirmed refresh.
-        assertFitsTheBudget(scheduledMs(tag, pauses) + COMMAND_ALLOWANCE_MS, pollPauseMs = 25)
+            assertEquals(WriteStep.WAIT_FOR_REFRESH, assertIs<WriteResult.Failure>(result).step)
+            // The budget counts the power-off command that follows a confirmed refresh.
+            assertFitsTheBudget(scheduledMs(tag, pauses) + COMMAND_ALLOWANCE_MS, pollPauseMs = 25)
+        }
     }
 
     @Test
     fun rev22RefreshThatNeverConfirmsFailsWithinTheBudget() = runTest {
-        // `01 90 00` accepts every command, and reads as busy to the busy poll.
-        val tag = CountingTag(byteArrayOf(0x01, 0x90.toByte(), 0x00))
-        val pauses = PauseTotal()
+        for (panel in WavesharePanel.entries) {
+            // `01 90 00` accepts every command, and reads as busy to the busy poll.
+            val tag = CountingTag(byteArrayOf(0x01, 0x90.toByte(), 0x00))
+            val pauses = PauseTotal()
 
-        val result = WaveshareIsoDepWriter(tag, pauses.pause).write(PANEL, ByteArray(PANEL.controllerFrameSize))
+            val result = WaveshareIsoDepWriter(tag, pauses.pause).write(panel, ByteArray(panel.controllerFrameSize))
 
-        assertEquals(WriteStep.WAIT_FOR_REFRESH, assertIs<WriteResult.Failure>(result).step)
-        assertFitsTheBudget(scheduledMs(tag, pauses), pollPauseMs = 200)
+            assertEquals(WriteStep.WAIT_FOR_REFRESH, assertIs<WriteResult.Failure>(result).step)
+            assertFitsTheBudget(scheduledMs(tag, pauses), pollPauseMs = 200)
+        }
     }
 }

@@ -120,6 +120,8 @@ class WaveshareIsoDepWriter(
         const val CONFIGURE_PAUSE_MS = 100L
         const val POLL_PAUSE_MS = 200L
 
+        // Counted by hand from write(); WriteBudgetTest fails if they drift from what it sends.
+
         /** Commands before the image data: unlock, 2 resets, 8 register writes of 2, select RAM. */
         const val SETUP_COMMANDS = 1 + 2 + 8 * 2 + 1
 

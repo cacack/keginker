@@ -28,8 +28,11 @@ internal const val COMMAND_ALLOWANCE_MS = 50L
  * Busy polls that fit in what [WRITE_BUDGET_MS] leaves after a write's other
  * [pausesMs] and [commands]; each poll is one command and a [pollPauseMs] pause.
  */
-internal fun busyPollLimit(pausesMs: Long, commands: Int, pollPauseMs: Long): Int =
-    ((WRITE_BUDGET_MS - pausesMs - commands * COMMAND_ALLOWANCE_MS) / (COMMAND_ALLOWANCE_MS + pollPauseMs)).toInt()
+internal fun busyPollLimit(pausesMs: Long, commands: Int, pollPauseMs: Long): Int {
+    val polls = ((WRITE_BUDGET_MS - pausesMs - commands * COMMAND_ALLOWANCE_MS) / (COMMAND_ALLOWANCE_MS + pollPauseMs)).toInt()
+    check(polls >= 1) { "A write of $commands commands and $pausesMs ms of pauses leaves no busy poll in the budget" }
+    return polls
+}
 
 /** A write step failed; [runSteps] turns it into a [WriteResult.Failure]. */
 internal class StepFailed(

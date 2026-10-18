@@ -1,0 +1,65 @@
+name: Hardware test run
+description: Send in the results of the hardware test script on your phone and board.
+title: "Hardware test run: <phone> + <board>"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing on real hardware. Follow
+        [docs/guides/run-hardware-tests.md](https://github.com/cacack/keginker/blob/main/docs/guides/run-hardware-tests.md),
+        then fill this in. A maintainer copies it into the
+        [hardware test log](https://github.com/cacack/keginker/blob/main/docs/operations/hardware-test-log.md).
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: The release version, or the commit a development build was built from.
+      placeholder: 0.2.0 or commit abc1234
+    validations:
+      required: true
+  - type: input
+    id: phone
+    attributes:
+      label: Phone model
+      placeholder: Pixel 8, Galaxy S23, iPhone 15
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS version
+      placeholder: Android 15, iOS 26.0
+    validations:
+      required: true
+  - type: input
+    id: board
+    attributes:
+      label: Board
+      description: Panel size and the board revision printed on the back of the driver board.
+      placeholder: 2.7" Rev2.2
+    validations:
+      required: true
+  - type: input
+    id: attempts
+    attributes:
+      label: Attempts
+      description: Number of writes in scenario 1.
+    validations:
+      required: true
+  - type: input
+    id: first-tap-successes
+    attributes:
+      label: First-tap successes
+      description: Writes in scenario 1 that reached Done without a retry.
+    validations:
+      required: true
+  - type: textarea
+    id: failures
+    attributes:
+      label: Failure messages
+      description: Every failure message seen in any scenario, word for word. Leave blank if none.
+  - type: textarea
+    id: scenarios
+    attributes:
+      label: Scenarios that didn't match
+      description: Any scenario whose result differed from the expected one, by number, and what happened instead. Leave blank if all matched.

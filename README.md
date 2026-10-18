@@ -41,7 +41,7 @@ try a development build.
 - [docs/architecture/](docs/architecture/): design and tag protocols
 - [docs/decisions/](docs/decisions/): decision records
 - [docs/guides/](docs/guides/): how-tos
-- [docs/operations/](docs/operations/): CI
+- [docs/operations/](docs/operations/): CI, releases and the hardware test log
 
 ## License
 

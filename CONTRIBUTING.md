@@ -39,6 +39,10 @@ Protocol tests can also replay writes recorded from real tags; see
 [docs/guides/record-a-tag-write.md](docs/guides/record-a-tag-write.md) to
 record one.
 
+CI has no NFC, so some checks run by hand on a phone and board; see
+[docs/guides/run-hardware-tests.md](docs/guides/run-hardware-tests.md). Send
+in a run with the **Hardware test run** issue form.
+
 CI runs all of the above on every pull request; the debug APK is attached to
 each run as an artifact.
 

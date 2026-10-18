@@ -104,9 +104,10 @@ The footer only takes effect if the changes since the last release include a
 `feat`, `fix` or `perf` commit. When every commit is `chore`, `ci`, `docs` or
 `refactor`, release-please opens no release PR.
 
-The next normal bump after a pre-release moves to the next version (after
-`0.1.0-alpha.1`, a `feat` proposes `0.2.0`), so finish a pre-release series
-with `Release-As: 0.1.0`.
+Normal bumps keep the pre-release suffix: after `0.1.0-alpha.1`, a `feat`
+proposes `0.2.0-alpha.1` and a `fix` proposes `0.1.1-alpha.1`. To leave the
+pre-release series, use `Release-As` with the final version, such as
+`Release-As: 0.2.0`.
 
 Versions are `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-alpha.N`, `-beta.N` or
 `-rc.N` for pre-releases (N from 1 to 31). MAJOR runs 0–213; MINOR and PATCH

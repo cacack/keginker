@@ -43,10 +43,15 @@ private fun floydSteinberg(image: GrayImage): BooleanArray {
             val value = work[i].coerceIn(0, 255)
             white[i] = value >= MID_GREY
             val error = value - if (white[i]) 255 else 0
-            spread(x + 1, y, error * 7 / 16)
-            spread(x - 1, y + 1, error * 3 / 16)
-            spread(x, y + 1, error * 5 / 16)
-            spread(x + 1, y + 1, error / 16)
+            val right = error * 7 / 16
+            val belowLeft = error * 3 / 16
+            val below = error * 5 / 16
+            spread(x + 1, y, right)
+            spread(x - 1, y + 1, belowLeft)
+            spread(x, y + 1, below)
+            // The remainder, so rounding loses none of the error: otherwise
+            // greys within a few levels of black or white vanish.
+            spread(x + 1, y + 1, error - right - belowLeft - below)
         }
     }
     return white

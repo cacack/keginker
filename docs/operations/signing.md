@@ -121,7 +121,8 @@ The tag triggers [`release.yml`](../../.github/workflows/release.yml), which:
 3. builds a release APK signed with the key, passing
    `-Pkeginker.versionName` (the tag without the `v`) and
    `-Pkeginker.versionCode` to Gradle
-4. refuses to publish if the APK isn't signed
+4. refuses to publish if the APK isn't signed, or if it requests any
+   permission beyond NFC ([constitution](../../CONSTITUTION.md) C4)
 5. attaches `keginker-X.Y.Z.apk` and its SHA-256 to the release, titles it
    `KegInker X.Y.Z` and marks tags with a suffix as pre-releases
 

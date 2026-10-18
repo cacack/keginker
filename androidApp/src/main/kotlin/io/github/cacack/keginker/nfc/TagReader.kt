@@ -53,7 +53,7 @@ class TagReader(private val adapter: NfcAdapter?, private val debug: Boolean) {
     /** Pretends a Waveshare tag was found and then lost mid-write, for trying the failure flow. Debug only. */
     fun simulateFailingTag() {
         check(debug) { "Tag simulation is only available in debug builds" }
-        val transport = SimulatedWaveshareTransport(failAfterCommands = SIMULATED_FAILURE_AFTER_COMMANDS)
+        val transport = SimulatedWaveshareTransport(failAfterCommands = SimulatedWaveshareTransport.FAIL_WHILE_SENDING_IMAGE)
         found.tryEmit(FoundTag.Waveshare(transport, SIMULATED_TAG_INFO))
     }
 
@@ -79,9 +79,6 @@ class TagReader(private val adapter: NfcAdapter?, private val debug: Boolean) {
 
     private companion object {
         const val READER_FLAGS = NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
-
-        /** Past the setup commands, so the simulated tag is lost while sending image data. */
-        const val SIMULATED_FAILURE_AFTER_COMMANDS = 20
 
         val SIMULATED_TAG_INFO = TagInfo(technologies = listOf("Simulated"), uid = ByteArray(0))
     }

@@ -72,7 +72,14 @@ class WaveshareIsoDepWriter(
             for (chunk in 0 until chunks) {
                 val start = chunk * CHUNK_SIZE
                 val data = frame.copyOfRange(start, minOf(start + CHUNK_SIZE, frame.size))
-                sendOk(WriteStep.SEND_DATA, writeData(data), "chunk ${chunk + 1}/$chunks", imageBytes = data.size)
+                transport.exchangeImageOk(
+                    WriteStep.SEND_DATA,
+                    writeDataHeader(data.size),
+                    data,
+                    ::isOk,
+                    "chunk ${chunk + 1}/$chunks",
+                    log,
+                )
                 onProgress((chunk + 1) * DATA_PROGRESS / chunks)
             }
 
@@ -112,9 +119,8 @@ class WaveshareIsoDepWriter(
         sendOk(step, writeData(ByteArray(values.size) { values[it].toByte() }))
     }
 
-    /** [imageBytes]: how many trailing bytes of [command] are image data, kept out of the log. */
-    private suspend fun sendOk(step: WriteStep, command: ByteArray, detail: String? = null, imageBytes: Int = 0) =
-        transport.exchangeOk(step, command, ::isOk, detail, log, imageBytes)
+    private suspend fun sendOk(step: WriteStep, command: ByteArray) =
+        transport.exchangeOk(step, command, ::isOk, log = log)
 
     private companion object {
         const val DATA_PROGRESS = IMAGE_SENT_PROGRESS
@@ -157,8 +163,10 @@ class WaveshareIsoDepWriter(
             return ByteArray(header.size + rest.size) { i -> (if (i < 4) header[i] else rest[i - 4]).toByte() }
         }
 
-        fun writeData(data: ByteArray): ByteArray =
-            byteArrayOf(CLA.toByte(), 0x9A.toByte(), 0x00, 0x0E, data.size.toByte()) + data
+        /** The `74 9A 00 0E Lc` header of a write of [size] data bytes. */
+        fun writeDataHeader(size: Int): ByteArray = byteArrayOf(CLA.toByte(), 0x9A.toByte(), 0x00, 0x0E, size.toByte())
+
+        fun writeData(data: ByteArray): ByteArray = writeDataHeader(data.size) + data
 
         fun isOk(reply: ByteArray) =
             reply.size >= 2 && reply[reply.size - 2] == 0x90.toByte() && reply[reply.size - 1] == 0x00.toByte()

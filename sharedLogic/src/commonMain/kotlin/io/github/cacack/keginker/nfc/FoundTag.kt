@@ -26,13 +26,12 @@ sealed interface FoundTag {
         constructor(transport: Transport) : this(transport, null)
     }
 
-    /** A tag no supported protocol recognises. When [info] is captured, it carries the same [uid]. */
-    class Unsupported(val uid: ByteArray, override val info: TagInfo?) : FoundTag {
-        constructor(uid: ByteArray) : this(uid, null)
+    /** A tag no supported protocol recognises; [info] always has at least its UID. */
+    class Unsupported(override val info: TagInfo) : FoundTag {
+        /** For Swift until iOS captures [TagInfo] (#50): the UID only, no technologies. */
+        constructor(uid: ByteArray) : this(TagInfo(technologies = emptyList(), uid = uid))
 
-        init {
-            require(info == null || info.uid.contentEquals(uid)) { "info.uid must match uid" }
-        }
+        val uid: ByteArray get() = info.uid
     }
 }
 
@@ -46,6 +45,9 @@ val FoundTag.protocolName: String get() = when (this) {
 /**
  * Classifies an NFC-A tag that isn't ISO-DEP by its [uid], without sending it
  * any command. [openTransport] is called only for a supported tag.
+ *
+ * The `uid` overloads and the transport-only constructors serve Swift; remove
+ * them once iOS captures [TagInfo] (#50).
  */
 fun classifyNfcATag(uid: ByteArray, openTransport: () -> Transport): FoundTag =
     classifyNfcA(uid, null, openTransport)
@@ -67,7 +69,7 @@ fun classifyIsoDepTag(info: TagInfo, openTransport: () -> Transport): FoundTag =
     classifyIsoDep(info.uid, info.historicalBytes ?: ByteArray(0), info, openTransport)
 
 private fun classifyNfcA(uid: ByteArray, info: TagInfo?, openTransport: () -> Transport): FoundTag =
-    if (isWaveshareTag(uid)) FoundTag.Waveshare(openTransport(), info) else FoundTag.Unsupported(uid, info)
+    if (isWaveshareTag(uid)) FoundTag.Waveshare(openTransport(), info) else unsupported(uid, info)
 
 private fun classifyIsoDep(
     uid: ByteArray,
@@ -78,5 +80,8 @@ private fun classifyIsoDep(
     if (isWaveshareIsoDepTag(historicalBytes)) {
         FoundTag.WaveshareIsoDep(openTransport(), info)
     } else {
-        FoundTag.Unsupported(uid, info)
+        unsupported(uid, info)
     }
+
+private fun unsupported(uid: ByteArray, info: TagInfo?) =
+    if (info != null) FoundTag.Unsupported(info) else FoundTag.Unsupported(uid)

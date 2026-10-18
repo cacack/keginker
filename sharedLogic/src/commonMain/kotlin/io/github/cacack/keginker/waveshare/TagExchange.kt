@@ -53,20 +53,48 @@ internal inline fun runSteps(steps: () -> Unit): WriteResult =
     }
 
 /**
- * Sends [command] as part of [step]; a communication error fails the step.
- * Records the exchange, success or not, in [log], leaving out the last
- * [imageBytes] of [command] (image data).
- *
- * Any command carrying image data must pass [imageBytes]: the default of 0
- * logs the whole command, and reports are shared publicly with a promise
- * that they hold no image data.
+ * Sends [command], which carries no image data, as part of [step]; a
+ * communication error fails the step. Records the exchange, success or not,
+ * in [log] in full. Image data goes through [exchangeImageOk] instead, so it
+ * can never reach the log.
  */
 internal suspend fun Transport.exchange(
     step: WriteStep,
     command: ByteArray,
     detail: String? = null,
     log: ExchangeLog? = null,
-    imageBytes: Int = 0,
+): ByteArray = send(step, command, imageBytes = 0, detail, log)
+
+/** Like [exchange], and the step also fails unless [isOk] accepts the reply. */
+internal suspend fun Transport.exchangeOk(
+    step: WriteStep,
+    command: ByteArray,
+    isOk: (ByteArray) -> Boolean,
+    detail: String? = null,
+    log: ExchangeLog? = null,
+) = checkReply(step, exchange(step, command, detail, log), isOk, detail)
+
+/**
+ * Sends [header] followed by [image] as one command, like [exchangeOk]. The
+ * log keeps only [header] and the size of [image]: reports are shared
+ * publicly with a promise that they hold no image data.
+ */
+internal suspend fun Transport.exchangeImageOk(
+    step: WriteStep,
+    header: ByteArray,
+    image: ByteArray,
+    isOk: (ByteArray) -> Boolean,
+    detail: String? = null,
+    log: ExchangeLog? = null,
+) = checkReply(step, send(step, header + image, imageBytes = image.size, detail, log), isOk, detail)
+
+/** Sends [command], recording it in [log] without its last [imageBytes]. */
+private suspend fun Transport.send(
+    step: WriteStep,
+    command: ByteArray,
+    imageBytes: Int,
+    detail: String?,
+    log: ExchangeLog?,
 ): ByteArray {
     val atMs = log?.elapsedMs() ?: 0L
     val reply = try {
@@ -80,16 +108,7 @@ internal suspend fun Transport.exchange(
     return reply
 }
 
-/** Like [exchange], and the step also fails unless [isOk] accepts the reply. */
-internal suspend fun Transport.exchangeOk(
-    step: WriteStep,
-    command: ByteArray,
-    isOk: (ByteArray) -> Boolean,
-    detail: String? = null,
-    log: ExchangeLog? = null,
-    imageBytes: Int = 0,
-) {
-    val reply = exchange(step, command, detail, log, imageBytes)
+private fun checkReply(step: WriteStep, reply: ByteArray, isOk: (ByteArray) -> Boolean, detail: String?) {
     if (!isOk(reply)) {
         throw StepFailed(step, FailureKind.UNEXPECTED_REPLY, listOfNotNull("Unexpected reply ${reply.toHex()}", detail).joinToString(" at "))
     }

@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.cacack.keginker.diagnostics.AppInfo
 import io.github.cacack.keginker.diagnostics.DeviceInfo
-import io.github.cacack.keginker.diagnostics.WriteReport
 import io.github.cacack.keginker.diagnostics.formatDiagnosticReport
 import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.nfc.FoundTag
@@ -80,13 +79,15 @@ fun App(
     val preview = remember(view) { view.toPreviewBitmap(panel.viewWidth).asImageBitmap() }
     val busy = state is WriteState.Writing
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
-    // The report captured when the screen opened, so a retry doesn't change it.
-    var shownReport by remember { mutableStateOf<WriteReport?>(null) }
+    // Saved so the report stays open across rotation. The failed state it shows
+    // can't change meanwhile: a tag is only written after Retry, from the main screen.
+    var showReport by rememberSaveable { mutableStateOf(false) }
+    val shownReport = (state as? WriteState.Failed)?.report?.takeIf { showReport }
 
     // Collect here, not in a screen, so tags keep arriving whichever screen shows.
     LaunchedEffect(tags) { tags.collect(model::onTag) }
     BackHandler(enabled = showAdvanced) { showAdvanced = false }
-    BackHandler(enabled = shownReport != null) { shownReport = null }
+    BackHandler(enabled = shownReport != null) { showReport = false }
 
     val pickPhoto = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
         if (uri != null) model.load(context, uri)
@@ -100,7 +101,7 @@ fun App(
             }
             shownReport?.let { report ->
                 val text = remember(report) { formatDiagnosticReport(appInfo, deviceInfo, report) }
-                ReportScreen(report = text, onBack = { shownReport = null })
+                ReportScreen(report = text, onBack = { showReport = false })
                 return@Surface
             }
             Column(
@@ -144,7 +145,7 @@ fun App(
                     onCancel = model.controller::cancel,
                     onSimulateTag = onSimulateTag,
                     onSimulateFailure = onSimulateFailure,
-                    onShareDetails = { shownReport = it },
+                    onShareDetails = { showReport = true },
                 )
             }
         }
@@ -173,7 +174,7 @@ private fun WriteStatus(
     onCancel: () -> Unit,
     onSimulateTag: (() -> Unit)?,
     onSimulateFailure: (() -> Unit)?,
-    onShareDetails: (WriteReport) -> Unit,
+    onShareDetails: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -202,8 +203,8 @@ private fun WriteStatus(
                 Text(state.message, color = MaterialTheme.colorScheme.error)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onWrite) { Text("Retry") }
-                    state.report?.let { report ->
-                        OutlinedButton(onClick = { onShareDetails(report) }) { Text("Share details") }
+                    if (state.report != null) {
+                        OutlinedButton(onClick = onShareDetails) { Text("Share details") }
                     }
                 }
             }

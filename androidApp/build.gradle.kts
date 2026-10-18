@@ -34,10 +34,10 @@ val releaseVersionCode = providers.gradleProperty("keginker.versionCode").orNull
 }
 val releaseVersionName = providers.gradleProperty("keginker.versionName").orNull
 
-/** `git rev-parse --short HEAD`, or null without a repository or without git installed. */
+/** `git rev-parse --short=7 HEAD`, or null without a repository or without git installed. */
 fun gitHead(): String? = runCatching {
     providers.exec {
-        commandLine("git", "rev-parse", "--short", "HEAD")
+        commandLine("git", "rev-parse", "--short=7", "HEAD")
         isIgnoreExitValue = true
     }.standardOutput.asText.orNull?.trim()
 }.getOrNull()?.takeIf { it.isNotEmpty() }

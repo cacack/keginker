@@ -99,11 +99,14 @@ class WaveshareWriter(
             pause(START_PAUSE_MS)
 
             for (chunk in 0 until panel.chunkCount) {
-                sendOk(
+                val start = chunk * panel.chunkSize
+                transport.exchangeImageOk(
                     WriteStep.SEND_DATA,
-                    dataPacket(panel, frame, chunk),
+                    command(0xCD, 0x19, panel.chunkSize),
+                    frame.copyOfRange(start, start + panel.chunkSize),
+                    ::isOk,
                     "chunk ${chunk + 1}/${panel.chunkCount}",
-                    imageBytes = panel.chunkSize,
+                    log,
                 )
                 onProgress((chunk + 1) * DATA_PROGRESS / panel.chunkCount)
                 pause(CHUNK_PAUSE_MS)
@@ -135,9 +138,8 @@ class WaveshareWriter(
         pollPauseMs = POLL_PAUSE_MS,
     )
 
-    /** [imageBytes]: how many trailing bytes of [command] are image data, kept out of the log. */
-    private suspend fun sendOk(step: WriteStep, command: ByteArray, detail: String? = null, imageBytes: Int = 0) =
-        transport.exchangeOk(step, command, ::isOk, detail, log, imageBytes)
+    private suspend fun sendOk(step: WriteStep, command: ByteArray) =
+        transport.exchangeOk(step, command, ::isOk, log = log)
 
     private companion object {
         const val DATA_PROGRESS = IMAGE_SENT_PROGRESS
@@ -153,11 +155,6 @@ class WaveshareWriter(
         val POWER_ON_SEQUENCE = listOf(0x01 to 20L, 0x02 to 20L, 0x03 to 20L, 0x05 to 20L, 0x06 to 10L)
 
         fun command(vararg bytes: Int) = ByteArray(bytes.size) { bytes[it].toByte() }
-
-        fun dataPacket(panel: WavesharePanel, frame: ByteArray, chunk: Int): ByteArray {
-            val start = chunk * panel.chunkSize
-            return command(0xCD, 0x19, panel.chunkSize) + frame.copyOfRange(start, start + panel.chunkSize)
-        }
 
         fun isOk(reply: ByteArray) = reply.size >= 2 && reply[0] == 0x00.toByte() && reply[1] == 0x00.toByte()
 

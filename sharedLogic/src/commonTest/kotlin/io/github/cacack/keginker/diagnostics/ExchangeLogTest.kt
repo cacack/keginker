@@ -3,6 +3,7 @@ package io.github.cacack.keginker.diagnostics
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.waveshare.WriteStep
 import io.github.cacack.keginker.waveshare.exchange
+import io.github.cacack.keginker.waveshare.exchangeImageOk
 import io.github.cacack.keginker.waveshare.exchangeOk
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
@@ -61,9 +62,12 @@ class ExchangeLogTest {
     @Test
     fun dropsImageBytesKeepingOnlyTheHeader() = runTest {
         val log = ExchangeLog()
+        var sent = ByteArray(0)
+        val tag = FakeTag { sent = it; bytes(0x90, 0x00) }
 
-        FakeTag().exchange(WriteStep.SEND_DATA, bytes(0xCD, 0x19, 0x03, 0xAA, 0xBB, 0xCC), log = log, imageBytes = 3)
+        tag.exchangeImageOk(WriteStep.SEND_DATA, bytes(0xCD, 0x19, 0x03), bytes(0xAA, 0xBB, 0xCC), { true }, log = log)
 
+        assertContentEquals(bytes(0xCD, 0x19, 0x03, 0xAA, 0xBB, 0xCC), sent, "the tag still gets the image")
         val entry = log.entries.single()
         assertContentEquals(bytes(0xCD, 0x19, 0x03), entry.command)
         assertEquals(3, entry.imageBytes)
@@ -74,7 +78,7 @@ class ExchangeLogTest {
         val log = ExchangeLog()
         val tag = FakeTag { error("tag lost") }
 
-        assertFails { tag.exchange(WriteStep.SEND_DATA, bytes(0xCD, 0x19, 0x01, 0xAA), log = log, imageBytes = 1) }
+        assertFails { tag.exchangeImageOk(WriteStep.SEND_DATA, bytes(0xCD, 0x19, 0x01), bytes(0xAA), { true }, log = log) }
 
         val entry = log.entries.single()
         assertEquals("IllegalStateException: tag lost", entry.error)

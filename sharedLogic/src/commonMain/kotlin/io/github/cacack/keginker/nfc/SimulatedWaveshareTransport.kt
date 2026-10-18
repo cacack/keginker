@@ -26,6 +26,14 @@ class SimulatedWaveshareTransport(
         val isBusyPoll = command.size >= 2 && command[0] == 0xCD.toByte() && command[1] == 0x0A.toByte()
         return if (isBusyPoll) byteArrayOf(0xFF.toByte(), 0x00) else byteArrayOf(0x00, 0x00)
     }
+
+    companion object {
+        /**
+         * A [failAfterCommands] past a classic write's setup commands, so the
+         * tag is lost while image data is being sent; a test holds it there.
+         */
+        const val FAIL_WHILE_SENDING_IMAGE = 20
+    }
 }
 
 /** Thrown by a [SimulatedWaveshareTransport] once its tag is "lost". */

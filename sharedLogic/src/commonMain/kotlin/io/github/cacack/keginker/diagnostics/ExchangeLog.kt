@@ -10,7 +10,7 @@ import kotlin.time.TimeSource
  * protocol header, and [imageBytes] says how many image bytes followed it.
  * Exactly one of [reply] and [error] is set.
  */
-class Exchange(
+class Exchange internal constructor(
     /** Milliseconds from the start of the log to when the command was sent. */
     val atMs: Long,
     val step: WriteStep,

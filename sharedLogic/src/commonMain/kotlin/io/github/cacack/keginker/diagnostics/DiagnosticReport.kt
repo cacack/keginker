@@ -33,7 +33,7 @@ fun formatDiagnosticReport(app: AppInfo, device: DeviceInfo, report: WriteReport
         appendLine("Tag: no details captured")
     } else {
         appendLine("Tag")
-        field("Technologies", tag.technologies.joinToString(", "))
+        field("Technologies", tag.technologies.takeIf { it.isNotEmpty() }?.joinToString(", "))
         field("UID", shortUid(tag.uid))
         field("ATQA", tag.atqa?.toHex())
         field("SAK", tag.sak?.let { byteArrayOf(it.toByte()).toHex() })

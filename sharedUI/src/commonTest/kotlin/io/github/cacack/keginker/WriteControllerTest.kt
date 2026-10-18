@@ -138,7 +138,7 @@ class WriteControllerTest {
         controller.arm(testView())
         val info = TagInfo(technologies = listOf("NfcA"), uid = byteArrayOf(4, 1, 2, 3, 4, 5, 6), sak = 0x08)
 
-        controller.onTag(FoundTag.Unsupported(info.uid, info))
+        controller.onTag(FoundTag.Unsupported(info))
 
         val report = assertNotNull(assertIs<WriteState.Failed>(controller.state.value).report)
         assertSame(info, report.tag)

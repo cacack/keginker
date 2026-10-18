@@ -8,6 +8,8 @@ struct ContentView: View {
     @StateObject private var writer = TagWriter()
     @State private var source: GrayImage?
     @State private var dither = true
+    /// Where grey becomes black when dithering is off (0–255).
+    @State private var threshold = Double(DitherThreshold.companion.DEFAULT_LEVEL)
     @State private var view: KotlinBooleanArray?
     /// The preview, built once per render; body re-evaluates on every progress tick.
     @State private var previewCGImage: CGImage?
@@ -29,6 +31,7 @@ struct ContentView: View {
         }
         .onAppear(perform: render)
         .onChange(of: dither) { render() }
+        .onChange(of: threshold) { render() }
         .onChange(of: pickerItem) { load(pickerItem) }
     }
 
@@ -43,6 +46,14 @@ struct ContentView: View {
                     Toggle("Dither", isOn: $dither).toggleStyle(.button)
                 }
                 .disabled(writer.isBusy)
+                if !dither {
+                    VStack(spacing: 4) {
+                        Text("Black below grey level \(Int(threshold))").font(.footnote)
+                        Slider(value: $threshold, in: 0...255, step: 1)
+                            .frame(width: 260)
+                    }
+                    .disabled(writer.isBusy)
+                }
                 if let loadError { Text(loadError).foregroundStyle(.red) }
                 if !TagWriter.isNfcAvailable && !canSimulate {
                     Text("This device can't read NFC tags.").foregroundStyle(.red)
@@ -101,7 +112,7 @@ struct ContentView: View {
 
     private func render() {
         let image = source ?? TestPatternKt.testPattern(width: panel.viewWidth, height: panel.viewHeight)
-        let method: Dither = dither ? DitherFloydSteinberg.shared : DitherThreshold(level: 128)
+        let method: Dither = dither ? DitherFloydSteinberg.shared : DitherThreshold(level: Int32(threshold))
         let rendered = WaveshareFrameKt.renderView(panel: panel, image: image, dither: method)
         view = rendered
         previewCGImage = previewImage(rendered, width: Int(panel.viewWidth))

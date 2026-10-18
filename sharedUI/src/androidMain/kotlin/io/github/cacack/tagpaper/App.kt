@@ -23,6 +23,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,6 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.cacack.tagpaper.image.Dither
 import io.github.cacack.tagpaper.nfc.FoundTag
 import io.github.cacack.tagpaper.waveshare.writeProgressMessage
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -108,6 +110,9 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String? = null, onSimulateTag: (() -> 
                         label = { Text("Dither") },
                     )
                 }
+                (dither as? Dither.Threshold)?.let { threshold ->
+                    ThresholdControl(level = threshold.level, enabled = !busy, onChange = model::setThreshold)
+                }
                 loadError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 nfcProblem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
@@ -120,6 +125,20 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String? = null, onSimulateTag: (() -> 
                 )
             }
         }
+    }
+}
+
+/** Where grey becomes black when dithering is off; higher keeps light greys black. */
+@Composable
+private fun ThresholdControl(level: Int, enabled: Boolean, onChange: (Int) -> Unit) {
+    Column(Modifier.width(260.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Black below grey level $level", style = MaterialTheme.typography.bodySmall)
+        Slider(
+            value = level.toFloat(),
+            onValueChange = { onChange(it.roundToInt()) },
+            valueRange = 0f..255f,
+            enabled = enabled,
+        )
     }
 }
 

@@ -20,7 +20,8 @@ families involved.
 1. Open tagpaper. The preview shows exactly what the tag will display; it
    starts with a test pattern whose solid corner marks the top-left.
 2. Optionally tap **Choose image**. Photos are centre-cropped to the panel.
-   Turn **Dither** off for text and logos.
+   Turn **Dither** off for text and logos; the slider that appears sets which
+   greys become black. Raise it if light text in your image breaks up.
 3. Tap **Write to tag**, then hold the phone against the tag and keep it
    still until it says **Done**: on Android, the back of the phone; on
    iPhone, the top edge, while the NFC sheet is showing.

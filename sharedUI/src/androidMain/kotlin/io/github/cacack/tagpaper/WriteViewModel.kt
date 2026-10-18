@@ -43,9 +43,22 @@ class WriteViewModel : ViewModel() {
 
     fun write() = controller.arm(view.value)
 
+    /** Threshold level used whenever dithering is off; kept while dithering is on. */
+    private var thresholdLevel = Dither.Threshold.DEFAULT_LEVEL
+
     fun toggleDither() {
-        mutableDither.value = if (mutableDither.value == Dither.FloydSteinberg) Dither.Threshold() else Dither.FloydSteinberg
+        mutableDither.value =
+            if (mutableDither.value == Dither.FloydSteinberg) Dither.Threshold(thresholdLevel) else Dither.FloydSteinberg
         rerender()
+    }
+
+    /** Sets where grey becomes black (0–255) when dithering is off. */
+    fun setThreshold(level: Int) {
+        thresholdLevel = level.coerceIn(0, 255)
+        if (mutableDither.value is Dither.Threshold) {
+            mutableDither.value = Dither.Threshold(thresholdLevel)
+            rerender()
+        }
     }
 
     fun load(context: Context, uri: Uri) {

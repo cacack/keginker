@@ -36,8 +36,10 @@ every `sharedLogic` host test, since `nfc/` and `replay/` tests also cover
 
 ## Scores
 
-PIT's default mutators. "Detected" means killed, or timed out because the
-mutant made a test hang.
+PIT 1.30.1 with its default mutators, run on this change's commit. The
+counts are a snapshot, not a baseline: they shift whenever the code or the
+tests change. "Detected" means killed, or timed out because the mutant made a
+test hang.
 
 | Package | Mutants | Detected before | Detected after |
 |---|---|---|---|

@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		4056BFADBAF784E4AF56F6FB /* tagpaper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = tagpaper.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4056BFADBAF784E4AF56F6FB /* KegInker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KegInker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -59,7 +59,7 @@
 		53AE71B3B87E502EF274CABC /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				4056BFADBAF784E4AF56F6FB /* tagpaper.app */,
+				4056BFADBAF784E4AF56F6FB /* KegInker.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -87,7 +87,7 @@
 			packageProductDependencies = (
 			);
 			productName = iosApp;
-			productReference = 4056BFADBAF784E4AF56F6FB /* tagpaper.app */;
+			productReference = 4056BFADBAF784E4AF56F6FB /* KegInker.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */

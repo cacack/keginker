@@ -1,6 +1,6 @@
 # Architecture overview
 
-tagpaper is a Kotlin Multiplatform (KMP) project: a shared Kotlin core with a
+KegInker is a Kotlin Multiplatform (KMP) project: a shared Kotlin core with a
 native UI on each platform.
 
 ```

@@ -2,12 +2,12 @@
 //   TEAM_ID=ABCDE12345
 TEAM_ID=
 
-PRODUCT_NAME=tagpaper
-PRODUCT_BUNDLE_IDENTIFIER=io.github.cacack.tagpaper
+PRODUCT_NAME=KegInker
+PRODUCT_BUNDLE_IDENTIFIER=io.github.cacack.keginker
 
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=1.0
-CODE_SIGN_ENTITLEMENTS=Configuration/tagpaper.entitlements
+CODE_SIGN_ENTITLEMENTS=Configuration/keginker.entitlements
 
 // Last, so local settings override the ones above.
 #include? "Local.xcconfig"

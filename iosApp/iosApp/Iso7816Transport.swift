@@ -21,7 +21,7 @@ final class Iso7816Transport: NSObject, Transport {
     ) {
         let packet = SwiftInteropKt.nsData(bytes: command) as Data
         guard let apdu = NFCISO7816APDU(data: packet) else {
-            completionHandler(nil, NSError(domain: "tagpaper", code: 1, userInfo: [
+            completionHandler(nil, NSError(domain: "keginker", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "Not a valid APDU (header \(NfcLog.hex(packet.prefix(5))), \(packet.count) bytes)",
             ]))
             return

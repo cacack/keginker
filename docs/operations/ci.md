@@ -7,7 +7,7 @@ pull request and every push to `main`.
 | Job | Runner | What it does |
 |---|---|---|
 | Shared tests | ubuntu | `:sharedLogic` and `:sharedUI` Android host tests (JVM) |
-| Android APK | ubuntu | `:androidApp:assembleDebug`, signed with the release key on pushes to `main` (pull requests use the debug key); uploads `tagpaper-debug-apk` (kept 14 days) |
+| Android APK | ubuntu | `:androidApp:assembleDebug`, signed with the release key on pushes to `main` (pull requests use the debug key); uploads `keginker-debug-apk` (kept 14 days) |
 | iOS build | macos | `:sharedLogic:iosSimulatorArm64Test`, then an unsigned simulator build of `iosApp` |
 | CI Success | ubuntu | Gate: fails if any job above failed or was cancelled |
 

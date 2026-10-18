@@ -2,11 +2,11 @@
 
 ## Android
 
-The easiest way is a release: download `tagpaper-X.Y.Z.apk` from
-[Releases](https://github.com/cacack/tagpaper/releases), open it on the
+The easiest way is a release: download `keginker-X.Y.Z.apk` from
+[Releases](https://github.com/cacack/keginker/releases), open it on the
 phone, and allow installs from that source. No GitHub account is needed.
 Early releases are marked as pre-releases. To get updates automatically,
-add `https://github.com/cacack/tagpaper` to
+add `https://github.com/cacack/keginker` to
 [Obtainium](https://github.com/ImranR98/Obtainium), with pre-releases
 turned on.
 
@@ -14,11 +14,11 @@ For the latest unreleased change, every push and pull request also builds a
 debug APK in CI:
 
 1. Download the APK from the latest successful run on `main`. Either open the
-   [Actions tab](https://github.com/cacack/tagpaper/actions/workflows/ci.yml)
-   and download the `tagpaper-debug-apk` artifact, or use the GitHub CLI:
+   [Actions tab](https://github.com/cacack/keginker/actions/workflows/ci.yml)
+   and download the `keginker-debug-apk` artifact, or use the GitHub CLI:
 
    ```sh
-   gh run download -R cacack/tagpaper -n tagpaper-debug-apk
+   gh run download -R cacack/keginker -n keginker-debug-apk
    ```
 
 2. Install it on a phone (`adb install androidApp-debug.apk`, or open the file

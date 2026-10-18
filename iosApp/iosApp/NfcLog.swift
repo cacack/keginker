@@ -5,7 +5,7 @@ import os
 /// `nfc` category. Frames carry the user's image, so release builds log nothing.
 enum NfcLog {
     #if DEBUG
-    private static let logger = Logger(subsystem: "io.github.cacack.tagpaper", category: "nfc")
+    private static let logger = Logger(subsystem: "io.github.cacack.keginker", category: "nfc")
     #endif
 
     static func log(_ message: @autoclosure () -> String) {

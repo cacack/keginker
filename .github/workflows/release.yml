@@ -97,15 +97,15 @@ jobs:
 
       - name: Test and build
         env:
-          TAGPAPER_KEYSTORE: ${{ runner.temp }}/release.jks
-          TAGPAPER_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          TAGPAPER_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          TAGPAPER_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEGINKER_KEYSTORE: ${{ runner.temp }}/release.jks
+          KEGINKER_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEGINKER_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEGINKER_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           VERSION_NAME: ${{ steps.version.outputs.name }}
           VERSION_CODE: ${{ steps.version.outputs.code }}
         run: |
           ./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest :androidApp:assembleRelease \
-            -Ptagpaper.versionName="$VERSION_NAME" -Ptagpaper.versionCode="$VERSION_CODE"
+            -Pkeginker.versionName="$VERSION_NAME" -Pkeginker.versionCode="$VERSION_CODE"
 
       - name: Verify signature and package
         env:
@@ -118,8 +118,8 @@ jobs:
           apksigner="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 | sort -V | tail -1)/apksigner"
           "$apksigner" verify --print-certs "$apk"
           mkdir dist
-          cp "$apk" "dist/tagpaper-$VERSION_NAME.apk"
-          (cd dist && sha256sum "tagpaper-$VERSION_NAME.apk" > "tagpaper-$VERSION_NAME.apk.sha256")
+          cp "$apk" "dist/keginker-$VERSION_NAME.apk"
+          (cd dist && sha256sum "keginker-$VERSION_NAME.apk" > "keginker-$VERSION_NAME.apk.sha256")
 
       - name: Attach the APK to the release
         env:
@@ -128,4 +128,4 @@ jobs:
           PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
           gh release upload "$GITHUB_REF_NAME" dist/*
-          gh release edit "$GITHUB_REF_NAME" --title "tagpaper $VERSION_NAME" --prerelease="$PRERELEASE"
+          gh release edit "$GITHUB_REF_NAME" --title "KegInker $VERSION_NAME" --prerelease="$PRERELEASE"

@@ -1,7 +1,7 @@
 # Tag protocols
 
 NFC e-paper tags fall into several protocol families that are not compatible
-with each other. tagpaper supports Waveshare classic and Waveshare Rev2.2.
+with each other. KegInker supports Waveshare classic and Waveshare Rev2.2.
 
 ## Waveshare classic
 
@@ -52,7 +52,7 @@ view's top-right pixel is memory byte 0, and its top-left is byte 5,775.
 
 The vendor codec also accepts landscape input. It rotates that input the same
 way and then reads it with a 264-pixel stride. That is only correct for
-portrait input, so landscape images wrap rows. tagpaper always crops and
+portrait input, so landscape images wrap rows. KegInker always crops and
 scales to the portrait view first, and unit tests pin the mapping.
 
 Orientation is set per panel (`PanelView`). Check it against hardware before
@@ -87,7 +87,7 @@ The write sets controller registers (SSD16xx-style): `0x01` gate count,
 `0x11` = `01` (X increasing, Y decreasing), `0x44`/`0x45` the RAM window,
 `0x3C` border, `0x18` = `80` (internal temperature sensor), `0x4E`/`0x4F`
 the RAM cursor. It then selects `0x24` (black/white RAM) and sends the frame
-in 250-byte chunks. Refresh is `0x22` = `F7`, then `0x20`. tagpaper waits
+in 250-byte chunks. Refresh is `0x22` = `F7`, then `0x20`. KegInker waits
 6 s and then polls.
 
 ### RAM layout (2.7")
@@ -95,7 +95,7 @@ in 250-byte chunks. Refresh is `0x22` = `F7`, then `0x20`. tagpaper waits
 The controller RAM is 176 pixels (22 bytes) × **296** rows, 1 bit per pixel,
 MSB first, 1 = white. The panel shows only the highest 264 row addresses
 (32–295), with the highest at the bottom and RAM column 0 at the right edge.
-tagpaper writes all 296 rows from the highest address down: the view turned
+KegInker writes all 296 rows from the highest address down: the view turned
 180° first, then 32 white rows for the hidden addresses. That's 6,512 bytes
 in 27 chunks (`packControllerFrame`).
 

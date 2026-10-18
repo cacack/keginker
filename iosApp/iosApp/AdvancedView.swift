@@ -12,7 +12,7 @@ struct AdvancedView: View {
             } header: {
                 Text("Unsupported displays")
             } footer: {
-                Text("Coming soon: read what an unsupported tag reports about itself, so you can share it with the tagpaper project.")
+                Text("Coming soon: read what an unsupported tag reports about itself, so you can share it with the KegInker project.")
             }
             #if DEBUG
             Section {

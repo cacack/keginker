@@ -10,7 +10,7 @@ plugins {
 kotlin {
     
     android {
-       namespace = "io.github.cacack.tagpaper.sharedUI"
+       namespace = "io.github.cacack.keginker.sharedUI"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
     

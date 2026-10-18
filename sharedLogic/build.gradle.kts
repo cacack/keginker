@@ -17,7 +17,7 @@ kotlin {
     }
     
     android {
-       namespace = "io.github.cacack.tagpaper.sharedLogic"
+       namespace = "io.github.cacack.keginker.sharedLogic"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
     

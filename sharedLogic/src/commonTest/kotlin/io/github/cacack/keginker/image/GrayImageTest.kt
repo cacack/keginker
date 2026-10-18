@@ -3,6 +3,7 @@ package io.github.cacack.keginker.image
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class GrayImageTest {
     @Test
@@ -38,5 +39,25 @@ class GrayImageTest {
     @Test
     fun rejectsSizesThatOverflowInt() {
         assertFailsWith<IllegalArgumentException> { GrayImage.fromArgb(65_536, 65_536, IntArray(0)) }
+    }
+
+    @Test
+    fun anyFullyTransparentColourIsWhite() = forEachSeed { random ->
+        val rgb = random.nextInt() and 0xFFFFFF
+
+        assertEquals(255, GrayImage.fromArgb(1, 1, intArrayOf(rgb))[0, 0], "Colour ${rgb.toString(16)}")
+    }
+
+    @Test
+    fun greyNeverDecreasesAsAChannelIncreases() = forEachSeed { random ->
+        val argb = random.nextInt()
+        val shift = listOf(16, 8, 0).random(random)
+        val channel = (argb shr shift) and 0xFF
+        val raised = (argb and (0xFF shl shift).inv()) or (random.nextInt(channel, 256) shl shift)
+
+        val grey = GrayImage.fromArgb(1, 1, intArrayOf(argb))[0, 0]
+        val raisedGrey = GrayImage.fromArgb(1, 1, intArrayOf(raised))[0, 0]
+
+        assertTrue(raisedGrey >= grey, "${argb.toUInt().toString(16)} → ${raised.toUInt().toString(16)}: $grey → $raisedGrey")
     }
 }

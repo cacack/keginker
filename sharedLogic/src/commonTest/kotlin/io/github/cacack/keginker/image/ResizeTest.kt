@@ -2,6 +2,7 @@ package io.github.cacack.keginker.image
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 private fun gray(width: Int, height: Int, vararg values: Int) =
     GrayImage(width, height, ByteArray(values.size) { values[it].toByte() })
@@ -53,5 +54,44 @@ class ResizeTest {
         // Each output cell covers 1.5 source rows and columns: one whole, one half.
         // Top-left: (4·0 + 2·30 + 2·90 + 1·120) / 9 = 40.
         assertEquals(listOf(40, 80, 160, 200), image.fill(2, 2).values())
+    }
+
+    @Test
+    fun outputIsAlwaysTheTargetSize() = forEachSeed { random ->
+        val width = random.nextInt(1, 41)
+        val height = random.nextInt(1, 41)
+
+        val out = random.nextGrayImage().fill(width, height)
+
+        assertEquals(width to height, out.width to out.height)
+    }
+
+    @Test
+    fun aUniformImageStaysUniform() = forEachSeed { random ->
+        val grey = random.nextInt(0, 256)
+        val width = random.nextInt(1, 41)
+        val height = random.nextInt(1, 41)
+        val image = GrayImage(width, height, ByteArray(width * height) { grey.toByte() })
+
+        val out = image.fill(random.nextInt(1, 41), random.nextInt(1, 41))
+
+        assertTrue(out.grays().all { it == grey }, "Expected all $grey, got ${out.grays()}")
+    }
+
+    @Test
+    fun mirroringTheInputMirrorsTheOutput() = forEachSeed { random ->
+        val image = random.nextGrayImage()
+        val width = random.nextInt(1, 41)
+        val height = random.nextInt(1, 41)
+
+        assertEquals(image.fill(width, height).mirrored().grays(), image.mirrored().fill(width, height).grays(), "Left to right")
+        assertEquals(image.fill(width, height).flipped().grays(), image.flipped().fill(width, height).grays(), "Top to bottom")
+    }
+
+    @Test
+    fun anImageAlreadyAtTheTargetSizeComesBackUnchanged() = forEachSeed { random ->
+        val image = random.nextGrayImage()
+
+        assertEquals(image.grays(), image.fill(image.width, image.height).grays())
     }
 }

@@ -1,10 +1,14 @@
 package io.github.cacack.keginker
 
+import io.github.cacack.keginker.diagnostics.ExchangeLog
+import io.github.cacack.keginker.diagnostics.WriteReport
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
+import io.github.cacack.keginker.nfc.protocolName
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.UNSUPPORTED_TAG_MESSAGE
 import io.github.cacack.keginker.waveshare.WriteResult
+import io.github.cacack.keginker.waveshare.WriteStep
 import io.github.cacack.keginker.waveshare.userMessage
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +26,8 @@ sealed interface WriteState {
     /** The tag confirmed the refresh. */
     data object Done : WriteState
 
-    data class Failed(val message: String) : WriteState
+    /** The write failed; [report] holds what happened, for a diagnostics report. */
+    data class Failed(val message: String, val report: WriteReport? = null) : WriteState
 }
 
 /**
@@ -67,23 +72,50 @@ class WriteController(
             return
         }
         when (tag) {
-            is FoundTag.Unsupported -> mutableState.value = WriteState.Failed(UNSUPPORTED_TAG_MESSAGE)
+            is FoundTag.Unsupported -> mutableState.value = failed(tag, UNSUPPORTED_TAG_MESSAGE)
             is FoundTag.Writable -> {
+                val log = ExchangeLog()
                 mutableState.value = WriteState.Writing(0)
                 mutableState.value = try {
-                    when (val result = imageWriter.write(tag, panel, view) { mutableState.value = WriteState.Writing(it) }) {
+                    when (val result = imageWriter.write(tag, panel, view, log) { mutableState.value = WriteState.Writing(it) }) {
                         WriteResult.Success -> WriteState.Done
-                        is WriteResult.Failure -> WriteState.Failed(result.userMessage)
+                        is WriteResult.Failure -> failed(
+                            tag, result.userMessage, log, result.step, result.reason, result.cause,
+                        )
                     }
                 } catch (e: CancellationException) {
-                    mutableState.value = WriteState.Failed("The write was interrupted. Hold the tag to the phone and try again.")
+                    mutableState.value = failed(
+                        tag, "The write was interrupted. Hold the tag to the phone and try again.", log, cause = e,
+                    )
                     throw e
                 } catch (e: Exception) {
-                    WriteState.Failed("The write failed unexpectedly: ${e.message}")
+                    failed(tag, "The write failed unexpectedly: ${e.message}", log, cause = e)
                 } finally {
                     tag.transport.close()
                 }
             }
         }
     }
+
+    /** A [WriteState.Failed] showing [message], with a report of what happened. */
+    private fun failed(
+        tag: FoundTag,
+        message: String,
+        log: ExchangeLog? = null,
+        step: WriteStep? = null,
+        reason: String? = null,
+        cause: Throwable? = null,
+    ) = WriteState.Failed(
+        message,
+        WriteReport(
+            tag = tag.info,
+            protocol = tag.protocolName,
+            panel = panel.name,
+            message = message,
+            step = step,
+            reason = reason,
+            cause = cause,
+            exchanges = log?.entries.orEmpty(),
+        ),
+    )
 }

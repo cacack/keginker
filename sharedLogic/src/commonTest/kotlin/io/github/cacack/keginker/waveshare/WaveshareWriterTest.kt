@@ -1,5 +1,6 @@
 package io.github.cacack.keginker.waveshare
 
+import io.github.cacack.keginker.diagnostics.ExchangeLog
 import io.github.cacack.keginker.nfc.Transport
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -68,6 +69,23 @@ class WaveshareWriterTest {
         assertTrue(chunks.all { it.size == 3 + 121 })
         val payload = chunks.fold(ByteArray(0)) { acc, chunk -> acc + chunk.copyOfRange(3, chunk.size) }
         assertTrue(frame.contentEquals(payload))
+    }
+
+    @Test
+    fun logKeepsOnlyTheHeaderOfDataChunks() = runTest {
+        val transport = FakeTransport()
+        val log = ExchangeLog()
+
+        WaveshareWriter(transport, pause = {}, log = log).write(PANEL, testFrame())
+
+        val entries = log.entries
+        assertEquals(transport.sent.size, entries.size)
+        val data = entries.filter { it.step == WriteStep.SEND_DATA }
+        assertEquals(48, data.size)
+        assertTrue(data.all { it.command.hex() == "cd 19 79" && it.imageBytes == 121 })
+        // Everything else is recorded exactly as sent.
+        val others = entries.zip(transport.sent).filter { (entry, _) -> entry.step != WriteStep.SEND_DATA }
+        assertTrue(others.all { (entry, sent) -> entry.imageBytes == 0 && entry.command.contentEquals(sent) })
     }
 
     @Test

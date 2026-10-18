@@ -1,7 +1,9 @@
 package io.github.cacack.keginker.nfc
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -62,5 +64,29 @@ class FoundTagTest {
     fun isoDepTagWithWaveshareClassicUidIsNotClassic() {
         // The classic UID alone isn't enough once the tag speaks ISO-DEP.
         assertIs<FoundTag.Unsupported>(classifyIsoDepTag(WAVESHARE_UID, ByteArray(0), ::unexpectedTransport))
+    }
+
+    @Test
+    fun classifyingWithTagInfoAttachesIt() {
+        val classic = TagInfo(listOf("NfcA", "MifareUltralight"), WAVESHARE_UID)
+        val rev22 = TagInfo(listOf("IsoDep", "NfcA"), bytes(0x46, 0x03, 0xFA, 0x76), historicalBytes = YZRCOS_HISTORICAL)
+
+        assertSame(classic, assertIs<FoundTag.Waveshare>(classifyNfcATag(classic) { NoTransport }).info)
+        assertSame(rev22, assertIs<FoundTag.WaveshareIsoDep>(classifyIsoDepTag(rev22) { NoTransport }).info)
+    }
+
+    @Test
+    fun unsupportedTagKeepsItsTagInfo() {
+        val info = TagInfo(listOf("IsoDep"), bytes(0x08, 0x12, 0x34, 0x56))
+
+        val tag = assertIs<FoundTag.Unsupported>(classifyIsoDepTag(info, ::unexpectedTransport))
+
+        assertSame(info, tag.info)
+        assertEquals("unsupported", tag.protocolName)
+    }
+
+    @Test
+    fun classifyingByUidLeavesInfoUnset() {
+        assertNull(classifyNfcATag(WAVESHARE_UID) { NoTransport }.info)
     }
 }

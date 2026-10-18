@@ -1,5 +1,6 @@
 package io.github.cacack.keginker.waveshare
 
+import io.github.cacack.keginker.diagnostics.ExchangeLog
 import io.github.cacack.keginker.nfc.Transport
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -51,15 +52,33 @@ internal inline fun runSteps(steps: () -> Unit): WriteResult =
         WriteResult.Failure(failure.step, failure.kind, failure.reason, failure.cause)
     }
 
-/** Sends [command] as part of [step]; a communication error fails the step. */
-internal suspend fun Transport.exchange(step: WriteStep, command: ByteArray, detail: String? = null): ByteArray =
-    try {
+/**
+ * Sends [command] as part of [step]; a communication error fails the step.
+ * Records the exchange, success or not, in [log], leaving out the last
+ * [imageBytes] of [command] (image data).
+ *
+ * Any command carrying image data must pass [imageBytes]: the default of 0
+ * logs the whole command, and reports are shared publicly with a promise
+ * that they hold no image data.
+ */
+internal suspend fun Transport.exchange(
+    step: WriteStep,
+    command: ByteArray,
+    detail: String? = null,
+    log: ExchangeLog? = null,
+    imageBytes: Int = 0,
+): ByteArray {
+    val atMs = log?.elapsedMs() ?: 0L
+    val reply = try {
         transceive(command, TRANSCEIVE_TIMEOUT_MS)
-    } catch (e: CancellationException) {
-        throw e
     } catch (e: Exception) {
+        log?.record(atMs, step, command, imageBytes, reply = null, error = e)
+        if (e is CancellationException) throw e
         throw StepFailed(step, FailureKind.LOST_CONTACT, listOfNotNull("Tag communication failed", detail).joinToString(" at "), e)
     }
+    log?.record(atMs, step, command, imageBytes, reply = reply, error = null)
+    return reply
+}
 
 /** Like [exchange], and the step also fails unless [isOk] accepts the reply. */
 internal suspend fun Transport.exchangeOk(
@@ -67,8 +86,10 @@ internal suspend fun Transport.exchangeOk(
     command: ByteArray,
     isOk: (ByteArray) -> Boolean,
     detail: String? = null,
+    log: ExchangeLog? = null,
+    imageBytes: Int = 0,
 ) {
-    val reply = exchange(step, command, detail)
+    val reply = exchange(step, command, detail, log, imageBytes)
     if (!isOk(reply)) {
         throw StepFailed(step, FailureKind.UNEXPECTED_REPLY, listOfNotNull("Unexpected reply ${reply.toHex()}", detail).joinToString(" at "))
     }

@@ -2,11 +2,16 @@ package io.github.cacack.keginker
 
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
+import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.waveshare.WavesharePanel
+import io.github.cacack.keginker.waveshare.WriteStep
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -104,6 +109,42 @@ class WriteControllerTest {
         controller.onTag(FoundTag.Waveshare(FakeTag()))
 
         assertEquals(WriteState.Done, controller.state.value)
+    }
+
+    @Test
+    fun lostTagReportsTheFailingStepAndExchangesWithoutImageData() = runTest {
+        val controller = controller()
+        controller.arm(testView())
+
+        controller.onTag(FoundTag.Waveshare(FakeTag(failAfter = 20)))
+
+        val report = assertNotNull(assertIs<WriteState.Failed>(controller.state.value).report)
+        assertEquals(WriteStep.SEND_DATA, report.step)
+        assertEquals("Waveshare classic (NFC-A)", report.protocol)
+        assertEquals(PANEL.name, report.panel)
+        assertEquals("Tag was lost", report.cause?.message)
+        assertEquals(21, report.exchanges.size)
+        assertNotNull(report.exchanges.last().error)
+        val chunks = report.exchanges.filter { it.step == WriteStep.SEND_DATA }
+        assertTrue(chunks.isNotEmpty())
+        // Only the CD 19 <length> header is kept; none of the chunk's image bytes.
+        val header = byteArrayOf(0xCD.toByte(), 0x19, PANEL.chunkSize.toByte())
+        assertTrue(chunks.all { it.imageBytes == PANEL.chunkSize && it.command.contentEquals(header) })
+    }
+
+    @Test
+    fun unsupportedTagReportsItsInfoWithoutExchanges() = runTest {
+        val controller = controller()
+        controller.arm(testView())
+        val info = TagInfo(technologies = listOf("NfcA"), uid = byteArrayOf(4, 1, 2, 3, 4, 5, 6), sak = 0x08)
+
+        controller.onTag(FoundTag.Unsupported(info.uid, info))
+
+        val report = assertNotNull(assertIs<WriteState.Failed>(controller.state.value).report)
+        assertSame(info, report.tag)
+        assertEquals("unsupported", report.protocol)
+        assertNull(report.step)
+        assertTrue(report.exchanges.isEmpty())
     }
 
     @Test

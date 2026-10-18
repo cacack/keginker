@@ -11,6 +11,7 @@
  */
 package io.github.cacack.keginker.waveshare
 
+import io.github.cacack.keginker.diagnostics.ExchangeLog
 import io.github.cacack.keginker.nfc.Transport
 import kotlinx.coroutines.delay
 
@@ -22,6 +23,8 @@ import kotlinx.coroutines.delay
 class WaveshareIsoDepWriter(
     private val transport: Transport,
     private val pause: suspend (Long) -> Unit = { delay(it) },
+    /** Where to record each exchange, for a diagnostics report. */
+    private val log: ExchangeLog? = null,
 ) {
     /** For Swift, which can't supply the suspending [pause]. */
     constructor(transport: Transport) : this(transport, { delay(it) })
@@ -69,7 +72,7 @@ class WaveshareIsoDepWriter(
             for (chunk in 0 until chunks) {
                 val start = chunk * CHUNK_SIZE
                 val data = frame.copyOfRange(start, minOf(start + CHUNK_SIZE, frame.size))
-                sendOk(WriteStep.SEND_DATA, writeData(data), "chunk ${chunk + 1}/$chunks")
+                sendOk(WriteStep.SEND_DATA, writeData(data), "chunk ${chunk + 1}/$chunks", imageBytes = data.size)
                 onProgress((chunk + 1) * DATA_PROGRESS / chunks)
             }
 
@@ -87,7 +90,7 @@ class WaveshareIsoDepWriter(
 
     private suspend fun awaitRefresh(maxPolls: Int) {
         repeat(maxPolls) {
-            val reply = transport.exchange(WriteStep.WAIT_FOR_REFRESH, apdu(0x9B, 0x00, 0x0F, 0x01))
+            val reply = transport.exchange(WriteStep.WAIT_FOR_REFRESH, apdu(0x9B, 0x00, 0x0F, 0x01), log = log)
             if (isOk(reply) && reply.size >= 3 && reply[0] != BUSY) return
             pause(POLL_PAUSE_MS)
         }
@@ -109,8 +112,9 @@ class WaveshareIsoDepWriter(
         sendOk(step, writeData(ByteArray(values.size) { values[it].toByte() }))
     }
 
-    private suspend fun sendOk(step: WriteStep, command: ByteArray, detail: String? = null) =
-        transport.exchangeOk(step, command, ::isOk, detail)
+    /** [imageBytes]: how many trailing bytes of [command] are image data, kept out of the log. */
+    private suspend fun sendOk(step: WriteStep, command: ByteArray, detail: String? = null, imageBytes: Int = 0) =
+        transport.exchangeOk(step, command, ::isOk, detail, log, imageBytes)
 
     private companion object {
         const val DATA_PROGRESS = IMAGE_SENT_PROGRESS

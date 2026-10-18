@@ -58,6 +58,11 @@ drive them with a fake transport that replays recorded exchanges.
   panel's view, with no letterboxing, so UIs should preview the crop. It then
   reduces to black and white (threshold or Floyd–Steinberg), rotates and packs
   into the panel's memory layout (`encodeFrame`).
+- **Done means the tag shows the preview.** On Android, `WriteSession` holds
+  the preview and the write together: changing the preview disarms a waiting
+  write, and an image that finishes loading mid-write is shown only once the
+  write ends. A seeded model-based test checks this across random sequences
+  of user actions and tag events.
 - **Rotation and packing are per panel.** Each panel declares its view
   orientation (`PanelView`). Unit tests pin the mapping, because it's easy to
   get subtly wrong.

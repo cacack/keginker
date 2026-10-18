@@ -28,7 +28,9 @@ way can still write any image to them.
 3. **Native on each platform.** Each platform's own UI toolkit: SwiftUI on
    iOS, Jetpack Compose on Android. No web views, no imitation controls.
 4. **Minimal permissions.** NFC and the system photo picker. No network
-   access, accounts, analytics or telemetry. Works fully offline.
+   access, accounts, analytics or telemetry. Works fully offline. To help
+   fix a problem, the app can build a plain-text report that the user reads
+   in full and shares themselves; the app never sends anything on its own.
 5. **Displays that fit a tap handle, over display count.** Support the NFC
    e-paper panels that suit tap handles, across vendors, behind one
    consistent flow. Add a panel when tap-handle users need it.

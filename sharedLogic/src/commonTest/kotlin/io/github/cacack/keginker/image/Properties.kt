@@ -13,8 +13,9 @@ inline fun forEachCase(cases: IntRange, label: String, check: (Int) -> Unit) {
     for (case in cases) {
         try {
             check(case)
-        } catch (e: AssertionError) {
-            throw AssertionError("Failed for $label $case: ${e.message}", e)
+        } catch (e: Throwable) {
+            // Any failure, not just assertions: an exception from the code under test needs its case too.
+            throw AssertionError("Failed for $label $case: $e", e)
         }
     }
 }

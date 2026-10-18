@@ -9,11 +9,18 @@ package io.github.cacack.keginker.image
 fun GrayImage.fill(width: Int, height: Int): GrayImage {
     require(width > 0 && height > 0) { "Target must be at least 1×1, was ${width}×$height" }
     // Measured in units of 1 / (2 × width × height) of a source pixel, the
-    // centred crop and every output cell have whole-unit edges.
+    // centred crop and every output cell have whole-unit edges. The crop is
+    // the largest region of the target's aspect ratio: in source pixels it is
+    // crop / height wide and crop / width tall, where crop is the smaller of
+    // the two cross-products. In units that is 2 × crop × width across and
+    // 2 × crop × height down, so each of the width × height cells is
+    // 2 × crop units on both axes, and the centring margin on each axis is
+    // half the leftover span. A cell's weights along an axis sum to its
+    // cellSize, so its total weight is cellSize², i.e. cellArea.
     val unit = 2L * width * height
     val crop = minOf(this.width.toLong() * height, this.height.toLong() * width)
-    val columns = coverage(start = (this.width.toLong() * height - crop) * width, cellSize = 2 * crop, unit, width)
-    val rows = coverage(start = (this.height.toLong() * width - crop) * height, cellSize = 2 * crop, unit, height)
+    val columns = coverage(start = (this.width.toLong() * height - crop) * width, cellSize = 2 * crop, unit = unit, cells = width)
+    val rows = coverage(start = (this.height.toLong() * width - crop) * height, cellSize = 2 * crop, unit = unit, cells = height)
     val cellArea = 4 * crop * crop
 
     val out = ByteArray(width * height)

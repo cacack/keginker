@@ -36,6 +36,7 @@ try a development build.
 
 - [CONSTITUTION.md](CONSTITUTION.md): mission, principles, non-goals
 - [CONTRIBUTING.md](CONTRIBUTING.md): building, testing, layout
+- [SECURITY.md](SECURITY.md): reporting a vulnerability
 - [docs/architecture/](docs/architecture/): design and tag protocols
 - [docs/decisions/](docs/decisions/): decision records
 - [docs/guides/](docs/guides/): how-tos

@@ -3,10 +3,10 @@ package io.github.cacack.keginker
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
 import io.github.cacack.keginker.nfc.Transport
+import io.github.cacack.keginker.waveshare.FailureKind
 import io.github.cacack.keginker.waveshare.REFRESH_UNCONFIRMED_MESSAGE
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteResult
-import io.github.cacack.keginker.waveshare.WriteStep
 import io.github.cacack.keginker.waveshare.activity
 import io.github.cacack.keginker.waveshare.userMessage
 import kotlin.random.Random
@@ -17,6 +17,10 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
 private val PANEL = WavesharePanel.EPD_2IN7
+
+// A deliberately smaller mirror of sharedLogic's test model of both
+// protocols (waveshare/WriteFaults.kt), whose fixtures are internal to that
+// module. Keep the reply formats here in step with it.
 
 /** A kind of tag: how a good one answers, and its malformed replies. */
 private class TagKind(
@@ -55,11 +59,11 @@ private enum class Fault { LIFTED, REFUSED, EMPTY, TRUNCATED, GARBAGE }
 /** Answers like a good [kind] of tag until command [failAt], then with [fault]. */
 private class FaultyTag(private val kind: TagKind, private val failAt: Int, private val fault: Fault) : Transport {
     private val random = Random(failAt)
-    var sent = 0
+    var commandCount = 0
     var closed = false
 
     override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
-        if (sent++ < failAt) return kind.goodReply(command)
+        if (commandCount++ < failAt) return kind.goodReply(command)
         return when (fault) {
             Fault.LIFTED -> throw IllegalStateException("Tag was lost")
             Fault.REFUSED -> kind.refusal
@@ -73,6 +77,9 @@ private class FaultyTag(private val kind: TagKind, private val failAt: Int, priv
         closed = true
     }
 }
+
+/** A tag that answers every command like a good [kind] of tag. */
+private fun goodTag(kind: TagKind) = FaultyTag(kind, failAt = Int.MAX_VALUE, Fault.LIFTED)
 
 private fun bytes(vararg values: Int) = ByteArray(values.size) { values[it].toByte() }
 
@@ -89,9 +96,9 @@ class WriteControllerFaultTest {
     @Test
     fun everyFailedCommandEndsInAClearFailureAndAWorkingRetry() = runTest {
         for (kind in listOf(CLASSIC, REV22)) {
-            val commands = FaultyTag(kind, failAt = Int.MAX_VALUE, Fault.LIFTED)
-                .also { assertEquals(WriteResult.Success, imageWriter.write(kind.found(it), PANEL, testView()) {}) }
-                .sent
+            val clean = goodTag(kind)
+            assertEquals(WriteResult.Success, imageWriter.write(kind.found(clean), PANEL, testView()) {})
+            val commands = clean.commandCount
             for (failAt in 0 until commands) {
                 for (fault in Fault.entries) {
                     val case = "$kind, command ${failAt + 1}/$commands, $fault"
@@ -105,11 +112,15 @@ class WriteControllerFaultTest {
 
                     val failed = assertIs<WriteState.Failed>(controller.state.value, case)
                     assertEquals(expected.userMessage, failed.message, case)
-                    assertTrue(namesTheActivity(failed.message), "$case: ${failed.message}")
+                    if (expected.kind == FailureKind.REFRESH_UNCONFIRMED) {
+                        assertEquals(REFRESH_UNCONFIRMED_MESSAGE, failed.message, case)
+                    } else {
+                        assertTrue("while ${expected.step.activity}" in failed.message, "$case: ${failed.message}")
+                    }
                     assertTrue("try again" in failed.message, "$case: ${failed.message}")
                     assertTrue(tag.closed, "$case: tag not released")
 
-                    val retry = FaultyTag(kind, failAt = Int.MAX_VALUE, Fault.LIFTED)
+                    val retry = goodTag(kind)
                     controller.arm(testView())
                     controller.onTag(kind.found(retry))
 
@@ -119,7 +130,4 @@ class WriteControllerFaultTest {
             }
         }
     }
-
-    private fun namesTheActivity(message: String) =
-        message == REFRESH_UNCONFIRMED_MESSAGE || WriteStep.entries.any { "while ${it.activity}" in message }
 }

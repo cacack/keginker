@@ -3,6 +3,7 @@ package io.github.cacack.keginker.waveshare
 import io.github.cacack.keginker.nfc.Transport
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
 import kotlinx.coroutines.test.runTest
@@ -47,7 +48,7 @@ class WriteFuzzTest {
         val exchanges = tag.sent.zip(tag.replies)
         val commands = exchanges.filterNot { protocol.isBusyPoll(it.first) }
         val polls = exchanges.filter { protocol.isBusyPoll(it.first) }
-        assertTrue(commands.map { it.first.toHex() } == clean.map { it.toHex() }, "$case: succeeded without sending every command")
+        assertEquals(clean.map { it.toHex() }, commands.map { it.first.toHex() }, "$case: succeeded without sending every command")
         assertTrue(commands.all { protocol.isAcknowledged(it.second) }, "$case: succeeded with an unacknowledged command")
         assertTrue(polls.lastOrNull()?.let { protocol.confirmsRefresh(it.second) } == true, "$case: succeeded without a confirmed refresh")
     }

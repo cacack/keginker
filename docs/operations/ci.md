@@ -8,7 +8,7 @@ pull request and every push to `main`.
 |---|---|---|
 | Shared tests | ubuntu | `:sharedLogic` and `:sharedUI` Android host tests (JVM) |
 | Android APK | ubuntu | `:androidApp:assembleDebug`, signed with the release key on pushes to `main` (pull requests use the debug key); uploads `keginker-debug-apk` (kept 14 days) |
-| iOS build | macos | `:sharedLogic:iosSimulatorArm64Test`, then an unsigned simulator build of `iosApp` |
+| iOS build | macos | `:sharedLogic:iosSimulatorArm64Test`, then an unsigned simulator build of `iosApp`, then fails if it declares any permission beyond NFC ([constitution](../../CONSTITUTION.md) C4) |
 | CI Success | ubuntu | Gate: fails if any job above failed or was cancelled |
 
 `CI Success` is the required status check for merging to `main`.

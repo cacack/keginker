@@ -79,7 +79,20 @@ jobs:
         run: |
           xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
             -configuration Debug -sdk iphonesimulator -arch arm64 \
-            CODE_SIGNING_ALLOWED=NO build
+            -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
+      # CONSTITUTION.md C4. iOS permissions are usage descriptions in
+      # Info.plist plus entitlements; the photo picker needs neither.
+      - name: Check permissions (C4)
+        run: |
+          app=build/ios/Build/Products/Debug-iphonesimulator/KegInker.app
+          keys() { plutil -convert json -o - "$1" | python3 -c 'import json,sys; print("\n".join(json.load(sys.stdin)))'; }
+          extra=$( { keys "$app/Info.plist" | grep 'UsageDescription$'; keys iosApp/Configuration/keginker.entitlements; } \
+            | grep -v -x -e NFCReaderUsageDescription -e com.apple.developer.nfc.readersession.formats || true)
+          if [ -n "$extra" ]; then
+            echo "::error::C4: the iOS app requests permissions beyond NFC: $extra"
+            exit 1
+          fi
+          echo "C4: the iOS app requests only NFC"
 
   # Gate job for branch protection - only require this one check
   ci-success:

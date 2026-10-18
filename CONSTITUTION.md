@@ -59,24 +59,29 @@ Check: judgement call — measured by hand on real tags and phones, because CI
 has no NFC hardware; a tally of attempts during device testing settles it.
 
 **C2 — Every failed write tells the user what happened and offers a retry.**
-Check: `./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest`
-exits 0; the write-controller and write-message tests cover failures naming
-the step, retry, unsupported tags and cancel.
+Check: `./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest :sharedLogic:iosSimulatorArm64Test`
+exits 0. It covers the shared failure messages and Android's write
+controller (failures naming the step, retry, unsupported tags, cancel). iOS
+mirrors that controller in Swift and is checked by hand until it shares or
+tests the same behaviour (#46).
 
 **C3 — Re-labelling a tap from a saved preset takes no more than a few taps
 plus the write itself.**
 Check: judgement call — count the taps from opening the app to the write on
 a device; a tap count is a UX walkthrough, not something a test can settle.
 
-**C4 — The release builds request no permissions beyond NFC and photo
-access.**
-Check: the `Check permissions (C4)` step in
-[`release.yml`](.github/workflows/release.yml) passes on each release.
+**C4 — The app requests no permissions beyond NFC and photo access, on iOS
+and Android.**
+Check: the `Check permissions (C4)` steps pass: Android in
+[`release.yml`](.github/workflows/release.yml) on each release's signed APK,
+iOS in [`ci.yml`](.github/workflows/ci.yml) on every build.
 
-**C5 — Anyone can verify a release APK was built by CI from its tagged
-commit.**
-Check: `gh attestation verify keginker-X.Y.Z.apk -R cacack/keginker` passes
-for the latest release.
+**C5 — Anyone can verify each release build was made by CI from its tagged
+commit, on iOS and Android.**
+Check: `gh attestation verify <build> -R cacack/keginker` passes for the
+latest release's builds. Android's APK is attested today; the iOS build is
+attested once releases include it (#27). The App Store re-signs what users
+install, so on iOS the attestation covers the build CI uploads.
 
 **C6 — Every minor release is covered by a full security review, published
 in `docs/reviews/security/`.**

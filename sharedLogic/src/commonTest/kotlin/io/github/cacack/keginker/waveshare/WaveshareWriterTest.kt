@@ -78,6 +78,7 @@ class WaveshareWriterTest {
 
         assertIs<WriteResult.Failure>(result)
         assertEquals(WriteStep.SELECT_PANEL, result.step)
+        assertEquals(FailureKind.UNEXPECTED_REPLY, result.kind)
         assertEquals(2, transport.sent.size)
     }
 
@@ -104,6 +105,8 @@ class WaveshareWriterTest {
 
         assertIs<WriteResult.Failure>(result)
         assertEquals(WriteStep.WAIT_FOR_REFRESH, result.step)
+        assertEquals(FailureKind.REFRESH_UNCONFIRMED, result.kind)
+        assertEquals(REFRESH_UNCONFIRMED_MESSAGE, result.userMessage)
         assertEquals(124, transport.sent.count { it.isCommand(0x0A) })
         assertTrue(transport.sent.none { it.isCommand(0x04) })
     }
@@ -116,6 +119,7 @@ class WaveshareWriterTest {
 
         assertIs<WriteResult.Failure>(result)
         assertEquals(WriteStep.WAIT_FOR_REFRESH, result.step)
+        assertEquals(FailureKind.LOST_CONTACT, result.kind)
     }
 
     @Test

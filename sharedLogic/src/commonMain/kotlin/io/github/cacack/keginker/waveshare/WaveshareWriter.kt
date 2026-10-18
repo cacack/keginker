@@ -34,11 +34,24 @@ enum class WriteStep {
     CONFIGURE,
 }
 
+/** What went wrong in a failed write; it decides what the user is told. */
+enum class FailureKind {
+    /** Communication with the tag broke off. */
+    LOST_CONTACT,
+
+    /** The tag answered, but not with the reply the step needs. */
+    UNEXPECTED_REPLY,
+
+    /** The tag kept answering, but never reported the refresh finished. */
+    REFRESH_UNCONFIRMED,
+}
+
 sealed interface WriteResult {
     data object Success : WriteResult
 
     data class Failure(
         val step: WriteStep,
+        val kind: FailureKind,
         val reason: String,
         val cause: Throwable? = null,
     ) : WriteResult
@@ -102,7 +115,7 @@ class WaveshareWriter(
             if (isDone(transport.exchange(WriteStep.WAIT_FOR_REFRESH, command(0xCD, 0x0A)))) return
             pause(POLL_PAUSE_MS)
         }
-        throw StepFailed(WriteStep.WAIT_FOR_REFRESH, "Refresh not confirmed after $maxPolls polls")
+        throw StepFailed(WriteStep.WAIT_FOR_REFRESH, FailureKind.REFRESH_UNCONFIRMED, "Refresh not confirmed after $maxPolls polls")
     }
 
     /** Busy polls left in the write budget once everything else for [panel] is sent. */

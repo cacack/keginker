@@ -37,6 +37,7 @@ internal fun busyPollLimit(pausesMs: Long, commands: Int, pollPauseMs: Long): In
 /** A write step failed; [runSteps] turns it into a [WriteResult.Failure]. */
 internal class StepFailed(
     val step: WriteStep,
+    val kind: FailureKind,
     val reason: String,
     cause: Throwable? = null,
 ) : Exception(reason, cause)
@@ -47,7 +48,7 @@ internal inline fun runSteps(steps: () -> Unit): WriteResult =
         steps()
         WriteResult.Success
     } catch (failure: StepFailed) {
-        WriteResult.Failure(failure.step, failure.reason, failure.cause)
+        WriteResult.Failure(failure.step, failure.kind, failure.reason, failure.cause)
     }
 
 /** Sends [command] as part of [step]; a communication error fails the step. */
@@ -57,7 +58,7 @@ internal suspend fun Transport.exchange(step: WriteStep, command: ByteArray, det
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        throw StepFailed(step, listOfNotNull("Tag communication failed", detail).joinToString(" at "), e)
+        throw StepFailed(step, FailureKind.LOST_CONTACT, listOfNotNull("Tag communication failed", detail).joinToString(" at "), e)
     }
 
 /** Like [exchange], and the step also fails unless [isOk] accepts the reply. */
@@ -69,7 +70,7 @@ internal suspend fun Transport.exchangeOk(
 ) {
     val reply = exchange(step, command, detail)
     if (!isOk(reply)) {
-        throw StepFailed(step, listOfNotNull("Unexpected reply ${reply.toHex()}", detail).joinToString(" at "))
+        throw StepFailed(step, FailureKind.UNEXPECTED_REPLY, listOfNotNull("Unexpected reply ${reply.toHex()}", detail).joinToString(" at "))
     }
 }
 

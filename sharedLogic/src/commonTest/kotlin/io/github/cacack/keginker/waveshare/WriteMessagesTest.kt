@@ -7,16 +7,45 @@ import kotlin.test.assertTrue
 class WriteMessagesTest {
     @Test
     fun lostContactNamesTheStepAndSaysToPresentTheTagAgain() {
-        val message = WriteResult.Failure(WriteStep.SEND_DATA, "Tag communication failed", Exception("lost")).userMessage
+        val message = WriteResult.Failure(
+            WriteStep.SEND_DATA,
+            FailureKind.LOST_CONTACT,
+            "Tag communication failed",
+            Exception("lost"),
+        ).userMessage
 
-        assertTrue("Lost contact" in message && "sending the image" in message && "Lift the phone away" in message, message)
+        assertEquals(
+            "Lost contact with the tag while sending the image. " +
+                "Lift the phone away, then hold it still against the tag and try again.",
+            message,
+        )
     }
 
     @Test
     fun unexpectedReplyIsNotBlamedOnMovement() {
-        val message = WriteResult.Failure(WriteStep.POWER_ON, "Unexpected reply 01 00").userMessage
+        val message = WriteResult.Failure(WriteStep.POWER_ON, FailureKind.UNEXPECTED_REPLY, "Unexpected reply 01 00").userMessage
 
-        assertTrue("unexpected reply" in message && "powering the panel" in message, message)
+        assertEquals(
+            "The tag gave an unexpected reply while powering the panel. " +
+                "Lift the phone away and try again; if it keeps happening, this tag may not be supported.",
+            message,
+        )
+    }
+
+    @Test
+    fun unconfirmedRefreshSaysHowToRetryWithoutBlamingTheTag() {
+        val message = WriteResult.Failure(
+            WriteStep.WAIT_FOR_REFRESH,
+            FailureKind.REFRESH_UNCONFIRMED,
+            "Refresh not confirmed after 240 polls",
+        ).userMessage
+
+        assertEquals(
+            "The display didn't confirm it finished updating. " +
+                "Lift the phone away, then hold it still against the tag and try again.",
+            message,
+        )
+        assertTrue("not be supported" !in message, message)
     }
 
     @Test

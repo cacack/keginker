@@ -19,6 +19,21 @@ class DitherTest {
     }
 
     @Test
+    fun higherThresholdKeepsLightGreyBlack() {
+        // A four-level label (0, 85, 170, 255): at 200 only true white stays white.
+        val levels = GrayImage(4, 1, byteArrayOf(0, 85, 170.toByte(), 255.toByte()))
+
+        assertEquals(listOf("BBWW"), levels.toBlackWhite(Dither.Threshold()).rows(4))
+        assertEquals(listOf("BBBW"), levels.toBlackWhite(Dither.Threshold(200)).rows(4))
+    }
+
+    @Test
+    fun defaultThresholdIsMidGrey() {
+        assertEquals(128, Dither.Threshold().level)
+        assertEquals(Dither.Threshold.DEFAULT_LEVEL, Dither.Threshold().level)
+    }
+
+    @Test
     fun floydSteinbergDiffusesAGradient() {
         // Expected output derived by a separate script applying the same integer
         // rules (7/3/5/1 sixteenths, truncating division, values clamped to 0–255).

@@ -6,9 +6,14 @@ private const val MID_GREY = 128
 /** How greyscale is reduced to black and white. */
 sealed interface Dither {
     /** White where the pixel is at least [level] (0–255). */
-    data class Threshold(val level: Int = MID_GREY) : Dither {
+    data class Threshold(val level: Int = DEFAULT_LEVEL) : Dither {
         init {
             require(level in 0..255) { "Threshold level must be 0–255, was $level" }
+        }
+
+        companion object {
+            /** Mid-grey; UIs start a threshold control here. */
+            const val DEFAULT_LEVEL = MID_GREY
         }
     }
 

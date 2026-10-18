@@ -80,6 +80,9 @@ own threading rules, against a fake of its NFC API (`androidApp/src/test`,
   of user actions and tag events.
 - **Rotation and packing are per panel.** Each panel declares its view
   orientation (`PanelView`). Unit tests pin the mapping, because it's easy to
-  get subtly wrong.
+  get subtly wrong. Test-only simulated panels (`SimulatedPanels.kt`), one per
+  board and written from [protocols.md](protocols.md), take the commands a
+  write sends and rebuild the image the display would show; tests check it
+  equals the view written, pixel for pixel.
 
 See [protocols.md](protocols.md) for the tag protocols.

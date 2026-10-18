@@ -32,10 +32,14 @@ const val UNSUPPORTED_TAG_MESSAGE = "This tag isn't supported. KegInker writes W
  * Phones only notice a tag as it arrives, so retrying means presenting it again.
  */
 val WriteResult.Failure.userMessage: String
-    get() = if (cause != null) {
-        "Lost contact with the tag while ${step.activity}. " +
-            "Lift the phone away, then hold it still against the tag and try again."
-    } else {
-        "The tag gave an unexpected reply while ${step.activity}. " +
-            "Lift the phone away and try again; if it keeps happening, this tag may not be supported."
+    get() = when (kind) {
+        FailureKind.LOST_CONTACT ->
+            "Lost contact with the tag while ${step.activity}. " +
+                "Lift the phone away, then hold it still against the tag and try again."
+        FailureKind.UNEXPECTED_REPLY ->
+            "The tag gave an unexpected reply while ${step.activity}. " +
+                "Lift the phone away and try again; if it keeps happening, this tag may not be supported."
+        FailureKind.REFRESH_UNCONFIRMED ->
+            "The display didn't confirm it finished updating. " +
+                "Lift the phone away, then hold it still against the tag and try again."
     }

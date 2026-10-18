@@ -91,7 +91,7 @@ class WaveshareIsoDepWriter(
             if (isOk(reply) && reply.size >= 3 && reply[0] != BUSY) return
             pause(POLL_PAUSE_MS)
         }
-        throw StepFailed(WriteStep.WAIT_FOR_REFRESH, "Refresh not confirmed after $maxPolls polls")
+        throw StepFailed(WriteStep.WAIT_FOR_REFRESH, FailureKind.REFRESH_UNCONFIRMED, "Refresh not confirmed after $maxPolls polls")
     }
 
     /** Busy polls left in the write budget once [chunks] of image data and everything else are sent. */

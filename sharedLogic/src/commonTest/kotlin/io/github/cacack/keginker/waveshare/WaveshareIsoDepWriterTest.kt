@@ -98,6 +98,7 @@ class WaveshareIsoDepWriterTest {
         val result = assertIs<WriteResult.Failure>(WaveshareIsoDepWriter(tag).write(PANEL, testFrame()))
 
         assertEquals(WriteStep.UNLOCK, result.step)
+        assertEquals(FailureKind.UNEXPECTED_REPLY, result.kind)
         assertTrue("69 82" in result.reason, result.reason)
         assertEquals(1, tag.sent.size)
     }
@@ -133,6 +134,8 @@ class WaveshareIsoDepWriterTest {
         val result = assertIs<WriteResult.Failure>(WaveshareIsoDepWriter(tag).write(PANEL, testFrame()))
 
         assertEquals(WriteStep.WAIT_FOR_REFRESH, result.step)
+        assertEquals(FailureKind.REFRESH_UNCONFIRMED, result.kind)
+        assertEquals(REFRESH_UNCONFIRMED_MESSAGE, result.userMessage)
         assertEquals(24, tag.sent.count { it.isIns(0x9B) })
     }
 
@@ -153,6 +156,7 @@ class WaveshareIsoDepWriterTest {
         val result = assertIs<WriteResult.Failure>(WaveshareIsoDepWriter(tag).write(PANEL, testFrame()))
 
         assertEquals(WriteStep.WAIT_FOR_REFRESH, result.step)
+        assertEquals(FailureKind.LOST_CONTACT, result.kind)
     }
 
     @Test

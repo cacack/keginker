@@ -32,22 +32,21 @@ runs is in [ci.md](../operations/ci.md).
 ## Promise → check
 
 From the testing audit of 2026-10-18 (#65). Update a row when a change adds
-or removes the check that guards it.
+or removes the check that guards it. GitHub shows each issue's state; the
+table marks only deferrals.
 
 | Promise | Source | Guarded by | Issues |
 |---|---|---|---|
-| The preview shows exactly what the tag will display | Mission, USAGE.md | `WaveshareFrameTest` corner pixels; `WriteSessionTest.previewAndWrittenLabelNeverDisagree` and the held-image tests | #59 closed; #55 in review (#69); #61 closed |
-| A write completes and is confirmed, or fails clearly and can be retried at once | Principle 1, C2 | Writer and `WriteControllerTest` failure cases; `WriteMessagesTest`; `WriteBudgetTest` (each write's worst case fits a 15 s budget) | #54 in review (#66); #57 in review (#70); #58 deferred; #46 deferred |
-| The protocol code matches real tags | Principle 5 | Synthetic fakes; `RecordingReplayTest` (no recordings yet); transport contract tests (`NfcTransportTest`, `MiFareTransportTests`, `Iso7816TransportTests`) | #56 deferred; #64 closed |
-| First-tap success on iOS and Android | C1 | Unrecorded device testing | #62 in review (#76) |
-| Photos centre-cropped, upright, transparency white; dither and threshold behave as described | USAGE.md, UI text | Seeded properties in `image/` tests; golden photos in `fixtures/photos` checked by `ImageLoadingTest` (Android) and `ImageLoadingTests` (iOS) | #60 closed; #61 closed |
-| The tests would catch real mistakes | — | On-demand PIT run (`./gradlew :sharedLogic:pitest`) | #63 closed |
+| The preview shows exactly what the tag will display | Mission, USAGE.md | `WaveshareFrameTest` corner pixels; `WriteSessionTest.previewAndWrittenLabelNeverDisagree` and the held-image tests | #59; #55; #61 |
+| A write completes and is confirmed, or fails clearly and can be retried at once | Principle 1, C2 | Writer and `WriteControllerTest` failure cases; `WriteMessagesTest`; `WriteBudgetTest` (each write's worst case fits a 15 s budget) | #54; #57; #58 deferred; #46 deferred |
+| The protocol code matches real tags | Principle 1, Principle 5 | Synthetic fakes; `RecordingReplayTest` (no recordings yet); transport contract tests (`NfcTransportTest`, `MiFareTransportTests`, `Iso7816TransportTests`) | #56 deferred; #64 |
+| First-tap success on iOS and Android | C1 | Unrecorded device testing | #62 |
+| Photos centre-cropped, upright, transparency white; dither and threshold behave as described | USAGE.md, UI text | Seeded properties in `image/` tests; golden photos in `fixtures/photos` checked by `ImageLoadingTest` (Android) and `ImageLoadingTests` (iOS) | #60; #61 |
+| The tests would catch real mistakes | — | On-demand PIT run (`./gradlew :sharedLogic:pitest`) | #63 |
 | Re-labelling from a preset takes a few taps | C3 | — | Deferred: a logged walkthrough once #29 lands (#62) |
 
 Permissions, attestation and security reviews (C4–C6) have their own checks
 and aren't part of this map.
-
-Issues marked "in review" close when their pull request merges.
 
 ### Deferred
 

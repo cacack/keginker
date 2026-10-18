@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.0-alpha.1](https://github.com/cacack/keginker/compare/v0.2.0-alpha.1...v0.3.0-alpha.1) (2026-10-18)
+
+
+### Features
+
+* **android:** share a diagnostics report after a failed write ([375fa02](https://github.com/cacack/keginker/commit/375fa02ba6b0496de29a0fb8f39a26cbf798dea6))
+* **android:** share a diagnostics report after a failed write ([2a6aae6](https://github.com/cacack/keginker/commit/2a6aae694384385d333973229aa8e6a9670b6415)), closes [#49](https://github.com/cacack/keginker/issues/49)
+
+
+### Bug Fixes
+
+* fail loudly when a write leaves no busy poll in the budget ([6b3999f](https://github.com/cacack/keginker/commit/6b3999f077c1cb37b8f904c12a76a44a43a235c2)), closes [#58](https://github.com/cacack/keginker/issues/58)
+* fit each write's worst case in a 15 s time budget ([86601fa](https://github.com/cacack/keginker/commit/86601fac6bd90a7ad8f7fe13df99538c0c61efb1)), closes [#58](https://github.com/cacack/keginker/issues/58)
+* **image:** centre the fill crop exactly and weight pixels by area ([19c5b7a](https://github.com/cacack/keginker/commit/19c5b7a26d43e1fbe0d2adeb2d8997c34f7d8f0c)), closes [#60](https://github.com/cacack/keginker/issues/60)
+* **image:** keep Floyd-Steinberg rounding from losing error ([b036fb8](https://github.com/cacack/keginker/commit/b036fb805e2e5bd121fbce4591b3267a1d440adb)), closes [#60](https://github.com/cacack/keginker/issues/60)
+* keep a failed write's message when a held image is shown ([95b141f](https://github.com/cacack/keginker/commit/95b141f574a41388d5a35bd003494fc5c1069a89)), closes [#59](https://github.com/cacack/keginker/issues/59)
+* keep the preview and the written label from disagreeing ([43a9571](https://github.com/cacack/keginker/commit/43a9571951d491d7542744406ec9fa77cd4a2e7d)), closes [#59](https://github.com/cacack/keginker/issues/59)
+* say an unconfirmed refresh didn't finish, not that the tag may be unsupported ([9099e0e](https://github.com/cacack/keginker/commit/9099e0e4e5a56f8c30481b3ed20e8bfeb66f3e4a))
+* say an unconfirmed refresh didn't finish, not that the tag may be unsupported ([4280fd9](https://github.com/cacack/keginker/commit/4280fd9b26be7cd87d27dee9568147958fe8ea5b)), closes [#54](https://github.com/cacack/keginker/issues/54)
+* **waveshare:** fit each write's worst case in a 15 s time budget ([03e7a57](https://github.com/cacack/keginker/commit/03e7a57d04bdfa2efbb41f380503d66eca757290))
+
 ## [0.2.0-alpha.1](https://github.com/cacack/keginker/compare/v0.1.0-alpha.1...v0.2.0-alpha.1) (2026-10-18)
 
 

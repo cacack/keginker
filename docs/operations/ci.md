@@ -13,8 +13,12 @@ pull request and every push to `main`.
 
 `CI Success` is the required status check for merging to `main`.
 
-[`.github/workflows/release.yml`](../../.github/workflows/release.yml) runs
-when a `v*` tag is pushed. It publishes a GitHub Release with a signed APK.
-See [signing.md](signing.md) for the key, the secrets and cutting a release.
+[`.github/workflows/release-please.yml`](../../.github/workflows/release-please.yml)
+runs on every push to `main`. It keeps a release PR open; merging it creates
+the `v*` tag and GitHub Release. It authenticates as the repository's
+release-please GitHub App so the release PR runs CI and the tag triggers
+[`.github/workflows/release.yml`](../../.github/workflows/release.yml), which
+attaches a signed APK to the release. See [signing.md](signing.md) for the
+key, the secrets and cutting a release.
 
 Third-party actions are pinned to commit SHAs. Dependabot keeps them current.

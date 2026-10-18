@@ -83,27 +83,62 @@ requires it.
 
 ## Cutting a release
 
-Tag a commit on `main` and push the tag:
+Releases are cut by [release-please](https://github.com/googleapis/release-please)
+from the conventional commits on `main`
+([`release-please.yml`](../../.github/workflows/release-please.yml)). After
+each push to `main` it opens or updates a release PR that bumps the version in
+[`.release-please-manifest.json`](../../.release-please-manifest.json) and adds
+a `CHANGELOG.md` entry: `feat` bumps MINOR and `fix` bumps PATCH while the
+version is below 1.0.0, and a breaking change bumps MINOR. Merge that PR to
+release. release-please then creates the `vX.Y.Z` tag and its GitHub Release,
+with the changelog entry as notes.
+
+To cut a pre-release, or to pick a version yourself, merge a commit whose
+message ends with a `Release-As` footer. The release PR then proposes exactly
+that version:
 
 ```sh
-git tag v0.1.0-alpha.1 origin/main && git push origin v0.1.0-alpha.1
+git commit --allow-empty -m "chore: release 0.1.0-alpha.1" -m "Release-As: 0.1.0-alpha.1"
 ```
 
-Tags are `vMAJOR.MINOR.PATCH`, or `vMAJOR.MINOR.PATCH-alpha.N`, `-beta.N` or
+The next normal bump after a pre-release moves to the next version (after
+`0.1.0-alpha.1`, a `feat` proposes `0.2.0`), so finish a pre-release series
+with `Release-As: 0.1.0`.
+
+Versions are `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-alpha.N`, `-beta.N` or
 `-rc.N` for pre-releases (N from 1 to 31). MAJOR runs 0–213; MINOR and PATCH
 run 0–99.
 
-[`release.yml`](../../.github/workflows/release.yml) then:
+The tag triggers [`release.yml`](../../.github/workflows/release.yml), which:
 
-1. refuses tags that aren't on `main` or don't match the format above
+1. refuses tags that aren't on `main`, that have no GitHub Release (a
+   hand-pushed tag) or that don't match the format above
 2. runs the shared tests
 3. builds a release APK signed with the key, passing
    `-Ptagpaper.versionName` (the tag without the `v`) and
    `-Ptagpaper.versionCode` to Gradle
 4. refuses to publish if the APK isn't signed
-5. publishes a GitHub Release with `tagpaper-X.Y.Z.apk`, its SHA-256 and
-   notes generated from the commits; tags with a suffix are marked as
-   pre-releases
+5. attaches `tagpaper-X.Y.Z.apk` and its SHA-256 to the release, titles it
+   `tagpaper X.Y.Z` and marks tags with a suffix as pre-releases
+
+### The release-please app (once)
+
+release-please authenticates as a GitHub App installed only on this
+repository, not with `GITHUB_TOKEN`: actions taken with `GITHUB_TOKEN` don't
+trigger workflows, so its release PR wouldn't run CI and its tags wouldn't
+trigger `release.yml`.
+
+1. Create a GitHub App (webhook off) with repository permissions **Contents**
+   and **Pull requests** set to read and write, and install it on this
+   repository only.
+2. Generate a private key for it and add both secrets:
+
+```sh
+gh secret set RELEASE_PLEASE_APP_ID -R cacack/tagpaper
+gh secret set RELEASE_PLEASE_APP_PRIVATE_KEY -R cacack/tagpaper < app-private-key.pem
+```
+
+Then delete the downloaded `.pem`; a new key can be generated if needed.
 
 `versionCode` is `((MAJOR×100 + MINOR)×100 + PATCH)×100 + slot`. The slot is
 N for `alpha.N`, 32+N for `beta.N`, 64+N for `rc.N` and 99 for the final
@@ -116,9 +151,11 @@ build after installing a release, uninstall first.
 
 ### Recommended repository settings
 
-`release.yml` checks that a tag is on `main`, but anyone who can push a tag
-can still trigger it. To tighten that further, in the repository settings:
+`release.yml` requires the tag to be on `main` and to have a GitHub Release,
+but anyone who can push tags and create releases can still trigger it. To
+tighten that further, in the repository settings:
 
-- add a tag ruleset that limits creating `v*` tags to maintainers
+- add a tag ruleset that limits creating `v*` tags to maintainers, with the
+  release-please app on its bypass list
 - optionally move the four secrets into an environment (for example
   `release`) that requires approval, and add `environment: release` to the job

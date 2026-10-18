@@ -52,9 +52,15 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
+        // Compose UI tests of the Android screens, run on the JVM by Robolectric.
         getByName("androidHostTest").dependencies {
+            implementation(libs.junit)
             implementation(libs.robolectric)
             implementation(libs.androidx.testCore)
+            implementation(libs.compose.uiTest.junit4)
+            implementation(libs.compose.uiTest.manifest)
+            // Newer than ui-test brings in; older Espresso fails on Android 16.
+            implementation(libs.androidx.espresso.core)
         }
     }
 }
@@ -64,6 +70,8 @@ val photoFixtures = rootProject.layout.projectDirectory.dir("fixtures/photos")
 tasks.withType<Test>().configureEach {
     inputs.dir(photoFixtures).withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("keginker.photoFixtures", photoFixtures.asFile.path)
+    // Robolectric's Android 16 runtime reads JDK internals.
+    jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
 }
 
 dependencies {

@@ -62,10 +62,14 @@ has no NFC hardware; a tally of attempts during device testing settles it.
 
 **C2 — Every failed write tells the user what happened and offers a retry.**
 Check: `./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest :sharedLogic:iosSimulatorArm64Test`
-exits 0. It covers the shared failure messages and Android's write
-controller (failures naming the step, retry, unsupported tags, cancel). iOS
-mirrors that controller in Swift and is checked by hand until it shares or
-tests the same behaviour (#46).
+exits 0. It fails every command of both write sequences in turn (tag
+lifted, refused, empty, truncated and garbage replies) and checks each ends
+in a failure naming the step, never success, with the tag released and a
+retry that succeeds. A seeded fuzz of 2,000 random reply sequences per
+writer finds no success without every command acknowledged and the refresh
+confirmed. A Robolectric test checks the Android write screen shows the
+failure and a Retry button. iOS mirrors the controller in Swift and is
+checked by hand until it shares or tests the same behaviour (#46).
 
 **C3 — Re-labelling a tap from a saved preset takes no more than a few taps
 plus the write itself.**

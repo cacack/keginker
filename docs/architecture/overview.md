@@ -40,8 +40,13 @@ interface Transport {
 ```
 
 Each platform implements it natively (Android `NfcA`/`IsoDep`, iOS Core NFC in
-Swift). This keeps the protocols testable without a phone or a tag: tests
-drive them with a fake transport that replays recorded exchanges.
+Swift). This keeps the protocols testable without a phone or a tag. Most
+protocol tests drive a writer with a fake transport whose replies are written
+by hand: they check the commands the writer sends and how it handles each
+reply, not that a real board agrees. Writes recorded from real tags are
+replayed through a transport that fails the test on any command that differs
+from the recording; [record-a-tag-write.md](../guides/record-a-tag-write.md)
+lists which boards have one.
 
 ## Constraints that shape the design
 

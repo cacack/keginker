@@ -93,13 +93,16 @@ version is below 1.0.0, and a breaking change bumps MINOR. Merge that PR to
 release. release-please then creates the `vX.Y.Z` tag and its GitHub Release,
 with the changelog entry as notes.
 
-To cut a pre-release, or to pick a version yourself, merge a commit whose
-message ends with a `Release-As` footer. The release PR then proposes exactly
-that version:
+To cut a pre-release, or to pick a version yourself, end a commit message
+with a `Release-As` footer. The release PR then proposes exactly that version:
 
 ```sh
-git commit --allow-empty -m "chore: release 0.1.0-alpha.1" -m "Release-As: 0.1.0-alpha.1"
+git commit -m "fix: keep the write button enabled after a timeout" -m "Release-As: 0.1.0-alpha.2"
 ```
+
+The footer only takes effect if the changes since the last release include a
+`feat`, `fix` or `perf` commit. When every commit is `chore`, `ci`, `docs` or
+`refactor`, release-please opens no release PR.
 
 The next normal bump after a pre-release moves to the next version (after
 `0.1.0-alpha.1`, a `feat` proposes `0.2.0`), so finish a pre-release series

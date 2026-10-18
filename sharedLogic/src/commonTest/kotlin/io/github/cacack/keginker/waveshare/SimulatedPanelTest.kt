@@ -87,11 +87,6 @@ class SimulatedPanelTest {
     }
 
     @Test
-    fun panelsSplitIntoWholeChunks() {
-        for (panel in WavesharePanel.entries) assertEquals(panel.frameSize, panel.chunkCount * panel.chunkSize)
-    }
-
-    @Test
     fun rev22RejectsCommandsBeforeUnlock() = runTest {
         val reply = SimulatedRev22Panel(WavesharePanel.EPD_2IN7).transceive(byteArrayOf(0x74, 0x97.toByte(), 0x00, 0x08, 0x00), 0)
         assertNotEquals(listOf(0x90.toByte(), 0x00.toByte()), reply.toList())

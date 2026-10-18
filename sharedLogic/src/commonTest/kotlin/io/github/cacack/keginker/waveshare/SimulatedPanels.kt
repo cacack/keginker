@@ -23,9 +23,10 @@ private fun Array<Boolean?>.writeByte(pixel: Int, value: Byte) {
 }
 
 /**
- * A Waveshare classic tag. Collects `CD 19` image data into the 264 × 176
- * memory and, on `CD 09`, shows memory pixel (x, y) at view pixel
- * (175 − y, x): the 2.7" portrait view.
+ * A Waveshare classic tag. Collects `CD 19` image data into the panel's
+ * [WavesharePanel.width] × [WavesharePanel.height] memory and, on `CD 09`,
+ * shows it in the panel's view: for portrait, memory pixel (x, y) at view
+ * pixel (height − 1 − y, x).
  */
 class SimulatedClassicPanel(private val panel: WavesharePanel) : SimulatedPanel {
     private val memory = arrayOfNulls<Boolean>(panel.width * panel.height)
@@ -51,8 +52,10 @@ class SimulatedClassicPanel(private val panel: WavesharePanel) : SimulatedPanel 
                 shown = List(memory.size) { i ->
                     val viewX = i % panel.viewWidth
                     val viewY = i / panel.viewWidth
-                    // View (vx, vy) is memory (x = vy, y = 175 − vx).
-                    memory[(panel.height - 1 - viewX) * panel.width + viewY]
+                    when (panel.view) {
+                        // View (vx, vy) is memory (x = vy, y = height − 1 − vx).
+                        PanelView.PORTRAIT -> memory[(panel.height - 1 - viewX) * panel.width + viewY]
+                    }
                 }
                 busyPolls = 1
             }
@@ -71,8 +74,8 @@ class SimulatedClassicPanel(private val panel: WavesharePanel) : SimulatedPanel 
 
 /**
  * A Waveshare Rev2.2 board. Tracks the SSD16xx-style registers it's sent
- * (`0x11` data entry mode, `0x44`/`0x45` RAM window, `0x4E`/`0x4F` RAM
- * cursor), writes `0x24` data through that addressing into a RAM of
+ * (`0x01` gate count, `0x11` data entry mode, `0x44`/`0x45` RAM window,
+ * `0x4E`/`0x4F` RAM cursor), writes `0x24` data through that addressing into a RAM of
  * [WavesharePanel.controllerRows] rows, and on `0x20` shows the highest
  * [WavesharePanel.viewHeight] rows, highest at the bottom, RAM column 0 at the right.
  */
@@ -137,7 +140,9 @@ class SimulatedRev22Panel(private val panel: WavesharePanel) : SimulatedPanel {
             0x4E -> x = data[0].u()
             0x4F -> y = word(0)
             0x24 -> for (byte in data) if (!writeRam(byte)) return false
-            0x01, 0x18, 0x22, 0x3C -> Unit
+            // Gate count: the controller drives word(0) + 1 rows.
+            0x01 -> if (data.size != 3 || word(0) + 1 != panel.controllerRows) return false
+            0x18, 0x22, 0x3C -> Unit
             else -> return false
         }
         return true
@@ -163,7 +168,9 @@ class SimulatedRev22Panel(private val panel: WavesharePanel) : SimulatedPanel {
         shown = List(panel.viewWidth * panel.viewHeight) { i ->
             val viewX = i % panel.viewWidth
             val viewY = i / panel.viewWidth
-            ram[(hidden + viewY) * panel.viewWidth + (panel.viewWidth - 1 - viewX)]
+            when (panel.view) {
+                PanelView.PORTRAIT -> ram[(hidden + viewY) * panel.viewWidth + (panel.viewWidth - 1 - viewX)]
+            }
         }
         busyPolls = 1
     }

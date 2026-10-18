@@ -37,10 +37,10 @@ table marks only deferrals.
 
 | Promise | Source | Guarded by | Issues |
 |---|---|---|---|
-| The preview shows exactly what the tag will display | Mission, USAGE.md | `WaveshareFrameTest` corner pixels; `WriteSessionTest.previewAndWrittenLabelNeverDisagree` and the held-image tests | #59; #55; #61 |
-| A write completes and is confirmed, or fails clearly and can be retried at once | Principle 1, C2 | Writer and `WriteControllerTest` failure cases; `WriteMessagesTest`; `WriteBudgetTest` (each write's worst case fits a 15 s budget) | #54; #57; #58 deferred; #46 deferred |
+| The preview shows exactly what the tag will display | Mission, USAGE.md | `WaveshareFrameTest` corner pixels; `SimulatedPanelTest` (a panel simulated from [protocols.md](protocols.md) shows exactly the view written to it); `WriteSessionTest.previewAndWrittenLabelNeverDisagree` and the held-image tests | #59; #55; #61 |
+| A write completes and is confirmed, or fails clearly and can be retried at once | Principle 1, C2 | Writer and `WriteControllerTest` failure cases; `WriteFaultInjectionTest` and `WriteControllerFaultTest` (a fault at every write command fails clearly and the retry works); `WriteFuzzTest` (random replies never pass without a confirmed refresh); `WriteMessagesTest` (an unconfirmed refresh says how to retry without blaming the tag); `WriteBudgetTest` (each write's worst case fits a 15 s budget) | #54; #57; #58 deferred; #46 deferred |
 | The protocol code matches real tags | Principle 1, Principle 5 | Synthetic fakes; `RecordingReplayTest` (no recordings yet); transport contract tests (`NfcTransportTest`, `MiFareTransportTests`, `Iso7816TransportTests`) | #56 deferred; #64 |
-| First-tap success on iOS and Android | C1 | Unrecorded device testing | #62 |
+| First-tap success on iOS and Android | C1 | [Hardware test script](../guides/run-hardware-tests.md) and [log](../operations/hardware-test-log.md), a run per MINOR or MAJOR release | #62 |
 | Photos centre-cropped, upright, transparency white; dither and threshold behave as described | USAGE.md, UI text | Seeded properties in `image/` tests; golden photos in `fixtures/photos` checked by `ImageLoadingTest` (Android) and `ImageLoadingTests` (iOS) | #60; #61 |
 | The tests would catch real mistakes | — | On-demand PIT run (`./gradlew :sharedLogic:pitest`) | #63 |
 | Re-labelling from a preset takes a few taps | C3 | — | Deferred: a logged walkthrough once #29 lands (#62) |
@@ -61,7 +61,8 @@ and aren't part of this map.
   refresh that never confirms fails before iOS ends the session needs a real
   iPhone and Rev2.2 board.
 - **C3 — tap count.** Presets don't exist until #29 lands; the walkthrough
-  is logged through the hardware test log (#62) after that.
+  is logged in the [hardware test log](../operations/hardware-test-log.md)
+  after that.
 
 ## What a change that touches a promise adds
 

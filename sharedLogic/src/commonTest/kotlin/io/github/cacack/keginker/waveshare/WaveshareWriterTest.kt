@@ -126,6 +126,8 @@ class WaveshareWriterTest {
 
         assertEquals(100, progress.last())
         assertEquals(progress.sorted(), progress)
+        assertTrue(progress.all { it in 0..100 }, "$progress")
+        assertTrue(IMAGE_SENT_PROGRESS in progress, "The last chunk reports the image sent: $progress")
     }
 
     @Test

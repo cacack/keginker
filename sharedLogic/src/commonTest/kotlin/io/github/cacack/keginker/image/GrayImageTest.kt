@@ -33,7 +33,15 @@ class GrayImageTest {
     fun rejectsOutOfRangeCoordinates() {
         val image = GrayImage(2, 2, ByteArray(4))
 
-        assertFailsWith<IllegalArgumentException> { image[2, 0] }
+        for ((x, y) in listOf(2 to 0, 0 to 2, -1 to 0, 0 to -1)) {
+            assertFailsWith<IllegalArgumentException>("($x, $y)") { image[x, y] }
+        }
+    }
+
+    @Test
+    fun rejectsAnEmptyImage() {
+        assertFailsWith<IllegalArgumentException> { GrayImage(0, 3, ByteArray(0)) }
+        assertFailsWith<IllegalArgumentException> { GrayImage(3, 0, ByteArray(0)) }
     }
 
     @Test

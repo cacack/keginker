@@ -104,7 +104,7 @@ class WaveshareWriterTest {
 
         assertIs<WriteResult.Failure>(result)
         assertEquals(WriteStep.WAIT_FOR_REFRESH, result.step)
-        assertEquals(240, transport.sent.count { it.isCommand(0x0A) })
+        assertEquals(124, transport.sent.count { it.isCommand(0x0A) })
         assertTrue(transport.sent.none { it.isCommand(0x04) })
     }
 

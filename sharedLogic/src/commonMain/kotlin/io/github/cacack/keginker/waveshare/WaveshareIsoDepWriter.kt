@@ -49,9 +49,9 @@ class WaveshareIsoDepWriter(
         return runSteps {
             sendOk(WriteStep.UNLOCK, apdu(0xB1, 0x00, 0x00, UNLOCK_KEY.size, *UNLOCK_KEY))
             sendOk(WriteStep.RESET, apdu(0x97, 0x00, 0x08, LE_ANY))
-            pause(150)
+            pause(RESET_PAUSE_MS)
             sendOk(WriteStep.RESET, apdu(0x97, 0x01, 0x08, LE_ANY))
-            pause(150)
+            pause(RESET_PAUSE_MS)
 
             // Gate lines, then RAM written X increasing, Y decreasing from the top row.
             setRegister(WriteStep.CONFIGURE, DRIVER_OUTPUT, yLow, yHigh, 0x01)
@@ -62,7 +62,7 @@ class WaveshareIsoDepWriter(
             setRegister(WriteStep.CONFIGURE, TEMPERATURE_SENSOR, 0x80)
             setRegister(WriteStep.CONFIGURE, RAM_X_COUNTER, 0x00)
             setRegister(WriteStep.CONFIGURE, RAM_Y_COUNTER, yLow, yHigh)
-            pause(100)
+            pause(CONFIGURE_PAUSE_MS)
 
             selectRegister(WriteStep.SEND_DATA, WRITE_BLACK_WHITE_RAM)
             val chunks = (frame.size + CHUNK_SIZE - 1) / CHUNK_SIZE
@@ -80,19 +80,26 @@ class WaveshareIsoDepWriter(
                 pause(1000)
                 onProgress(DATA_PROGRESS + second)
             }
-            awaitRefresh()
+            awaitRefresh(maxPolls(chunks))
             onProgress(100)
         }
     }
 
-    private suspend fun awaitRefresh() {
-        repeat(MAX_BUSY_POLLS) {
+    private suspend fun awaitRefresh(maxPolls: Int) {
+        repeat(maxPolls) {
             val reply = transport.exchange(WriteStep.WAIT_FOR_REFRESH, apdu(0x9B, 0x00, 0x0F, 0x01))
             if (isOk(reply) && reply.size >= 3 && reply[0] != BUSY) return
-            pause(200)
+            pause(POLL_PAUSE_MS)
         }
-        throw StepFailed(WriteStep.WAIT_FOR_REFRESH, "Refresh not confirmed after $MAX_BUSY_POLLS polls")
+        throw StepFailed(WriteStep.WAIT_FOR_REFRESH, "Refresh not confirmed after $maxPolls polls")
     }
+
+    /** Busy polls left in the write budget once [chunks] of image data and everything else are sent. */
+    private fun maxPolls(chunks: Int) = busyPollLimit(
+        pausesMs = 2 * RESET_PAUSE_MS + CONFIGURE_PAUSE_MS + REFRESH_WAIT_SECONDS * 1000L,
+        commands = SETUP_COMMANDS + chunks + REFRESH_COMMANDS,
+        pollPauseMs = POLL_PAUSE_MS,
+    )
 
     private suspend fun selectRegister(step: WriteStep, register: Int) =
         sendOk(step, apdu(0x99, 0x00, 0x0D, 0x01, register))
@@ -109,6 +116,15 @@ class WaveshareIsoDepWriter(
         const val DATA_PROGRESS = IMAGE_SENT_PROGRESS
         const val CHUNK_SIZE = 250
         const val REFRESH_WAIT_SECONDS = 6
+        const val RESET_PAUSE_MS = 150L
+        const val CONFIGURE_PAUSE_MS = 100L
+        const val POLL_PAUSE_MS = 200L
+
+        /** Commands before the image data: unlock, 2 resets, 8 register writes of 2, select RAM. */
+        const val SETUP_COMMANDS = 1 + 2 + 8 * 2 + 1
+
+        /** Commands after the image data, before polling: update control (2), activate. */
+        const val REFRESH_COMMANDS = 3
         const val CLA = 0x74
         const val LE_ANY = 0x00
         const val BUSY: Byte = 0x01

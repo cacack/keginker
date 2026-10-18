@@ -133,7 +133,7 @@ class WaveshareIsoDepWriterTest {
         val result = assertIs<WriteResult.Failure>(WaveshareIsoDepWriter(tag).write(PANEL, testFrame()))
 
         assertEquals(WriteStep.WAIT_FOR_REFRESH, result.step)
-        assertEquals(240, tag.sent.count { it.isIns(0x9B) })
+        assertEquals(24, tag.sent.count { it.isIns(0x9B) })
     }
 
     @Test

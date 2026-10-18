@@ -8,8 +8,28 @@ import kotlin.coroutines.cancellation.CancellationException
 /** How long each command may take. */
 internal const val TRANSCEIVE_TIMEOUT_MS = 3_000L
 
-/** Busy polls before a refresh counts as unconfirmed. */
-internal const val MAX_BUSY_POLLS = 240
+/** Core NFC ends a tag connection about this long after it starts; Android sets no limit. */
+internal const val IOS_TAG_SESSION_MS = 20_000L
+
+/** Kept back from the iOS session for finding the tag before a write and reporting after it. */
+internal const val SESSION_MARGIN_MS = 5_000L
+
+/**
+ * The time a whole write must fit in on either platform, so a refresh that
+ * never confirms ends in the writer's own failure, not the phone's. See
+ * "Write time budget" in docs/architecture/protocols.md.
+ */
+internal const val WRITE_BUDGET_MS = IOS_TAG_SESSION_MS - SESSION_MARGIN_MS
+
+/** The time each command is assumed to take when budgeting a write. */
+internal const val COMMAND_ALLOWANCE_MS = 50L
+
+/**
+ * Busy polls that fit in what [WRITE_BUDGET_MS] leaves after a write's other
+ * [pausesMs] and [commands]; each poll is one command and a [pollPauseMs] pause.
+ */
+internal fun busyPollLimit(pausesMs: Long, commands: Int, pollPauseMs: Long): Int =
+    ((WRITE_BUDGET_MS - pausesMs - commands * COMMAND_ALLOWANCE_MS) / (COMMAND_ALLOWANCE_MS + pollPauseMs)).toInt()
 
 /** A write step failed; [runSteps] turns it into a [WriteResult.Failure]. */
 internal class StepFailed(

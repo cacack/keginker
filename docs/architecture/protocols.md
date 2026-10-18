@@ -25,7 +25,7 @@ The write sequence:
 | Image data | most panels: `CD 08 <len> <bytes>` chunks, then `CD 18` |
 | | **2.7":** `CD 18` first, then `CD 19 <len> <bytes>` chunks |
 | Refresh | `CD 09` |
-| Wait | poll `CD 0A` until the reply is `FF 00` |
+| Wait | poll `CD 0A` every 25 ms until the reply is `FF 00`, within the [write time budget](#write-time-budget) |
 | Power off | `CD 04` |
 
 - **Image format:** 1 bit per pixel, most significant bit first, 1 = white.
@@ -88,7 +88,8 @@ The write sets controller registers (SSD16xx-style): `0x01` gate count,
 `0x3C` border, `0x18` = `80` (internal temperature sensor), `0x4E`/`0x4F`
 the RAM cursor. It then selects `0x24` (black/white RAM) and sends the frame
 in 250-byte chunks. Refresh is `0x22` = `F7`, then `0x20`. KegInker waits
-6 s and then polls.
+6 s and then polls every 200 ms, as many times as the
+[write time budget](#write-time-budget) allows.
 
 ### RAM layout (2.7")
 
@@ -98,6 +99,36 @@ MSB first, 1 = white. The panel shows only the highest 264 row addresses
 KegInker writes all 296 rows from the highest address down: the view turned
 180° first, then 32 white rows for the hidden addresses. That's 6,512 bytes
 in 27 chunks (`packControllerFrame`).
+
+## Write time budget
+
+Every write, on either board, must finish or fail on its own within 15 s of
+scheduled time (`WRITE_BUDGET_MS` in `TagExchange.kt`).
+
+| Platform | Limit | Source |
+|---|---|---|
+| iOS | A tag connection ends roughly 20 s after it starts, and Core NFC has no per-command timeout. | Apple doesn't publish the figure; 20 s is the commonly observed limit ([overview.md](overview.md#constraints-that-shape-the-design)). |
+| Android | No session limit. Each command may also take up to 3 s (`TRANSCEIVE_TIMEOUT_MS`) before it fails. | `NfcA`/`IsoDep` timeouts set by `NfcTransport`. |
+
+The budget is the iOS limit less 5 s kept back for finding the tag before the
+write and reporting the result after it. Android uses the same budget, so a
+write behaves the same on both phones.
+
+A write's scheduled time is its pauses plus 50 ms per command
+(`COMMAND_ALLOWANCE_MS`), an estimate of one exchange. Each writer gives the
+refresh poll what the budget leaves after its other pauses and commands
+(`busyPollLimit`). For the 2.7":
+
+| Board | Fixed pauses | Other commands | Poll | Polls |
+|---|---|---|---|---|
+| Classic | 2.7 s | 59 | 25 ms | 124 |
+| Rev2.2 | 6.4 s, including the 6 s refresh wait | 50 | 200 ms | 24 |
+
+So a refresh that never confirms ends in the writer's "not confirmed" failure
+before iOS ends the session. `WriteBudgetTest` totals each writer's worst case
+and fails if it exceeds the budget, or leaves room for another poll. A
+recorded real write would show how close typical commands are to the
+allowance.
 
 ## Good Display
 

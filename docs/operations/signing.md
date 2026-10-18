@@ -89,9 +89,17 @@ from the conventional commits on `main`
 each push to `main` it opens or updates a release PR that bumps the version in
 [`.release-please-manifest.json`](../../.release-please-manifest.json) and adds
 a `CHANGELOG.md` entry: `feat` bumps MINOR and `fix` bumps PATCH while the
-version is below 1.0.0, and a breaking change bumps MINOR. Merge that PR to
-release. release-please then creates the `vX.Y.Z` tag and its GitHub Release,
-with the changelog entry as notes.
+version is below 1.0.0, and a breaking change bumps MINOR.
+
+Before merging a release PR whose version bumps MINOR or MAJOR, including a
+version picked with a `Release-As` footer or a pre-release, run the
+[hardware test script](../guides/run-hardware-tests.md) on a build of the
+release PR's commit, on at least one Android and one iOS phone, and record
+both runs in the [hardware test log](hardware-test-log.md). Don't merge until
+both rows are in the log.
+
+Merge the release PR to release. release-please then creates the `vX.Y.Z`
+tag and its GitHub Release, with the changelog entry as notes.
 
 To cut a pre-release, or to pick a version yourself, end a commit message
 with a `Release-As` footer. The release PR then proposes exactly that version:

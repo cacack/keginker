@@ -70,7 +70,7 @@ class WaveshareWriter(
         return runSteps {
             sendOk(WriteStep.INIT, command(0xCD, 0x0D))
             sendOk(WriteStep.SELECT_PANEL, command(0xCD, 0x00, panel.typeCode))
-            pause(50)
+            pause(SELECT_PAUSE_MS)
             for ((code, wait) in POWER_ON_SEQUENCE) {
                 sendOk(WriteStep.POWER_ON, command(0xCD, code))
                 pause(wait)
@@ -78,38 +78,54 @@ class WaveshareWriter(
             sendOk(WriteStep.PREPARE_DATA, command(0xCD, 0x07, 0x00))
             // The vendor sequence pauses here for a CD 08 data loop that the
             // 2.7" skips; keep the pause.
-            pause(96)
+            pause(PREPARE_PAUSE_MS)
             sendOk(WriteStep.START_DATA, command(0xCD, 0x18))
-            pause(100)
+            pause(START_PAUSE_MS)
 
             for (chunk in 0 until panel.chunkCount) {
                 sendOk(WriteStep.SEND_DATA, dataPacket(panel, frame, chunk), "chunk ${chunk + 1}/${panel.chunkCount}")
                 onProgress((chunk + 1) * DATA_PROGRESS / panel.chunkCount)
-                pause(2)
+                pause(CHUNK_PAUSE_MS)
             }
 
-            pause(300)
+            pause(PRE_REFRESH_PAUSE_MS)
             sendOk(WriteStep.REFRESH, command(0xCD, 0x09))
-            pause(2000)
-            awaitRefresh()
+            pause(REFRESH_WAIT_MS)
+            awaitRefresh(maxPolls(panel))
             sendOk(WriteStep.POWER_OFF, command(0xCD, 0x04))
             onProgress(100)
         }
     }
 
-    private suspend fun awaitRefresh() {
-        repeat(MAX_BUSY_POLLS) {
+    private suspend fun awaitRefresh(maxPolls: Int) {
+        repeat(maxPolls) {
             if (isDone(transport.exchange(WriteStep.WAIT_FOR_REFRESH, command(0xCD, 0x0A)))) return
-            pause(25)
+            pause(POLL_PAUSE_MS)
         }
-        throw StepFailed(WriteStep.WAIT_FOR_REFRESH, "Refresh not confirmed after $MAX_BUSY_POLLS polls")
+        throw StepFailed(WriteStep.WAIT_FOR_REFRESH, "Refresh not confirmed after $maxPolls polls")
     }
+
+    /** Busy polls left in the write budget once everything else for [panel] is sent. */
+    private fun maxPolls(panel: WavesharePanel) = busyPollLimit(
+        pausesMs = SELECT_PAUSE_MS + POWER_ON_SEQUENCE.sumOf { it.second } + PREPARE_PAUSE_MS + START_PAUSE_MS +
+            panel.chunkCount * CHUNK_PAUSE_MS + PRE_REFRESH_PAUSE_MS + REFRESH_WAIT_MS,
+        // Init, select panel, power on, prepare, start, the chunks, refresh, and power off after.
+        commands = 2 + POWER_ON_SEQUENCE.size + 2 + panel.chunkCount + 2,
+        pollPauseMs = POLL_PAUSE_MS,
+    )
 
     private suspend fun sendOk(step: WriteStep, command: ByteArray, detail: String? = null) =
         transport.exchangeOk(step, command, ::isOk, detail)
 
     private companion object {
         const val DATA_PROGRESS = IMAGE_SENT_PROGRESS
+        const val SELECT_PAUSE_MS = 50L
+        const val PREPARE_PAUSE_MS = 96L
+        const val START_PAUSE_MS = 100L
+        const val CHUNK_PAUSE_MS = 2L
+        const val PRE_REFRESH_PAUSE_MS = 300L
+        const val REFRESH_WAIT_MS = 2000L
+        const val POLL_PAUSE_MS = 25L
 
         /** Power and configuration commands, each followed by a pause in ms. */
         val POWER_ON_SEQUENCE = listOf(0x01 to 20L, 0x02 to 20L, 0x03 to 20L, 0x05 to 20L, 0x06 to 10L)

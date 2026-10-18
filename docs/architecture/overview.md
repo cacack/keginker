@@ -50,7 +50,8 @@ drive them with a fake transport that replays recorded exchanges.
   completes, and retries cleanly.
 - **Timeouts.** Panel refreshes take seconds. Android timeouts are set
   generously. iOS offers no per-command timeout and limits a tag connection to
-  roughly 20 seconds, so writes must be efficient.
+  roughly 20 seconds, so every write fits a 15 s
+  [time budget](protocols.md#write-time-budget).
 - **Image pipeline.** Platforms decode images natively, downsampled to a few
   megapixels at most. They hand the core non-premultiplied `0xAARRGGBB`
   pixels (`GrayImage.fromArgb`). The core centre-crops and scales to the

@@ -1,6 +1,6 @@
 # Record a tag write for the tests
 
-The protocol tests replay writes recorded from real tags. A recorded write
+The protocol tests can replay writes recorded from real tags. A recorded write
 checks the writer against what a board actually said, which a hand-written
 fake can't. This guide covers recording one and adding it as a test fixture.
 

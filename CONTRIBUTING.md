@@ -25,7 +25,7 @@ Requires JDK 21. iOS builds require macOS with Xcode.
 Image pipeline tests check properties over at least 100 seeded inputs
 (`kotlin.random.Random(seed)`); a failure names its seed so it can be replayed.
 
-Protocol tests also replay writes recorded from real tags; see
+Protocol tests can also replay writes recorded from real tags; see
 [docs/guides/record-a-tag-write.md](docs/guides/record-a-tag-write.md) to
 record one.
 

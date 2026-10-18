@@ -1,5 +1,6 @@
 package io.github.cacack.tagpaper
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
@@ -29,7 +30,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
@@ -60,8 +64,11 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String? = null, onSimulateTag: (() -> 
     val panel = model.panel
     val preview = remember(view) { view.toPreviewBitmap(panel.viewWidth).asImageBitmap() }
     val busy = state is WriteState.Writing
+    var showAdvanced by rememberSaveable { mutableStateOf(false) }
 
+    // Collect here, not in a screen, so tags keep arriving whichever screen shows.
     LaunchedEffect(tags) { tags.collect(model::onTag) }
+    BackHandler(enabled = showAdvanced) { showAdvanced = false }
 
     val pickPhoto = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
         if (uri != null) model.load(context, uri)
@@ -69,11 +76,18 @@ fun App(tags: Flow<FoundTag>, nfcProblem: String? = null, onSimulateTag: (() -> 
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
+            if (showAdvanced) {
+                AdvancedScreen(onBack = { showAdvanced = false })
+                return@Surface
+            }
             Column(
                 modifier = Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(enabled = !busy, onClick = { showAdvanced = true }) { Text("Advanced") }
+                }
                 Text("Waveshare 2.7\" e-paper", style = MaterialTheme.typography.titleMedium)
                 Image(
                     bitmap = preview,

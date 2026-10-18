@@ -27,6 +27,9 @@ families involved.
 4. If the write fails, tap **Retry**, lift the phone away, and hold it to the
    tag again. Phones only notice a tag as it arrives.
 
+Diagnostics live under **Advanced** (top right), including a "Report a
+display" entry for unsupported tags (coming soon).
+
 Android debug builds log every command: `adb logcat -s tagpaper-nfc`.
 
 ## Trying a development build

@@ -18,6 +18,21 @@ struct ContentView: View {
     private var panel: WavesharePanel { writer.panel }
 
     var body: some View {
+        NavigationStack {
+            screen
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink("Advanced") { AdvancedView(writer: writer) }
+                            .disabled(writer.isBusy)
+                    }
+                }
+        }
+        .onAppear(perform: render)
+        .onChange(of: dither) { render() }
+        .onChange(of: pickerItem) { load(pickerItem) }
+    }
+
+    private var screen: some View {
         ScrollView {
             VStack(spacing: 16) {
                 Text("Waveshare 2.7\" e-paper").font(.headline)
@@ -33,19 +48,9 @@ struct ContentView: View {
                     Text("This device can't read NFC tags.").foregroundStyle(.red)
                 }
                 status
-                #if DEBUG
-                Picker("CRC", selection: $writer.crcMode) {
-                    ForEach(CrcMode.allCases) { Text("CRC \($0.rawValue)").tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .disabled(writer.isBusy)
-                #endif
             }
             .padding()
         }
-        .onAppear(perform: render)
-        .onChange(of: dither) { render() }
-        .onChange(of: pickerItem) { load(pickerItem) }
     }
 
     @ViewBuilder private var preview: some View {

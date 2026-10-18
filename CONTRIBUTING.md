@@ -19,6 +19,8 @@ Requires JDK 21. iOS builds require macOS with Xcode.
 
 - Shared tests: `./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest`
 - iOS tests (macOS): `./gradlew :sharedLogic:iosSimulatorArm64Test`
+- Android transport tests: `./gradlew :androidApp:testDebugUnitTest`
+- iOS transport tests (macOS): `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'platform=iOS Simulator,name=<an iPhone simulator>' CODE_SIGNING_ALLOWED=NO test`
 - Android debug APK: `./gradlew :androidApp:assembleDebug`
 - iOS app: open `iosApp/` in Xcode and run.
 

@@ -48,6 +48,11 @@ replayed through a transport that fails the test on any command that differs
 from the recording; [record-a-tag-write.md](../guides/record-a-tag-write.md)
 lists which boards have one.
 
+Every implementation keeps the contract stated in `Transport`'s KDoc: reply
+format, failures, framing, timeouts, one command at a time, and closing. Each
+platform's transport tests check it against a fake of its NFC API
+(`androidApp/src/test`, `iosApp/iosAppTests`).
+
 ## Constraints that shape the design
 
 - **The tag is powered by the phone's field.** Moving the phone mid-write cuts

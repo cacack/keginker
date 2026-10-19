@@ -1,0 +1,30 @@
+name: PR title
+
+# Merge commits carry the PR title as their body, and release-please reads
+# any conventional message on main, so a conventional PR title duplicates
+# every changelog entry. See CONTRIBUTING.md.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  pr-title:
+    name: PR title isn't a conventional commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # release-please's own PR is exempt; the exact form keeps a
+          # hand-written "chore(...): release" from slipping through.
+          if [[ "$TITLE" =~ ^chore\(main\):\ release\ [0-9] ]]; then
+            echo "Release PR, exempt"
+            exit 0
+          fi
+          if [[ "$TITLE" =~ ^[a-z]+(\(.+\))?!?:\  ]]; then
+            echo "::error::Write the PR title as plain prose (e.g. 'Share a diagnostics report after a write'), not as a conventional commit; see CONTRIBUTING.md"
+            exit 1
+          fi

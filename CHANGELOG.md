@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1-alpha.1](https://github.com/cacack/keginker/compare/v0.4.0-alpha.1...v0.4.1-alpha.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ios:** say the NFC sheet is about to write the label ([7b6a63c](https://github.com/cacack/keginker/commit/7b6a63c4e671b0714e9f5bccb7a748521577e596))
+
 ## [0.4.0-alpha.1](https://github.com/cacack/keginker/compare/v0.3.0-alpha.1...v0.4.0-alpha.1) (2026-10-19)
 
 

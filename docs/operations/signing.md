@@ -136,6 +136,21 @@ The tag triggers [`release.yml`](../../.github/workflows/release.yml), which:
 6. attaches `keginker-X.Y.Z.apk` and its SHA-256 to the release, titles it
    `KegInker X.Y.Z` and marks tags with a suffix as pre-releases
 
+Alongside steps 2 to 6, it builds the iOS app
+([testflight.md](testflight.md) covers the App Store Connect setup and
+secrets):
+
+1. archives a Release build without `DEBUG`, signed through an App Store
+   Connect API key, with version `MAJOR.MINOR.PATCH` and build
+   `<versionCode>.<run attempt>`
+2. exports an App Store ipa and refuses to publish if its signed
+   entitlements or `Info.plist` declare any permission beyond NFC
+   ([constitution](../../CONSTITUTION.md) C4)
+3. records a signed build-provenance attestation for the ipa
+   ([constitution](../../CONSTITUTION.md) C5)
+4. uploads the ipa to TestFlight
+5. attaches `keginker-X.Y.Z.ipa` and its SHA-256 to the release
+
 ### The release-please app (once)
 
 release-please authenticates as a GitHub App installed only on this
@@ -172,5 +187,7 @@ tighten that further, in the repository settings:
 
 - add a tag ruleset that limits creating `v*` tags to maintainers, with the
   release-please app on its bypass list
-- optionally move the four secrets into an environment (for example
-  `release`) that requires approval, and add `environment: release` to the job
+- optionally move the four Android secrets and the four
+  [iOS secrets](testflight.md#secrets) into an environment (for example
+  `release`) that requires approval, and add `environment: release` to both
+  jobs

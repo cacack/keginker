@@ -80,16 +80,17 @@ a device; a tap count is a UX walkthrough, not something a test can settle.
 
 **C4 — The app requests no permissions beyond NFC and photo access, on iOS
 and Android.**
-Check: the `Check permissions (C4)` steps pass: Android in
-[`release.yml`](.github/workflows/release.yml) on each release's signed APK,
-iOS in [`ci.yml`](.github/workflows/ci.yml) on every build.
+Check: the `Check permissions (C4)` steps pass: in
+[`release.yml`](.github/workflows/release.yml) on each release's signed APK
+and ipa, and for iOS also in [`ci.yml`](.github/workflows/ci.yml) on every
+build.
 
 **C5 — Anyone can verify each release build was made by CI from its tagged
 commit, on iOS and Android.**
 Check: `gh attestation verify <build> -R cacack/keginker` passes for the
-latest release's builds. Android's APK is attested today; the iOS build is
-attested once releases include it (#27). The App Store re-signs what users
-install, so on iOS the attestation covers the build CI uploads.
+latest release's builds: the Android APK and the iOS ipa. The App Store
+re-signs what users install, so on iOS the attestation covers the build CI
+uploads.
 
 **C6 — Every minor release is covered by a full security review, published
 in `docs/reviews/security/`.**

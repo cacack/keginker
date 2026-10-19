@@ -45,8 +45,20 @@ builds offer **Simulate a tag** after **Write to tag** to try the flow.
 
 ## iOS
 
-iOS builds will be distributed through TestFlight. Until then, build from
-source on a Mac with Xcode:
+Each release is distributed through TestFlight. Ask the maintainer for an
+invitation, then install the TestFlight app, accept the invitation and
+install KegInker from it. Maintainers add testers as described in
+[testflight.md](../operations/testflight.md#adding-testers).
+
+The `keginker-X.Y.Z.ipa` on each release is the build CI uploaded to
+TestFlight. It can't be installed directly, but it can be checked against
+its release tag:
+
+```sh
+gh attestation verify keginker-X.Y.Z.ipa -R cacack/keginker
+```
+
+To try an unreleased change, build from source on a Mac with Xcode:
 
 1. Create `iosApp/Configuration/Local.xcconfig` containing
    `TEAM_ID=` and your Apple Developer team ID. The file is gitignored, so

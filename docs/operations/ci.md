@@ -23,4 +23,20 @@ uploads the ipa to TestFlight. See [signing.md](signing.md) for the key, the
 secrets and cutting a release, and [testflight.md](testflight.md) for the
 App Store Connect setup.
 
+[`.github/workflows/codeql.yml`](../../.github/workflows/codeql.yml) runs
+CodeQL on every pull request, every push to `main` and weekly. It analyses
+the workflows, the Kotlin code (a traced `:androidApp:assembleDebug`, which
+compiles `sharedLogic` and `sharedUI` too) and the Swift code (a traced,
+unsigned simulator build on macOS). Results appear under Security → Code
+scanning.
+
+[`.github/workflows/scorecard.yml`](../../.github/workflows/scorecard.yml)
+runs [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/cacack/keginker)
+weekly, on pushes to `main` and when branch protection changes, publishes
+the score shown in the README badge, and uploads its findings to code
+scanning.
+
+Neither feeds `CI Success`, so findings never block a merge; they are
+triaged as issues.
+
 Third-party actions are pinned to commit SHAs. Dependabot keeps them current.

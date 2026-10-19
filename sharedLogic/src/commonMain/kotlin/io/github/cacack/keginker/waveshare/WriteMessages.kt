@@ -22,6 +22,9 @@ fun writeProgressMessage(percent: Int, phone: String): String =
         "Updating the display. Keep the $phone still."
     }
 
+/** Shown once a write is done; a report's message too. */
+const val DONE_MESSAGE = "Done. The tag keeps this image without power."
+
 /** Shown when a tag isn't one KegInker can write. */
 const val UNSUPPORTED_TAG_MESSAGE = "This tag isn't supported. KegInker writes Waveshare NFC e-paper tags."
 

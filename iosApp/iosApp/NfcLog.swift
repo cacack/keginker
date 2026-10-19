@@ -32,7 +32,7 @@ enum NfcLog {
         }
     }
 
-    private static func name(_ family: NFCMiFareFamily) -> String {
+    static func name(_ family: NFCMiFareFamily) -> String {
         switch family {
         case .ultralight: "ultralight"
         case .plus: "plus"

@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var loading: Task<Void, Never>?
     @State private var pickerItem: PhotosPickerItem?
     @State private var loadError: String?
+    @AppStorage(offerReportsKey) private var offerReports = false
 
     private var panel: WavesharePanel { writer.panel }
 
@@ -83,19 +84,36 @@ struct ContentView: View {
         case let .writing(percent):
             ProgressView(value: Double(percent), total: 100)
             Text(WriteMessagesKt.writeProgressMessage(percent: Int32(percent), phone: "iPhone"))
-        case .done:
-            Text("Done. The tag keeps this image without power.")
-            writeButton("Write another tag")
-        case let .failed(message):
+        case let .done(report):
+            Text(WriteMessagesKt.DONE_MESSAGE)
+            HStack {
+                writeButton("Write another tag")
+                if offerReports { shareDetails(report) }
+            }
+        case let .failed(message, report):
             Text(message).foregroundStyle(.red).multilineTextAlignment(.center)
-            writeButton("Retry")
+            HStack {
+                writeButton("Retry")
+                if let report { shareDetails(report) }
+            }
         }
+    }
+
+    private func shareDetails(_ report: WriteReport) -> some View {
+        NavigationLink("Share details") { ReportView(report: report) }
+            .buttonStyle(.bordered)
+            .disabled(writer.isBusy)
     }
 
     private func writeButton(_ title: String) -> some View {
         Button(title) {
             guard let view else { return }
-            if canSimulate { writer.simulate(view: view) } else { writer.write(view: view) }
+            let testPattern = source == nil
+            if canSimulate {
+                writer.simulate(view: view, testPattern: testPattern)
+            } else {
+                writer.write(view: view, testPattern: testPattern)
+            }
         }
         .buttonStyle(.borderedProminent)
         .disabled(writer.isBusy || !(TagWriter.isNfcAvailable || canSimulate))

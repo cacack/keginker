@@ -9,8 +9,10 @@ final class TagWriter: NSObject, ObservableObject {
     enum State: Equatable {
         case idle
         case writing(Int)
-        case done
-        case failed(String)
+        /// The report is offered when that's turned on under Advanced.
+        case done(WriteReport)
+        /// The report is nil when there was no tag to report on.
+        case failed(String, WriteReport?)
     }
 
     @Published private(set) var state: State = .idle
@@ -26,15 +28,21 @@ final class TagWriter: NSObject, ObservableObject {
     private var session: NFCTagReaderSession?
     private var isRunning = false
     private var view: KotlinBooleanArray?
+    /// Whether [view] shows the built-in test pattern, for reports.
+    private var testPattern = false
+    /// The running write's tag and exchanges, for a report if the session ends under it.
+    private var current: (tag: FoundTag, log: ExchangeLog)?
 
     static var isNfcAvailable: Bool { NFCTagReaderSession.readingAvailable }
 
     /// Opens the NFC sheet and writes [view] (from `renderView`) to the first
-    /// tag presented, packed for whichever kind of tag it is.
-    func write(view: KotlinBooleanArray) {
+    /// tag presented, packed for whichever kind of tag it is. [testPattern]
+    /// says, for reports, whether it shows the built-in test pattern.
+    func write(view: KotlinBooleanArray, testPattern: Bool) {
         guard !isBusy else { return }
         isBusy = true
         self.view = view
+        self.testPattern = testPattern
         state = .idle
         session = NFCTagReaderSession(pollingOption: .iso14443, delegate: self, queue: .main)
         session?.alertMessage = "Hold the top of your iPhone against the tag and keep it still."
@@ -43,9 +51,10 @@ final class TagWriter: NSObject, ObservableObject {
     }
 
     /// Writes [view] to a simulated tag that accepts everything. Debug and Simulator only.
-    func simulate(view: KotlinBooleanArray) {
+    func simulate(view: KotlinBooleanArray, testPattern: Bool) {
         guard !isBusy else { return }
         isBusy = true
+        self.testPattern = testPattern
         let tag = FoundTagWaveshare(transport: SimulatedWaveshareTransport(commandDelayMs: 20))
         Task { await run(tag, view: view, session: nil) }
     }
@@ -53,28 +62,33 @@ final class TagWriter: NSObject, ObservableObject {
     private func run(_ tag: FoundTagWritable, view: KotlinBooleanArray, session: NFCTagReaderSession?) async {
         isRunning = true
         state = .writing(0)
+        let log = ExchangeLog()
+        current = (tag, log)
         let result: State
         do {
-            let outcome = try await ImageWriter().write(tag: tag, panel: panel, view: view) { percent in
+            let outcome = try await ImageWriter().write(tag: tag, panel: panel, view: view, log: log) { percent in
                 Task { @MainActor in self.progress(percent.intValue, session: session) }
             }
             if let failure = outcome as? WriteResultFailure {
                 NfcLog.log("Write failed at \(failure.step.name): \(failure.reason)")
-                result = .failed(failure.userMessage)
+                let message = failure.userMessage
+                result = .failed(message, report(tag, message, .failed, log: log, step: failure.step, reason: failure.reason, cause: failure.cause))
             } else {
                 NfcLog.log("Write succeeded")
-                result = .done
+                result = .done(report(tag, WriteMessagesKt.DONE_MESSAGE, .succeeded, log: log))
             }
         } catch {
-            result = .failed("The write failed unexpectedly: \(error.localizedDescription)")
+            let message = "The write failed unexpectedly: \(error.localizedDescription)"
+            result = .failed(message, report(tag, message, .failed, log: log, reason: error.localizedDescription))
         }
         tag.transport.close()
+        current = nil
         isRunning = false
         // The session may already have ended (sheet dismissed, timeout); that
         // failure stands, and the stale result must not replace it.
         if case .writing = state { state = result }
         if let session {
-            if case let .failed(message) = state {
+            if case let .failed(message, _) = state {
                 session.invalidate(errorMessage: message)
             } else {
                 session.alertMessage = "Done."
@@ -95,9 +109,30 @@ final class TagWriter: NSObject, ObservableObject {
         if session == nil && !isRunning { isBusy = false }
     }
 
-    private func fail(_ message: String, session: NFCTagReaderSession) {
-        state = .failed(message)
+    private func fail(_ message: String, report: WriteReport?, session: NFCTagReaderSession) {
+        state = .failed(message, report)
         session.invalidate(errorMessage: message)
+    }
+
+    /// A report on [tag], built as Android builds it.
+    private func report(
+        _ tag: FoundTag,
+        _ message: String,
+        _ outcome: Outcome,
+        log: ExchangeLog?,
+        step: WriteStep? = nil,
+        reason: String? = nil,
+        cause: KotlinThrowable? = nil
+    ) -> WriteReport {
+        WriteReportKt.writeReport(
+            tag: tag, panel: panel, message: message, outcome: outcome, testPattern: testPattern,
+            log: log, step: step, reason: reason, cause: cause
+        )
+    }
+
+    private func failUnsupported(_ tag: FoundTag, session: NFCTagReaderSession) {
+        let message = WriteMessagesKt.UNSUPPORTED_TAG_MESSAGE
+        fail(message, report: report(tag, message, .notAttempted, log: nil), session: session)
     }
 
     private func found(_ tags: [NFCTag], session: NFCTagReaderSession) {
@@ -108,27 +143,23 @@ final class TagWriter: NSObject, ObservableObject {
             return
         }
         guard let view else {
-            fail("Nothing to write. Try again.", session: session)
+            fail("Nothing to write. Try again.", report: nil, session: session)
             return
         }
+        let info = Diagnostics.tagInfo(tag)
         let classified: FoundTag
         switch tag {
         case let .miFare(miFare):
             let crcMode = self.crcMode
-            classified = FoundTagKt.classifyNfcATag(uid: SwiftInteropKt.kotlinBytes(data: miFare.identifier)) {
-                MiFareTransport(tag: miFare, crcMode: crcMode)
-            }
+            classified = FoundTagKt.classifyNfcATag(info: info) { MiFareTransport(tag: miFare, crcMode: crcMode) }
         case let .iso7816(iso7816):
-            classified = FoundTagKt.classifyIsoDepTag(
-                uid: SwiftInteropKt.kotlinBytes(data: iso7816.identifier),
-                historicalBytes: SwiftInteropKt.kotlinBytes(data: iso7816.historicalBytes ?? Data())
-            ) { Iso7816Transport(tag: iso7816) }
+            classified = FoundTagKt.classifyIsoDepTag(info: info) { Iso7816Transport(tag: iso7816) }
         default:
-            fail(WriteMessagesKt.UNSUPPORTED_TAG_MESSAGE, session: session)
+            failUnsupported(FoundTagUnsupported(info: info), session: session)
             return
         }
         guard let writable = classified as? FoundTagWritable else {
-            fail(WriteMessagesKt.UNSUPPORTED_TAG_MESSAGE, session: session)
+            failUnsupported(classified, session: session)
             return
         }
         NfcLog.log("Classified as \(writable is FoundTagWaveshareIsoDep ? "Waveshare Rev2.2 (ISO-DEP)" : "Waveshare classic")")
@@ -137,7 +168,9 @@ final class TagWriter: NSObject, ObservableObject {
                 if let error {
                     NfcLog.log("Connect failed: \(error.localizedDescription)")
                     writable.transport.close()
-                    self.fail("Couldn't connect to the tag. Hold it still and try again.", session: session)
+                    let message = "Couldn't connect to the tag. Hold it still and try again."
+                    let report = self.report(writable, message, .failed, log: nil, reason: error.localizedDescription)
+                    self.fail(message, report: report, session: session)
                     return
                 }
                 NfcLog.log("Connected")
@@ -163,9 +196,11 @@ extension TagWriter: NFCTagReaderSessionDelegate {
             guard session === self.session else { return }
             self.session = nil
             if case .writing = state {
-                state = .failed("The NFC session ended before the write finished. Try again and keep the iPhone still.")
+                let message = "The NFC session ended before the write finished. Try again and keep the iPhone still."
+                let report = current.map { self.report($0.tag, message, .failed, log: $0.log, reason: error.localizedDescription) }
+                state = .failed(message, report)
             } else if case .idle = state, (error as? NFCReaderError)?.code != .readerSessionInvalidationErrorUserCanceled {
-                state = .failed(error.localizedDescription)
+                state = .failed(error.localizedDescription, nil)
             }
             settle()
         }

@@ -9,6 +9,8 @@ import io.github.cacack.keginker.waveshare.toHex
  */
 private const val UID_SHOWN_BYTES = 3
 
+private const val UNAVAILABLE = "unavailable"
+
 /**
  * The plain-text diagnostics report a user reads and then chooses to share.
  * It holds no image data, and only the start of the tag's UID.
@@ -35,8 +37,9 @@ fun formatDiagnosticReport(app: AppInfo, device: DeviceInfo, report: WriteReport
         appendLine("Tag")
         field("Technologies", tag.technologies.takeIf { it.isNotEmpty() }?.joinToString(", "))
         field("UID", shortUid(tag.uid))
-        field("ATQA", tag.atqa?.toHex())
-        field("SAK", tag.sak?.let { byteArrayOf(it.toByte()).toHex() })
+        // Always shown, so a reader can tell a value the platform withholds (iOS) from a missing line.
+        field("ATQA", tag.atqa?.toHex() ?: UNAVAILABLE)
+        field("SAK", tag.sak?.let { byteArrayOf(it.toByte()).toHex() } ?: UNAVAILABLE)
         field("Historical bytes", tag.historicalBytes?.toHex())
     }
     appendLine()

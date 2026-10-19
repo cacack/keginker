@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2-alpha.1](https://github.com/cacack/keginker/compare/v0.4.1-alpha.1...v0.4.2-alpha.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **android:** replace the template launcher icon ([bf90181](https://github.com/cacack/keginker/commit/bf9018182b51e12c30c1cd4e693687a3efdf0cd3))
+* **ios:** give the app an icon so App Store Connect accepts uploads ([a43e56c](https://github.com/cacack/keginker/commit/a43e56cc1d1ed796b3d7c4ecc38ff0114c80b139)), closes [#27](https://github.com/cacack/keginker/issues/27)
+
 ## [0.4.1-alpha.1](https://github.com/cacack/keginker/compare/v0.4.0-alpha.1...v0.4.1-alpha.1) (2026-10-19)
 
 

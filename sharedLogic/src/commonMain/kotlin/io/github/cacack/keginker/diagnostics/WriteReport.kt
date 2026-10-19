@@ -10,10 +10,11 @@ data class AppInfo(val version: String, val buildType: String, val commit: Strin
 data class DeviceInfo(val manufacturer: String, val model: String, val os: String, val nfcEnabled: Boolean)
 
 /**
- * What happened during a failed write (or with an unsupported tag), for
+ * What happened during a write (or with an unsupported tag), for
  * [formatDiagnosticReport]. [step] and [reason] are set when a write step
  * failed. [cause] can also be set without them, when a write was interrupted
- * or failed unexpectedly. All three are null for an unsupported tag.
+ * or failed unexpectedly. All three are null for an unsupported tag or a
+ * write that [succeeded].
  */
 class WriteReport(
     /** Null if the platform didn't capture it. */
@@ -27,4 +28,8 @@ class WriteReport(
     val reason: String? = null,
     val cause: Throwable? = null,
     val exchanges: List<Exchange> = emptyList(),
+    /** Whether the tag confirmed the refresh. */
+    val succeeded: Boolean = false,
+    /** Whether the image was the built-in test pattern, so a reader knows what the panel should show. */
+    val testPattern: Boolean = false,
 )

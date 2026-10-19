@@ -54,7 +54,20 @@ class DiagnosticReportTest {
             "Step: SEND_DATA (sending the image)",
             "Reason: Tag communication failed at chunk 2/27",
             "Cause: IllegalStateException: Tag was lost",
+            "Image: chosen image (not included)",
+            "Outcome: failed",
         ).forEach { assertTrue(it in text, "missing \"$it\" in:\n$text") }
+    }
+
+    @Test
+    fun aSuccessfulWriteSaysSoAndNamesTheTestPattern() {
+        val report = WriteReport(TAG, "Waveshare classic (NFC-A)", "EPD_2IN7", "Done.", succeeded = true, testPattern = true)
+
+        val text = formatDiagnosticReport(APP, DEVICE, report)
+
+        assertTrue("Outcome: succeeded" in text, text)
+        assertTrue("Image: built-in test pattern" in text, text)
+        assertFalse("Step:" in text, text)
     }
 
     @Test

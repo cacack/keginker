@@ -27,6 +27,9 @@ class WriteSession(
     /** The chosen image. */
     private var source = testPattern(panel.viewWidth, panel.viewHeight)
 
+    /** Whether [source] is still the built-in test pattern. */
+    private var sourceIsTestPattern = true
+
     /** An image that finished loading during a write, shown once it ends. */
     private var pendingSource: GrayImage? = null
 
@@ -56,7 +59,7 @@ class WriteSession(
         }
     }
 
-    fun write() = controller.arm(view.value)
+    fun write() = controller.arm(view.value, sourceIsTestPattern)
 
     /** Switches between dithering and a threshold. Ignored while a write is running. */
     fun toggleDither() {
@@ -88,6 +91,7 @@ class WriteSession(
     private fun show(image: GrayImage, keepFailure: Boolean = false) {
         pendingSource = null
         source = image
+        sourceIsTestPattern = false
         rerender(keepFailure)
     }
 

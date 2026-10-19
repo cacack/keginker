@@ -56,7 +56,8 @@ import kotlinx.coroutines.flow.Flow
  * then write it to a tag.
  *
  * [nfcProblem] explains why tags can't be read (no NFC, NFC off), if so.
- * [appInfo] and [deviceInfo] go into the diagnostics report offered after a failure.
+ * [appInfo] and [deviceInfo] go into the diagnostics report offered after a
+ * failure, and after a success when turned on under Advanced.
  * [onSimulateTag] and [onSimulateFailure] are offered in debug builds to
  * exercise the flow without a tag.
  */
@@ -79,10 +80,17 @@ fun App(
     val preview = remember(view) { view.toPreviewBitmap(panel.viewWidth).asImageBitmap() }
     val busy = state is WriteState.Writing
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
-    // Saved so the report stays open across rotation. The failed state it shows
-    // can't change meanwhile: a tag is only written after Retry, from the main screen.
+    val reportSetting = remember { ReportSetting(context) }
+    var offerReports by remember { mutableStateOf(reportSetting.offerAfterSuccess) }
+    // Saved so the report stays open across rotation. The state it shows can't
+    // change meanwhile: a tag is only written once armed, from the main screen.
     var showReport by rememberSaveable { mutableStateOf(false) }
-    val shownReport = (state as? WriteState.Failed)?.report?.takeIf { showReport }
+    val offeredReport = when (val current = state) {
+        is WriteState.Failed -> current.report
+        is WriteState.Done -> current.report.takeIf { offerReports }
+        else -> null
+    }
+    val shownReport = offeredReport?.takeIf { showReport }
 
     // Collect here, not in a screen, so tags keep arriving whichever screen shows.
     LaunchedEffect(tags) { tags.collect(model::onTag) }
@@ -96,7 +104,14 @@ fun App(
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
             if (showAdvanced) {
-                AdvancedScreen(onBack = { showAdvanced = false })
+                AdvancedScreen(
+                    offerReports = offerReports,
+                    onOfferReportsChange = {
+                        offerReports = it
+                        reportSetting.offerAfterSuccess = it
+                    },
+                    onBack = { showAdvanced = false },
+                )
                 return@Surface
             }
             shownReport?.let { report ->
@@ -145,7 +160,7 @@ fun App(
                     onCancel = model.controller::cancel,
                     onSimulateTag = onSimulateTag,
                     onSimulateFailure = onSimulateFailure,
-                    onShareDetails = { showReport = true },
+                    onShareDetails = { showReport = true }.takeIf { offeredReport != null },
                 )
             }
         }
@@ -174,7 +189,8 @@ private fun WriteStatus(
     onCancel: () -> Unit,
     onSimulateTag: (() -> Unit)?,
     onSimulateFailure: (() -> Unit)?,
-    onShareDetails: () -> Unit,
+    /** Null when there's no report to offer. */
+    onShareDetails: (() -> Unit)?,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -195,17 +211,18 @@ private fun WriteStatus(
                 LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())
                 Text(writeProgressMessage(state.percent, phone = "phone"))
             }
-            WriteState.Done -> {
-                Text("Done. The tag keeps this image without power.")
-                Button(onClick = onWrite) { Text("Write another tag") }
+            is WriteState.Done -> {
+                Text(DONE_MESSAGE)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onWrite) { Text("Write another tag") }
+                    onShareDetails?.let { OutlinedButton(onClick = it) { Text("Share details") } }
+                }
             }
             is WriteState.Failed -> {
                 Text(state.message, color = MaterialTheme.colorScheme.error)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onWrite) { Text("Retry") }
-                    if (state.report != null) {
-                        OutlinedButton(onClick = onShareDetails) { Text("Share details") }
-                    }
+                    onShareDetails?.let { OutlinedButton(onClick = it) { Text("Share details") } }
                 }
             }
         }

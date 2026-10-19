@@ -63,7 +63,7 @@ class WriteControllerTest {
 
         controller.onTag(FoundTag.WaveshareIsoDep(tag))
 
-        assertEquals(WriteState.Done, controller.state.value)
+        assertIs<WriteState.Done>(controller.state.value)
         // The Rev2.2 sequence starts by unlocking the chip.
         assertEquals(0xB1.toByte(), tag.sent.first()[1])
         assertTrue(tag.sent.all { it[0] == 0x74.toByte() })
@@ -90,7 +90,7 @@ class WriteControllerTest {
         controller.arm(testView())
         controller.onTag(FoundTag.Waveshare(tag))
 
-        assertEquals(WriteState.Done, controller.state.value)
+        assertIs<WriteState.Done>(controller.state.value)
         assertTrue(tag.closed)
     }
 
@@ -108,7 +108,39 @@ class WriteControllerTest {
         controller.arm(testView())
         controller.onTag(FoundTag.Waveshare(FakeTag()))
 
-        assertEquals(WriteState.Done, controller.state.value)
+        assertIs<WriteState.Done>(controller.state.value)
+    }
+
+    @Test
+    fun successfulWriteReportsItsExchangesWithoutImageData() = runTest {
+        val controller = controller()
+        controller.arm(testView(), testPattern = true)
+
+        controller.onTag(FoundTag.Waveshare(FakeTag()))
+
+        val report = assertIs<WriteState.Done>(controller.state.value).report
+        assertTrue(report.succeeded)
+        assertTrue(report.testPattern)
+        assertEquals(DONE_MESSAGE, report.message)
+        assertEquals("Waveshare classic (NFC-A)", report.protocol)
+        assertNull(report.step)
+        assertNull(report.cause)
+        val chunks = report.exchanges.filter { it.step == WriteStep.SEND_DATA }
+        assertEquals(PANEL.chunkCount, chunks.size)
+        val header = byteArrayOf(0xCD.toByte(), 0x19, PANEL.chunkSize.toByte())
+        assertTrue(chunks.all { it.imageBytes == PANEL.chunkSize && it.command.contentEquals(header) })
+    }
+
+    @Test
+    fun reportsSayWhenTheImageIsNotTheTestPattern() = runTest {
+        val controller = controller()
+        controller.arm(testView(), testPattern = false)
+
+        controller.onTag(FoundTag.Waveshare(FakeTag(failAfter = 3)))
+
+        val report = assertNotNull(assertIs<WriteState.Failed>(controller.state.value).report)
+        assertEquals(false, report.testPattern)
+        assertEquals(false, report.succeeded)
     }
 
     @Test
@@ -169,7 +201,7 @@ class WriteControllerTest {
 
         assertEquals(0, second.sent)
         assertTrue(second.closed)
-        assertEquals(WriteState.Done, controller.state.value)
+        assertIs<WriteState.Done>(controller.state.value)
     }
 
     @Test

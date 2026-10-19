@@ -116,6 +116,19 @@ class WriteSessionTest {
     }
 
     @Test
+    fun reportsNameTheTestPatternUntilAnImageIsChosen() = runTest {
+        val session = session()
+        session.write()
+        session.onTag(ScriptedTag(isoDep = false, instant = true).found())
+        assertTrue(assertIs<WriteState.Done>(session.controller.state.value).report.testPattern)
+
+        session.imageLoaded(GrayImage(1, 1, byteArrayOf(0)))
+        session.write()
+        session.onTag(ScriptedTag(isoDep = false, instant = true).found())
+        assertEquals(false, assertIs<WriteState.Done>(session.controller.state.value).report.testPattern)
+    }
+
+    @Test
     fun ditherAndThresholdAreIgnoredDuringAWrite() = runTest {
         val session = session()
         val written = session.view.value
@@ -128,7 +141,7 @@ class WriteSessionTest {
 
         assertContentEquals(written, session.view.value)
         advanceUntilIdle()
-        assertEquals(WriteState.Done, session.controller.state.value)
+        assertIs<WriteState.Done>(session.controller.state.value)
     }
 
     /**
@@ -217,7 +230,7 @@ class WriteSessionTest {
             runCurrent()
 
             val current = state.value
-            if (current == WriteState.Done) {
+            if (current is WriteState.Done) {
                 coverage.done++
                 // Only one write runs at a time, so the last tag that was sent anything gave this Done.
                 val written = tags.last { it.sent.isNotEmpty() }

@@ -1,5 +1,8 @@
 # KegInker
 
+[![CodeQL](https://github.com/cacack/keginker/actions/workflows/codeql.yml/badge.svg)](https://github.com/cacack/keginker/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cacack/keginker/badge)](https://scorecard.dev/viewer/?uri=github.com/cacack/keginker)
+
 An open-source Android and iOS app for keg tap-handle labels on
 battery-free NFC e-paper tags. Pick what's pouring, preview the label, tap
 your phone to the handle, and the label stays after you walk away.

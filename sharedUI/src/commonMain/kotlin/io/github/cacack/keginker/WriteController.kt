@@ -1,6 +1,7 @@
 package io.github.cacack.keginker
 
 import io.github.cacack.keginker.diagnostics.ExchangeLog
+import io.github.cacack.keginker.diagnostics.Outcome
 import io.github.cacack.keginker.diagnostics.WriteReport
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
@@ -23,8 +24,8 @@ sealed interface WriteState {
 
     data class Writing(val percent: Int) : WriteState
 
-    /** The tag confirmed the refresh. */
-    data object Done : WriteState
+    /** The tag confirmed the refresh; [report] holds what happened, for a diagnostics report. */
+    data class Done(val report: WriteReport) : WriteState
 
     /** The write failed; [report] holds what happened, for a diagnostics report. */
     data class Failed(val message: String, val report: WriteReport? = null) : WriteState
@@ -42,17 +43,20 @@ class WriteController(
     val state: StateFlow<WriteState> = mutableState
 
     private var view: BooleanArray? = null
+    private var testPattern = false
 
     /**
      * Readies [view] (from `renderView`) for the next tag; it's packed for
-     * whichever kind of tag turns up. Ignored while a write is running.
+     * whichever kind of tag turns up. [testPattern] says, for reports, whether
+     * it shows the built-in test pattern. Ignored while a write is running.
      */
-    fun arm(view: BooleanArray) {
+    fun arm(view: BooleanArray, testPattern: Boolean = false) {
         require(view.size == panel.viewWidth * panel.viewHeight) {
             "View is ${view.size} pixels; ${panel.name} needs ${panel.viewWidth}×${panel.viewHeight}"
         }
         if (mutableState.value is WriteState.Writing) return
         this.view = view
+        this.testPattern = testPattern
         mutableState.value = WriteState.Waiting
     }
 
@@ -72,13 +76,17 @@ class WriteController(
             return
         }
         when (tag) {
-            is FoundTag.Unsupported -> mutableState.value = failed(tag, UNSUPPORTED_TAG_MESSAGE)
+            is FoundTag.Unsupported ->
+                mutableState.value = WriteState.Failed(
+                    UNSUPPORTED_TAG_MESSAGE,
+                    report(tag, UNSUPPORTED_TAG_MESSAGE, Outcome.NOT_ATTEMPTED, log = null),
+                )
             is FoundTag.Writable -> {
                 val log = ExchangeLog()
                 mutableState.value = WriteState.Writing(0)
                 mutableState.value = try {
                     when (val result = imageWriter.write(tag, panel, view, log) { mutableState.value = WriteState.Writing(it) }) {
-                        WriteResult.Success -> WriteState.Done
+                        WriteResult.Success -> WriteState.Done(report(tag, DONE_MESSAGE, Outcome.SUCCEEDED, log))
                         is WriteResult.Failure -> failed(
                             tag, result.userMessage, log, result.step, result.reason, result.cause,
                         )
@@ -101,21 +109,33 @@ class WriteController(
     private fun failed(
         tag: FoundTag,
         message: String,
-        log: ExchangeLog? = null,
+        log: ExchangeLog,
         step: WriteStep? = null,
         reason: String? = null,
         cause: Throwable? = null,
-    ) = WriteState.Failed(
-        message,
-        WriteReport(
-            tag = tag.info,
-            protocol = tag.protocolName,
-            panel = panel.name,
-            message = message,
-            step = step,
-            reason = reason,
-            cause = cause,
-            exchanges = log?.entries.orEmpty(),
-        ),
+    ) = WriteState.Failed(message, report(tag, message, Outcome.FAILED, log, step, reason, cause))
+
+    private fun report(
+        tag: FoundTag,
+        message: String,
+        outcome: Outcome,
+        log: ExchangeLog?,
+        step: WriteStep? = null,
+        reason: String? = null,
+        cause: Throwable? = null,
+    ) = WriteReport(
+        tag = tag.info,
+        protocol = tag.protocolName,
+        panel = panel.name,
+        message = message,
+        outcome = outcome,
+        testPattern = testPattern,
+        step = step,
+        reason = reason,
+        cause = cause,
+        exchanges = log?.entries.orEmpty(),
     )
 }
+
+/** What the user is shown once a write is done. */
+const val DONE_MESSAGE = "Done. The tag keeps this image without power."

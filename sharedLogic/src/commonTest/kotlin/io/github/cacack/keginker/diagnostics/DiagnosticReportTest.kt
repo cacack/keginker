@@ -30,6 +30,8 @@ private fun failedWrite(exchanges: List<Exchange>) = WriteReport(
     protocol = "Waveshare Rev2.2 (ISO-DEP)",
     panel = "EPD_2IN7",
     message = "Lost contact with the tag while sending the image.",
+    outcome = Outcome.FAILED,
+    testPattern = false,
     step = WriteStep.SEND_DATA,
     reason = "Tag communication failed at chunk 2/27",
     cause = IllegalStateException("Tag was lost"),
@@ -54,7 +56,20 @@ class DiagnosticReportTest {
             "Step: SEND_DATA (sending the image)",
             "Reason: Tag communication failed at chunk 2/27",
             "Cause: IllegalStateException: Tag was lost",
+            "Image: chosen image (not included)",
+            "Outcome: failed",
         ).forEach { assertTrue(it in text, "missing \"$it\" in:\n$text") }
+    }
+
+    @Test
+    fun aSuccessfulWriteSaysSoAndNamesTheTestPattern() {
+        val report = WriteReport(TAG, "Waveshare classic (NFC-A)", "EPD_2IN7", "Done.", Outcome.SUCCEEDED, testPattern = true)
+
+        val text = formatDiagnosticReport(APP, DEVICE, report)
+
+        assertTrue("Outcome: succeeded" in text, text)
+        assertTrue("Image: built-in test pattern" in text, text)
+        assertFalse("Step:" in text, text)
     }
 
     @Test
@@ -68,7 +83,7 @@ class DiagnosticReportTest {
     @Test
     fun showsAtMostHalfOfAShortUid() {
         fun uidLine(uid: ByteArray) =
-            formatDiagnosticReport(APP, DEVICE, WriteReport(TagInfo(listOf("NfcA"), uid), "unsupported", "EPD_2IN7", "x"))
+            formatDiagnosticReport(APP, DEVICE, WriteReport(TagInfo(listOf("NfcA"), uid), "unsupported", "EPD_2IN7", "x", Outcome.NOT_ATTEMPTED, testPattern = false))
                 .lines().single { it.trim().startsWith("UID:") }.trim()
 
         assertEquals("UID: 08 1F … (4 bytes)", uidLine(bytes(0x08, 0x1F, 0x2E, 0x3D)))
@@ -123,6 +138,8 @@ class DiagnosticReportTest {
             protocol = "unsupported",
             panel = "EPD_2IN7",
             message = "This tag isn't supported.",
+            outcome = Outcome.NOT_ATTEMPTED,
+            testPattern = true,
         )
 
         val text = formatDiagnosticReport(APP, DEVICE.copy(nfcEnabled = false), report)
@@ -130,6 +147,8 @@ class DiagnosticReportTest {
         assertTrue("Detected protocol: unsupported" in text, text)
         assertTrue("Exchanges: none" in text, text)
         assertTrue("NFC: off" in text, text)
+        assertTrue("Outcome: not attempted" in text, text)
+        assertFalse("Image:" in text, text)
         assertFalse("Step:" in text || "Reason:" in text || "Cause:" in text || "Historical bytes:" in text, text)
         assertFalse("null" in text, text)
     }

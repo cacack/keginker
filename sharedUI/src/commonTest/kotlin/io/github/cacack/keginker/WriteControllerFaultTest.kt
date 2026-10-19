@@ -124,7 +124,7 @@ class WriteControllerFaultTest {
                     controller.arm(testView())
                     controller.onTag(kind.found(retry))
 
-                    assertEquals(WriteState.Done, controller.state.value, case)
+                    assertIs<WriteState.Done>(controller.state.value, case)
                     assertTrue(retry.closed, "$case: retried tag not released")
                 }
             }

@@ -42,8 +42,12 @@ fun formatDiagnosticReport(app: AppInfo, device: DeviceInfo, report: WriteReport
     appendLine()
     appendLine("Detected protocol: ${report.protocol}")
     appendLine("Panel: ${report.panel}")
+    if (report.outcome != Outcome.NOT_ATTEMPTED) {
+        appendLine("Image: ${if (report.testPattern) "built-in test pattern" else "chosen image (not included)"}")
+    }
     appendLine()
     appendLine("Result")
+    field("Outcome", report.outcome.name.lowercase().replace('_', ' '))
     field("Message", report.message)
     field("Step", report.step?.let { "${it.name} (${it.activity})" })
     field("Reason", report.reason)

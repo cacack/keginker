@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0-alpha.1](https://github.com/cacack/keginker/compare/v0.3.0-alpha.1...v0.4.0-alpha.1) (2026-10-19)
+
+
+### Features
+
+* **android:** offer a diagnostics report after every write, behind a toggle ([8ecb1db](https://github.com/cacack/keginker/commit/8ecb1db6b4ba5a611f66568a2eb54b656ca10e8f))
+* **android:** offer a diagnostics report after every write, behind a toggle ([455455d](https://github.com/cacack/keginker/commit/455455d97d4559e7e4fa929d0a3f3912476e80e3)), closes [#80](https://github.com/cacack/keginker/issues/80)
+* **ios:** share a diagnostics report after a write ([7b450c3](https://github.com/cacack/keginker/commit/7b450c3d08ae3fcdad24c2091811e53e3071f4aa))
+* **ios:** share a diagnostics report after a write ([eb13e18](https://github.com/cacack/keginker/commit/eb13e18e039a67a931472c4a0369d405fff79216)), closes [#50](https://github.com/cacack/keginker/issues/50)
+
+
+### Bug Fixes
+
+* pack classic 2.7" frames as the view turned 180° ([f226ded](https://github.com/cacack/keginker/commit/f226ded72ab3c51bb40abd14d24d480278be9296))
+* pack classic 2.7" frames as the view turned 180° ([40b328f](https://github.com/cacack/keginker/commit/40b328f50d70d66fb6e410a848cbd7b18c9e7b5c)), closes [#8](https://github.com/cacack/keginker/issues/8)
+* say when no write was attempted, and don't reopen a stale report ([21feb7f](https://github.com/cacack/keginker/commit/21feb7f77fff25bb178d397464ec6786dafdfa9e)), closes [#80](https://github.com/cacack/keginker/issues/80)
+
 ## [0.3.0-alpha.1](https://github.com/cacack/keginker/compare/v0.2.0-alpha.1...v0.3.0-alpha.1) (2026-10-18)
 
 

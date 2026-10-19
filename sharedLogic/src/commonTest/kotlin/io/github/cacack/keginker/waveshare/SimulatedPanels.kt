@@ -25,8 +25,8 @@ private fun Array<Boolean?>.writeByte(pixel: Int, value: Byte) {
 /**
  * A Waveshare classic tag. Collects `CD 19` image data into the panel's
  * [WavesharePanel.width] × [WavesharePanel.height] memory and, on `CD 09`,
- * shows it in the panel's view: for portrait, memory pixel (x, y) at view
- * pixel (height − 1 − y, x).
+ * shows it in the panel's view, turned 180°: memory pixel (x, y) at view
+ * pixel (width − 1 − x, height − 1 − y).
  */
 class SimulatedClassicPanel(private val panel: WavesharePanel) : SimulatedPanel {
     private val memory = arrayOfNulls<Boolean>(panel.width * panel.height)
@@ -53,8 +53,7 @@ class SimulatedClassicPanel(private val panel: WavesharePanel) : SimulatedPanel 
                     val viewX = i % panel.viewWidth
                     val viewY = i / panel.viewWidth
                     when (panel.view) {
-                        // View (vx, vy) is memory (x = vy, y = height − 1 − vx).
-                        PanelView.PORTRAIT -> memory[(panel.height - 1 - viewX) * panel.width + viewY]
+                        PanelView.TURNED_180 -> memory[(panel.height - 1 - viewY) * panel.width + (panel.width - 1 - viewX)]
                     }
                 }
                 busyPolls = 1
@@ -169,7 +168,7 @@ class SimulatedRev22Panel(private val panel: WavesharePanel) : SimulatedPanel {
             val viewX = i % panel.viewWidth
             val viewY = i / panel.viewWidth
             when (panel.view) {
-                PanelView.PORTRAIT -> ram[(hidden + viewY) * panel.viewWidth + (panel.viewWidth - 1 - viewX)]
+                PanelView.TURNED_180 -> ram[(hidden + viewY) * panel.viewWidth + (panel.viewWidth - 1 - viewX)]
             }
         }
         busyPolls = 1

@@ -99,6 +99,15 @@ jobs:
           .github/scripts/check-ios-permissions.sh \
             build/ios/Build/Products/Debug-iphonesimulator/KegInker.app \
             iosApp/Configuration/keginker.entitlements
+      # App Store Connect rejects an upload without an app icon, which no
+      # simulator build complains about.
+      - name: Check app icon
+        run: |
+          if ! /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName' \
+              build/ios/Build/Products/Debug-iphonesimulator/KegInker.app/Info.plist; then
+            echo "::error::The iOS app has no icon (CFBundleIconName); App Store Connect would reject it"
+            exit 1
+          fi
 
   # Gate job for branch protection - only require this one check
   ci-success:

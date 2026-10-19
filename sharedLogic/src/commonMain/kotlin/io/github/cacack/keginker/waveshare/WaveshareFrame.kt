@@ -25,7 +25,7 @@ fun renderView(panel: WavesharePanel, image: GrayImage, dither: Dither = Dither.
     image.fill(panel.viewWidth, panel.viewHeight).toBlackWhite(dither)
 
 /**
- * Rotates a black/white view-orientation image (row-major, [WavesharePanel.viewWidth]
+ * Turns a black/white view-orientation image (row-major, [WavesharePanel.viewWidth]
  * wide) into the classic tag's memory layout and packs it: rows of the memory
  * image, 8 pixels per byte, most significant bit first, 1 = white.
  */
@@ -36,8 +36,8 @@ fun packFrame(panel: WavesharePanel, white: BooleanArray): ByteArray {
     for (y in 0 until panel.height) {
         for (x in 0 until panel.width) {
             val viewIndex = when (panel.view) {
-                // Memory pixel (x, y) shows view pixel (viewWidth − 1 − y, x).
-                PanelView.PORTRAIT -> x * panel.viewWidth + (panel.viewWidth - 1 - y)
+                // Memory pixel (x, y) shows view pixel (width − 1 − x, height − 1 − y).
+                PanelView.TURNED_180 -> (panel.height - 1 - y) * panel.viewWidth + (panel.width - 1 - x)
             }
             if (white[viewIndex]) {
                 val i = y * bytesPerRow + x / 8
@@ -56,17 +56,12 @@ fun packFrame(panel: WavesharePanel, white: BooleanArray): ByteArray {
  * The frame covers every controller row and is written from the highest
  * address down. The panel shows only the highest [WavesharePanel.viewHeight]
  * addresses (32–295 on the 2.7"), highest at the bottom, with RAM column 0 at
- * the right edge. So the view goes first, turned 180°, landing on the visible
- * rows; white rows fill the hidden low addresses. Measured on a 2.7" Rev2.2 board.
+ * the right edge. So the classic frame goes first (the view turned 180°),
+ * landing on the visible rows; white rows fill the hidden low addresses.
+ * Measured on a 2.7" Rev2.2 board.
  */
-fun packControllerFrame(panel: WavesharePanel, white: BooleanArray): ByteArray {
-    requireViewSize(panel, white)
-    val frame = ByteArray(panel.controllerFrameSize) { 0xFF.toByte() }
-    for (i in white.indices) {
-        if (!white[white.size - 1 - i]) frame[i / 8] = (frame[i / 8].toInt() and (0x80 ushr (i % 8)).inv()).toByte()
-    }
-    return frame
-}
+fun packControllerFrame(panel: WavesharePanel, white: BooleanArray): ByteArray =
+    packFrame(panel, white) + ByteArray(panel.controllerFrameSize - panel.frameSize) { 0xFF.toByte() }
 
 private fun requireViewSize(panel: WavesharePanel, white: BooleanArray) {
     require(white.size == panel.viewWidth * panel.viewHeight) {

@@ -40,20 +40,24 @@ class WaveshareFrameTest {
     }
 
     @Test
-    fun viewTopLeftLandsInTheLastMemoryRow() {
-        assertEquals(mapOf(5775 to 0x7F), packFrame(PANEL, viewWithBlack(0 to 0)).nonWhite())
+    fun viewBottomRightLandsInTheFirstByte() {
+        assertEquals(mapOf(0 to 0x7F), packFrame(PANEL, viewWithBlack(175 to 263)).nonWhite())
     }
 
     @Test
-    fun viewTopRightLandsInTheFirstByte() {
-        assertEquals(mapOf(0 to 0x7F), packFrame(PANEL, viewWithBlack(175 to 0)).nonWhite())
+    fun viewTopLeftLandsInTheLastByte() {
+        assertEquals(mapOf(5807 to 0xFE), packFrame(PANEL, viewWithBlack(0 to 0)).nonWhite())
     }
 
     @Test
-    fun adjacentViewRowsAreAdjacentBitsWithNoWrap() {
-        // View (0, 0) and (0, 1) sit next to each other in the same memory byte.
-        assertEquals(mapOf(5775 to 0x3F), packFrame(PANEL, viewWithBlack(0 to 0, 0 to 1)).nonWhite())
-        assertEquals(mapOf(5775 to 0xBF), packFrame(PANEL, viewWithBlack(0 to 1)).nonWhite())
+    fun viewTopRightStartsTheLastMemoryRow() {
+        assertEquals(mapOf(5786 to 0x7F), packFrame(PANEL, viewWithBlack(175 to 0)).nonWhite())
+    }
+
+    @Test
+    fun adjacentViewColumnsAreAdjacentBitsInReverse() {
+        assertEquals(mapOf(5807 to 0xFC), packFrame(PANEL, viewWithBlack(0 to 0, 1 to 0)).nonWhite())
+        assertEquals(mapOf(5807 to 0xFD), packFrame(PANEL, viewWithBlack(1 to 0)).nonWhite())
     }
 
     @Test
@@ -100,6 +104,6 @@ class WaveshareFrameTest {
 
         val frame = encodeFrame(PANEL, GrayImage(352, 264, pixels), Dither.Threshold())
 
-        assertEquals(mapOf(0 to 0x7F, 5775 to 0x7F), frame.nonWhite())
+        assertEquals(mapOf(5786 to 0x7F, 5807 to 0xFE), frame.nonWhite())
     }
 }

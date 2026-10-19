@@ -29,7 +29,7 @@ The write sequence:
 | Power off | `CD 04` |
 
 - **Image format:** 1 bit per pixel, most significant bit first, 1 = white.
-  Some panels, including the 2.7", are rotated; see
+  Some panels, including the 2.7", are turned; see
   [Image orientation](#image-orientation-27).
 - **Launcher record:** the tag carries an NDEF Android Application Record for
   the vendor app, which is why tapping a tag launches it.
@@ -38,22 +38,20 @@ The write sequence:
 
 | Panel | Resolution | Type byte | Chunk size |
 |---|---|---|---|
-| 2.7" | 264 × 176 | `0x10` | 121 bytes |
+| 2.7" | 176 × 264 | `0x10` | 121 bytes |
 
 At 1 bpp a 2.7" frame is 5,808 bytes, which is 48 `CD 19` chunks.
 
 ### Image orientation (2.7")
 
-The controller's memory is **264 columns × 176 rows**, row-major. Each row is
-33 bytes, MSB first, and a 1 bit is white. The 2.7" is viewed in **portrait,
-176 × 264**. Memory pixel `(x, y)` shows view pixel `(175 − y, x)`: the view
-turned 90° counter-clockwise, which is the vendor codec's 270° rotation. The
-view's top-right pixel is memory byte 0, and its top-left is byte 5,775.
-
-The vendor codec also accepts landscape input. It rotates that input the same
-way and then reads it with a 264-pixel stride. That is only correct for
-portrait input, so landscape images wrap rows. KegInker always crops and
-scales to the portrait view first, and unit tests pin the mapping.
+The memory is **176 columns × 264 rows**, row-major, the same shape as the
+portrait view. Each row is 22 bytes, MSB first, and a 1 bit is white. Memory
+holds the view **turned 180°**: memory pixel `(x, y)` shows view pixel
+`(175 − x, 263 − y)`. The view's bottom-right pixel is memory byte 0, and its
+top-left is the last bit of byte 5,807. This is inferred from a classic 2.7"
+board, which showed a frame of 264-pixel rows as two sideways copies, and
+awaits a correct write to confirm it. It matches the Rev2.2 board's visible
+rows.
 
 Orientation is set per panel (`PanelView`). Check it against hardware before
 adding another panel.

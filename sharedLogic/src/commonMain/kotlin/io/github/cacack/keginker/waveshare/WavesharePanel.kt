@@ -2,8 +2,8 @@ package io.github.cacack.keginker.waveshare
 
 /** How a panel's memory is turned to the orientation the user sees. */
 enum class PanelView {
-    /** Viewed in portrait: memory turned 90° clockwise. */
-    PORTRAIT,
+    /** Memory holds the view turned 180°: memory pixel (x, y) shows view pixel (width − 1 − x, height − 1 − y). */
+    TURNED_180,
 }
 
 /** A Waveshare classic NFC-powered e-paper panel. */
@@ -26,11 +26,11 @@ enum class WavesharePanel(
     val controllerRows: Int,
 ) {
     /**
-     * 2.7" black/white, 264 × 176 memory, viewed 176 × 264. Classic orientation
-     * verified against the vendor codec; Rev2.2 layout (296-row controller,
-     * image rotated 180°) measured on a Rev2.2 board.
+     * 2.7" black/white, 176 × 264 memory and view. Classic layout (view turned
+     * 180°) inferred from a classic board's garbled write; Rev2.2 layout (296-row controller,
+     * view turned 180°) measured on a Rev2.2 board.
      */
-    EPD_2IN7(width = 264, height = 176, typeCode = 0x10, chunkSize = 121, view = PanelView.PORTRAIT, controllerRows = 296);
+    EPD_2IN7(width = 176, height = 264, typeCode = 0x10, chunkSize = 121, view = PanelView.TURNED_180, controllerRows = 296);
 
     init {
         require(width % 8 == 0) { "Memory rows must be whole bytes" }
@@ -40,12 +40,12 @@ enum class WavesharePanel(
 
     /** Width of the image as viewed, in pixels. */
     val viewWidth: Int get() = when (view) {
-        PanelView.PORTRAIT -> height
+        PanelView.TURNED_180 -> width
     }
 
     /** Height of the image as viewed, in pixels. */
     val viewHeight: Int get() = when (view) {
-        PanelView.PORTRAIT -> width
+        PanelView.TURNED_180 -> height
     }
 
     /** Bytes in one frame at 1 bit per pixel. */

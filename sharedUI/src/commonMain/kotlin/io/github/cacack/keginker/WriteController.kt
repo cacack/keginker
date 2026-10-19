@@ -1,6 +1,7 @@
 package io.github.cacack.keginker
 
 import io.github.cacack.keginker.diagnostics.ExchangeLog
+import io.github.cacack.keginker.diagnostics.Outcome
 import io.github.cacack.keginker.diagnostics.WriteReport
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
@@ -75,13 +76,17 @@ class WriteController(
             return
         }
         when (tag) {
-            is FoundTag.Unsupported -> mutableState.value = failed(tag, UNSUPPORTED_TAG_MESSAGE)
+            is FoundTag.Unsupported ->
+                mutableState.value = WriteState.Failed(
+                    UNSUPPORTED_TAG_MESSAGE,
+                    report(tag, UNSUPPORTED_TAG_MESSAGE, Outcome.NOT_ATTEMPTED, log = null),
+                )
             is FoundTag.Writable -> {
                 val log = ExchangeLog()
                 mutableState.value = WriteState.Writing(0)
                 mutableState.value = try {
                     when (val result = imageWriter.write(tag, panel, view, log) { mutableState.value = WriteState.Writing(it) }) {
-                        WriteResult.Success -> WriteState.Done(report(tag, DONE_MESSAGE, log, succeeded = true))
+                        WriteResult.Success -> WriteState.Done(report(tag, DONE_MESSAGE, Outcome.SUCCEEDED, log))
                         is WriteResult.Failure -> failed(
                             tag, result.userMessage, log, result.step, result.reason, result.cause,
                         )
@@ -104,31 +109,31 @@ class WriteController(
     private fun failed(
         tag: FoundTag,
         message: String,
-        log: ExchangeLog? = null,
+        log: ExchangeLog,
         step: WriteStep? = null,
         reason: String? = null,
         cause: Throwable? = null,
-    ) = WriteState.Failed(message, report(tag, message, log, step, reason, cause))
+    ) = WriteState.Failed(message, report(tag, message, Outcome.FAILED, log, step, reason, cause))
 
     private fun report(
         tag: FoundTag,
         message: String,
+        outcome: Outcome,
         log: ExchangeLog?,
         step: WriteStep? = null,
         reason: String? = null,
         cause: Throwable? = null,
-        succeeded: Boolean = false,
     ) = WriteReport(
         tag = tag.info,
         protocol = tag.protocolName,
         panel = panel.name,
         message = message,
+        outcome = outcome,
+        testPattern = testPattern,
         step = step,
         reason = reason,
         cause = cause,
         exchanges = log?.entries.orEmpty(),
-        succeeded = succeeded,
-        testPattern = testPattern,
     )
 }
 

@@ -82,8 +82,7 @@ fun App(
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     val reportSetting = remember { ReportSetting(context) }
     var offerReports by remember { mutableStateOf(reportSetting.offerAfterSuccess) }
-    // Saved so the report stays open across rotation. The state it shows can't
-    // change meanwhile: a tag is only written once armed, from the main screen.
+    // Saved so the report stays open across rotation.
     var showReport by rememberSaveable { mutableStateOf(false) }
     val offeredReport = when (val current = state) {
         is WriteState.Failed -> current.report
@@ -91,6 +90,9 @@ fun App(
         else -> null
     }
     val shownReport = offeredReport?.takeIf { showReport }
+    // The report can go away under the open screen (an image finishing loading
+    // resets the state, or the process restarts); don't reopen it for the next one.
+    LaunchedEffect(offeredReport) { if (offeredReport == null) showReport = false }
 
     // Collect here, not in a screen, so tags keep arriving whichever screen shows.
     LaunchedEffect(tags) { tags.collect(model::onTag) }

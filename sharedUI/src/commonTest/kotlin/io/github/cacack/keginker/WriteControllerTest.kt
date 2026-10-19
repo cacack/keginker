@@ -1,5 +1,6 @@
 package io.github.cacack.keginker
 
+import io.github.cacack.keginker.diagnostics.Outcome
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
 import io.github.cacack.keginker.nfc.TagInfo
@@ -119,7 +120,7 @@ class WriteControllerTest {
         controller.onTag(FoundTag.Waveshare(FakeTag()))
 
         val report = assertIs<WriteState.Done>(controller.state.value).report
-        assertTrue(report.succeeded)
+        assertEquals(Outcome.SUCCEEDED, report.outcome)
         assertTrue(report.testPattern)
         assertEquals(DONE_MESSAGE, report.message)
         assertEquals("Waveshare classic (NFC-A)", report.protocol)
@@ -140,7 +141,7 @@ class WriteControllerTest {
 
         val report = assertNotNull(assertIs<WriteState.Failed>(controller.state.value).report)
         assertEquals(false, report.testPattern)
-        assertEquals(false, report.succeeded)
+        assertEquals(Outcome.FAILED, report.outcome)
     }
 
     @Test
@@ -175,6 +176,7 @@ class WriteControllerTest {
         val report = assertNotNull(assertIs<WriteState.Failed>(controller.state.value).report)
         assertSame(info, report.tag)
         assertEquals("unsupported", report.protocol)
+        assertEquals(Outcome.NOT_ATTEMPTED, report.outcome)
         assertNull(report.step)
         assertTrue(report.exchanges.isEmpty())
     }

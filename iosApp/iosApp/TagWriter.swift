@@ -45,7 +45,7 @@ final class TagWriter: NSObject, ObservableObject {
         self.testPattern = testPattern
         state = .idle
         session = NFCTagReaderSession(pollingOption: .iso14443, delegate: self, queue: .main)
-        session?.alertMessage = "Hold the top of your iPhone against the tag and keep it still."
+        session?.alertMessage = "Hold the top of your iPhone against the tag to write the label. Keep it still until it's done."
         NfcLog.log("Session starting (CRC \(crcMode.rawValue))")
         session?.begin()
     }

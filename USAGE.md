@@ -62,6 +62,6 @@ internet permission. See [PRIVACY.md](PRIVACY.md).
 
 Android APKs are published on
 [Releases](https://github.com/cacack/keginker/releases), and CI builds one on
-every change. See
+every change. iOS releases are distributed through TestFlight; ask the
+maintainer for an invitation. See
 [docs/guides/try-a-development-build.md](docs/guides/try-a-development-build.md).
-iOS builds will be distributed through TestFlight once available.

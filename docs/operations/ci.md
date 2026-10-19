@@ -18,7 +18,9 @@ runs on every push to `main`. It keeps a release PR open; merging it creates
 the `v*` tag and GitHub Release. It authenticates as the repository's
 release-please GitHub App so the release PR runs CI and the tag triggers
 [`.github/workflows/release.yml`](../../.github/workflows/release.yml), which
-attaches a signed APK to the release. See [signing.md](signing.md) for the
-key, the secrets and cutting a release.
+attaches a signed APK and an App Store-signed ipa to the release and
+uploads the ipa to TestFlight. See [signing.md](signing.md) for the key, the
+secrets and cutting a release, and [testflight.md](testflight.md) for the
+App Store Connect setup.
 
 Third-party actions are pinned to commit SHAs. Dependabot keeps them current.

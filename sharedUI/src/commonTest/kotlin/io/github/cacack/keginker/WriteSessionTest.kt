@@ -3,6 +3,7 @@ package io.github.cacack.keginker
 import io.github.cacack.keginker.image.GrayImage
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
+import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import kotlin.random.Random
@@ -210,7 +211,7 @@ class WriteSessionTest {
                 5 -> {
                     if (random.nextInt(10) == 0) {
                         steps += "unsupported tag"
-                        tagJobs += launch { session.onTag(FoundTag.Unsupported(byteArrayOf(4, 1, 2, 3, 4, 5, 6))) }
+                        tagJobs += launch { session.onTag(FoundTag.Unsupported(TagInfo(listOf("NfcA"), byteArrayOf(4, 1, 2, 3, 4, 5, 6)))) }
                     } else {
                         val isoDep = random.nextBoolean()
                         // Half the tags drop out somewhere in the write.

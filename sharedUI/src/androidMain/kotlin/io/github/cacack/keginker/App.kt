@@ -47,6 +47,7 @@ import io.github.cacack.keginker.diagnostics.DeviceInfo
 import io.github.cacack.keginker.diagnostics.formatDiagnosticReport
 import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.nfc.FoundTag
+import io.github.cacack.keginker.waveshare.DONE_MESSAGE
 import io.github.cacack.keginker.waveshare.writeProgressMessage
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.Flow

@@ -69,6 +69,9 @@ jobs:
     name: iOS build
     runs-on: macos-latest
     timeout-minutes: 30
+    env:
+      # Gradle bakes the commit into iOS reports (BuildInfo); report a pull request's head, as on Android.
+      KEGINKER_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The Xcode build phase runs Gradle to compile the shared framework.

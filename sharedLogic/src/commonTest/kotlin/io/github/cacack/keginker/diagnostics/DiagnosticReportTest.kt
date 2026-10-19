@@ -1,10 +1,14 @@
 package io.github.cacack.keginker.diagnostics
 
+import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
+import io.github.cacack.keginker.nfc.Transport
+import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteStep
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 private fun bytes(vararg values: Int) = ByteArray(values.size) { values[it].toByte() }
@@ -18,6 +22,10 @@ private val TAG = TagInfo(
     sak = 0x20,
     historicalBytes = bytes(0x59, 0x5A, 0x52, 0x43, 0x4F, 0x53, 0x03, 0x00),
 )
+
+private object NoTransport : Transport {
+    override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray = error("unused")
+}
 
 private val OK = bytes(0x90, 0x00)
 private val BUSY = bytes(0x01, 0x90, 0x00)
@@ -70,6 +78,34 @@ class DiagnosticReportTest {
         assertTrue("Outcome: succeeded" in text, text)
         assertTrue("Image: built-in test pattern" in text, text)
         assertFalse("Step:" in text, text)
+    }
+
+    @Test
+    fun marksTagFieldsThePlatformWithholdsAsUnavailable() {
+        // As iOS reports a MIFARE tag: no ATQA or SAK.
+        val tag = TagInfo(listOf("MIFARE (Ultralight)"), bytes(0x57, 0x53, 0x44, 0x5A, 0x31, 0x30, 0x6D))
+        val report = WriteReport(tag, "Waveshare classic (NFC-A)", "EPD_2IN7", "x", Outcome.FAILED, testPattern = false)
+
+        val text = formatDiagnosticReport(APP, DEVICE, report)
+
+        assertTrue("Technologies: MIFARE (Ultralight)" in text, text)
+        assertTrue("ATQA: unavailable" in text, text)
+        assertTrue("SAK: unavailable" in text, text)
+        assertFalse("Historical bytes" in text, text)
+    }
+
+    @Test
+    fun writeReportTakesTheTagsInfoAndProtocol() {
+        val tag = FoundTag.WaveshareIsoDep(NoTransport, TAG)
+
+        val report = writeReport(tag, WavesharePanel.EPD_2IN7, "Done.", Outcome.SUCCEEDED, testPattern = true, log = null)
+
+        assertSame(TAG, report.tag)
+        assertEquals("Waveshare Rev2.2 (ISO-DEP)", report.protocol)
+        assertEquals("EPD_2IN7", report.panel)
+        assertEquals(Outcome.SUCCEEDED, report.outcome)
+        assertTrue(report.testPattern)
+        assertTrue(report.exchanges.isEmpty())
     }
 
     @Test

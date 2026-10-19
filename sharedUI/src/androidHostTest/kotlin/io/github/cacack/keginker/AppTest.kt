@@ -20,6 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import io.github.cacack.keginker.waveshare.DONE_MESSAGE
 
 /** A classic tag that accepts every command and finishes refreshing at once. */
 private class AcceptingTag : Transport {

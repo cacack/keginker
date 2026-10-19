@@ -1,11 +1,22 @@
 import SwiftUI
 
+/// UserDefaults key for whether a successful write offers its diagnostics report.
+let offerReportsKey = "offerReportAfterSuccess"
+
 /// Diagnostics most people never need, kept off the write screen.
 struct AdvancedView: View {
     @ObservedObject var writer: TagWriter
+    @AppStorage(offerReportsKey) private var offerReports = false
 
     var body: some View {
         Form {
+            Section {
+                Toggle("Offer a report after every write", isOn: $offerReports)
+            } header: {
+                Text("Diagnostics")
+            } footer: {
+                Text("Failed writes always offer one. Turn this on when a write finishes but the tag doesn't look right.")
+            }
             Section {
                 Label("Report a display", systemImage: "antenna.radiowaves.left.and.right")
                     .foregroundStyle(.secondary)

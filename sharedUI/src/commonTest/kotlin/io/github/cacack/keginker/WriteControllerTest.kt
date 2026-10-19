@@ -5,6 +5,7 @@ import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.Transport
+import io.github.cacack.keginker.waveshare.DONE_MESSAGE
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteStep
 import kotlin.test.Test
@@ -186,7 +187,7 @@ class WriteControllerTest {
         val controller = controller()
         controller.arm(testView())
 
-        controller.onTag(FoundTag.Unsupported(byteArrayOf(4, 1, 2, 3, 4, 5, 6)))
+        controller.onTag(FoundTag.Unsupported(TagInfo(listOf("NfcA"), byteArrayOf(4, 1, 2, 3, 4, 5, 6))))
 
         val failed = assertIs<WriteState.Failed>(controller.state.value)
         assertTrue("isn't supported" in failed.message, failed.message)

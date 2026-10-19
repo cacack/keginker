@@ -28,30 +28,13 @@ fun requiredSigningSetting(envName: String, localName: String): String = signing
 
 val releaseKeystore = signingSetting("KEGINKER_KEYSTORE", "keginker.keystore")
 
-/** Version from the release workflow (see docs/operations/signing.md); dev builds use the defaults. */
+/** Version code from the release workflow (see docs/operations/signing.md); dev builds use 1. */
 val releaseVersionCode = providers.gradleProperty("keginker.versionCode").orNull?.let {
     it.toIntOrNull() ?: error("keginker.versionCode must be an integer, got '$it'")
 }
-val releaseVersionName = providers.gradleProperty("keginker.versionName").orNull
 
-/** `git rev-parse --short=7 HEAD`, or null without a repository or without git installed. */
-fun gitHead(): String? = runCatching {
-    providers.exec {
-        commandLine("git", "rev-parse", "--short=7", "HEAD")
-        isIgnoreExitValue = true
-    }.standardOutput.asText.orNull?.trim()
-}.getOrNull()?.takeIf { it.isNotEmpty() }
-
-/**
- * The commit a build came from, for diagnostics reports. In order: KEGINKER_COMMIT
- * (CI sets it to a pull request's head commit, since GITHUB_SHA is then a temporary
- * merge commit), GITHUB_SHA, git, else "unknown".
- */
-val buildCommit: String = listOf("KEGINKER_COMMIT", "GITHUB_SHA")
-    .firstNotNullOfOrNull { name -> providers.environmentVariable(name).orNull?.takeIf { it.isNotEmpty() } }
-    ?.take(7)
-    ?: gitHead()
-    ?: "unknown"
+val buildCommit: String by rootProject.extra
+val buildVersionName: String by rootProject.extra
 
 dependencies {
     implementation(project(":sharedUI"))
@@ -74,7 +57,7 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = releaseVersionCode ?: 1
-        versionName = releaseVersionName ?: "0.0.0-dev"
+        versionName = buildVersionName
         buildConfigField("String", "COMMIT", "\"$buildCommit\"")
     }
     signingConfigs {

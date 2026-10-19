@@ -1,6 +1,9 @@
 package io.github.cacack.keginker.diagnostics
 
+import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
+import io.github.cacack.keginker.nfc.protocolName
+import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteStep
 
 /** The app that wrote the report; each platform fills it in. */
@@ -45,4 +48,32 @@ class WriteReport(
     val reason: String? = null,
     val cause: Throwable? = null,
     val exchanges: List<Exchange> = emptyList(),
+)
+
+/**
+ * The report of writing to [tag] with [panel], built the same way on both
+ * platforms. [log] is null when nothing was sent; [step], [reason] and
+ * [cause] are as in [WriteReport].
+ */
+fun writeReport(
+    tag: FoundTag,
+    panel: WavesharePanel,
+    message: String,
+    outcome: Outcome,
+    testPattern: Boolean,
+    log: ExchangeLog?,
+    step: WriteStep? = null,
+    reason: String? = null,
+    cause: Throwable? = null,
+) = WriteReport(
+    tag = tag.info,
+    protocol = tag.protocolName,
+    panel = panel.name,
+    message = message,
+    outcome = outcome,
+    testPattern = testPattern,
+    step = step,
+    reason = reason,
+    cause = cause,
+    exchanges = log?.entries.orEmpty(),
 )

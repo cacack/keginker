@@ -3,10 +3,11 @@ package io.github.cacack.keginker
 import io.github.cacack.keginker.diagnostics.ExchangeLog
 import io.github.cacack.keginker.diagnostics.Outcome
 import io.github.cacack.keginker.diagnostics.WriteReport
+import io.github.cacack.keginker.diagnostics.writeReport
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
-import io.github.cacack.keginker.nfc.protocolName
 import io.github.cacack.keginker.waveshare.WavesharePanel
+import io.github.cacack.keginker.waveshare.DONE_MESSAGE
 import io.github.cacack.keginker.waveshare.UNSUPPORTED_TAG_MESSAGE
 import io.github.cacack.keginker.waveshare.WriteResult
 import io.github.cacack.keginker.waveshare.WriteStep
@@ -123,19 +124,6 @@ class WriteController(
         step: WriteStep? = null,
         reason: String? = null,
         cause: Throwable? = null,
-    ) = WriteReport(
-        tag = tag.info,
-        protocol = tag.protocolName,
-        panel = panel.name,
-        message = message,
-        outcome = outcome,
-        testPattern = testPattern,
-        step = step,
-        reason = reason,
-        cause = cause,
-        exchanges = log?.entries.orEmpty(),
-    )
+    ) = writeReport(tag, panel, message, outcome, testPattern, log, step, reason, cause)
 }
 
-/** What the user is shown once a write is done. */
-const val DONE_MESSAGE = "Done. The tag keeps this image without power."

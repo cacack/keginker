@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="1024" height="1024">
+  <!-- KegInker app icon: a tap handle carrying an e-paper label.
+       108x108 is Android's adaptive-icon viewport; everything but the
+       background stays inside its 66-unit safe circle. Keep in sync with
+       androidApp/src/main/res/drawable*/ic_launcher_*.xml; render.sh makes
+       the PNGs. -->
+  <rect width="108" height="108" fill="#D9922E"/>
+  <rect x="42" y="24" width="24" height="8" rx="4" fill="#2E2A27"/>
+  <path d="M42,28 H66 L61,74 H47 Z" fill="#2E2A27"/>
+  <rect x="46" y="30" width="16" height="18" rx="1.5" fill="#F4F1E8"/>
+  <rect x="48.5" y="34" width="11" height="3" fill="#2E2A27"/>
+  <rect x="48.5" y="40" width="7.5" height="2.5" fill="#2E2A27"/>
+  <rect x="45" y="74" width="18" height="4" rx="1" fill="#B8BCC2"/>
+  <rect x="50" y="78" width="8" height="6" fill="#8E939A"/>
+</svg>

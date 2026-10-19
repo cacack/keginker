@@ -4,6 +4,8 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NFCReaderUsageDescription</key>
 	<string>KegInker writes images to NFC e-paper tags.</string>
 	<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>

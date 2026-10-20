@@ -146,18 +146,7 @@ final class TagWriter: NSObject, ObservableObject {
             fail("Nothing to write. Try again.", report: nil, session: session)
             return
         }
-        let info = Diagnostics.tagInfo(tag)
-        let classified: FoundTag
-        switch tag {
-        case let .miFare(miFare):
-            let crcMode = self.crcMode
-            classified = FoundTagKt.classifyNfcATag(info: info) { MiFareTransport(tag: miFare, crcMode: crcMode) }
-        case let .iso7816(iso7816):
-            classified = FoundTagKt.classifyIsoDepTag(info: info) { Iso7816Transport(tag: iso7816) }
-        default:
-            failUnsupported(FoundTagUnsupported(info: info), session: session)
-            return
-        }
+        let classified = classify(tag, crcMode: crcMode)
         guard let writable = classified as? FoundTagWritable else {
             failUnsupported(classified, session: session)
             return

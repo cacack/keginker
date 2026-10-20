@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -22,9 +23,15 @@ import androidx.compose.ui.unit.dp
  * no CRC framing option: the NFC hardware adds the CRC itself.
  *
  * [offerReports] is whether a successful write offers its diagnostics report.
+ * [onReportDisplay] opens "Report a display".
  */
 @Composable
-fun AdvancedScreen(offerReports: Boolean, onOfferReportsChange: (Boolean) -> Unit, onBack: () -> Unit) {
+fun AdvancedScreen(
+    offerReports: Boolean,
+    onOfferReportsChange: (Boolean) -> Unit,
+    onReportDisplay: () -> Unit,
+    onBack: () -> Unit,
+) {
     Column(
         modifier = Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp).fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -43,9 +50,9 @@ fun AdvancedScreen(offerReports: Boolean, onOfferReportsChange: (Boolean) -> Uni
         )
 
         Text("Unsupported displays", style = MaterialTheme.typography.titleMedium)
-        Text("Report a display", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f))
+        OutlinedButton(onClick = onReportDisplay) { Text("Report a display") }
         Text(
-            "Coming soon: read what an unsupported tag reports about itself, so you can share it with the KegInker project.",
+            "Read what a display KegInker doesn't support says about itself, without writing to it, so you can share it with the KegInker project.",
             style = MaterialTheme.typography.bodySmall,
         )
     }

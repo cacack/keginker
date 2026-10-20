@@ -81,6 +81,8 @@ fun App(
     val preview = remember(view) { view.toPreviewBitmap(panel.viewWidth).asImageBitmap() }
     val busy = state is WriteState.Writing
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
+    val probeState by model.probe.state.collectAsState()
+    var showProbe by rememberSaveable { mutableStateOf(false) }
     val reportSetting = remember { ReportSetting(context) }
     var offerReports by remember { mutableStateOf(reportSetting.offerAfterSuccess) }
     // Saved so the report stays open across rotation.
@@ -98,6 +100,13 @@ fun App(
     // Collect here, not in a screen, so tags keep arriving whichever screen shows.
     LaunchedEffect(tags) { tags.collect(model::onTag) }
     BackHandler(enabled = showAdvanced) { showAdvanced = false }
+    val closeProbe = {
+        model.probe.cancel()
+        showProbe = false
+    }
+    BackHandler(enabled = showProbe, onBack = closeProbe)
+    // After the process restarts, the screen is restored but the probe isn't.
+    LaunchedEffect(showProbe) { if (showProbe && probeState == ProbeState.Idle) model.probe.arm() }
     BackHandler(enabled = shownReport != null) { showReport = false }
 
     val pickPhoto = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
@@ -106,12 +115,20 @@ fun App(
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
+            if (showProbe) {
+                DisplayProbeScreen(probeState, appInfo, deviceInfo, nfcProblem, onBack = closeProbe)
+                return@Surface
+            }
             if (showAdvanced) {
                 AdvancedScreen(
                     offerReports = offerReports,
                     onOfferReportsChange = {
                         offerReports = it
                         reportSetting.offerAfterSuccess = it
+                    },
+                    onReportDisplay = {
+                        model.probe.arm()
+                        showProbe = true
                     },
                     onBack = { showAdvanced = false },
                 )

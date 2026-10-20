@@ -18,12 +18,15 @@ struct AdvancedView: View {
                 Text("Failed writes always offer one. Turn this on when a write finishes but the tag doesn't look right.")
             }
             Section {
-                Label("Report a display", systemImage: "antenna.radiowaves.left.and.right")
-                    .foregroundStyle(.secondary)
+                NavigationLink {
+                    DisplayProbeView(crcMode: writer.crcMode)
+                } label: {
+                    Label("Report a display", systemImage: "antenna.radiowaves.left.and.right")
+                }
             } header: {
                 Text("Unsupported displays")
             } footer: {
-                Text("Coming soon: read what an unsupported tag reports about itself, so you can share it with the KegInker project.")
+                Text("Read what a display KegInker doesn't support says about itself, without writing to it, so you can share it with the KegInker project.")
             }
             #if DEBUG
             Section {

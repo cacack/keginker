@@ -28,10 +28,40 @@ sealed interface FoundTag {
         constructor(transport: Transport) : this(transport, null)
     }
 
-    /** A tag no supported protocol recognises; [info] always has at least its UID. */
-    class Unsupported(override val info: TagInfo) : FoundTag {
+    /**
+     * A tag no supported protocol recognises; [info] always has at least its
+     * UID. Only the display probe calls [openTransport] (null for a [kind] it
+     * can't talk to), and it owns and closes what that returns.
+     */
+    class Unsupported(
+        override val info: TagInfo,
+        val kind: TagKind,
+        val openTransport: (() -> Transport)?,
+    ) : FoundTag {
+        /** For a tag no command can be sent to. */
+        constructor(info: TagInfo) : this(info, TagKind.OTHER, null)
+
         val uid: ByteArray get() = info.uid
     }
+}
+
+/** How a tag takes commands, as far as the display probe needs to know. */
+enum class TagKind {
+    /** ISO 14443-4: ISO 7816 APDUs. */
+    ISO_DEP,
+
+    /** ISO 14443-3A raw frames, as NFC Forum Type 2 tags take them. */
+    NFC_A,
+
+    /** Anything else; the probe sends it nothing. */
+    OTHER,
+}
+
+/** How [this] takes commands. */
+val FoundTag.kind: TagKind get() = when (this) {
+    is FoundTag.Waveshare -> TagKind.NFC_A
+    is FoundTag.WaveshareIsoDep -> TagKind.ISO_DEP
+    is FoundTag.Unsupported -> kind
 }
 
 /** The protocol a report names for this tag. */
@@ -44,19 +74,25 @@ val FoundTag.protocolName: String get() = when (this) {
 /**
  * Classifies an NFC-A tag that isn't ISO-DEP by its UID, without sending it
  * any command; the result carries [info] for reports. [openTransport] is
- * called only for a supported tag.
+ * called here only for a supported tag; an unsupported one keeps it for the
+ * display probe.
  */
 fun classifyNfcATag(info: TagInfo, openTransport: () -> Transport): FoundTag =
-    if (isWaveshareTag(info.uid)) FoundTag.Waveshare(openTransport(), info) else FoundTag.Unsupported(info)
+    if (isWaveshareTag(info.uid)) {
+        FoundTag.Waveshare(openTransport(), info)
+    } else {
+        FoundTag.Unsupported(info, TagKind.NFC_A, openTransport)
+    }
 
 /**
  * Classifies an ISO-DEP tag by its ATS historical bytes (none counts as
  * empty), without sending it any command; the result carries [info] for
- * reports. [openTransport] is called only for a supported tag.
+ * reports. [openTransport] is called here only for a supported tag; an
+ * unsupported one keeps it for the display probe.
  */
 fun classifyIsoDepTag(info: TagInfo, openTransport: () -> Transport): FoundTag =
     if (isWaveshareIsoDepTag(info.historicalBytes ?: ByteArray(0))) {
         FoundTag.WaveshareIsoDep(openTransport(), info)
     } else {
-        FoundTag.Unsupported(info)
+        FoundTag.Unsupported(info, TagKind.ISO_DEP, openTransport)
     }

@@ -87,4 +87,18 @@ class FoundTagTest {
         assertSame(info, tag.info)
         assertEquals("unsupported", tag.protocolName)
     }
+
+    @Test
+    fun unsupportedTagsKeepTheirKindAndAnUnopenedTransportForTheProbe() {
+        var opened = 0
+        val open = { opened++; NoTransport }
+        val nfcATag = assertIs<FoundTag.Unsupported>(classifyNfcATag(nfcA(bytes(0x04, 0x01, 0x02, 0x03)), open))
+        val isoDepTag = assertIs<FoundTag.Unsupported>(classifyIsoDepTag(isoDep(bytes(0x01, 0x02, 0x03, 0x04), null), open))
+
+        assertEquals(0, opened)
+        assertEquals(TagKind.NFC_A, nfcATag.kind)
+        assertEquals(TagKind.ISO_DEP, isoDepTag.kind)
+        assertSame(NoTransport, isoDepTag.openTransport?.invoke())
+        assertEquals(TagKind.OTHER, FoundTag.Unsupported(nfcA(bytes(0x01))).kind)
+    }
 }

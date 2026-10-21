@@ -42,6 +42,7 @@ table marks only deferrals.
 | The protocol code matches real tags | Principle 1, Principle 5 | Synthetic fakes; `RecordingReplayTest` (no recordings yet); transport contract tests (`NfcTransportTest`, `MiFareTransportTests`, `Iso7816TransportTests`) | #56 deferred; #64 |
 | First-tap success on iOS and Android | C1 | [Hardware test script](../guides/run-hardware-tests.md) and [log](../operations/hardware-test-log.md), a run per MINOR or MAJOR release | #62 |
 | Photos centre-cropped, upright, transparency white; dither and threshold behave as described | USAGE.md, UI text | Seeded properties in `image/` tests; golden photos in `fixtures/photos` checked by `ImageLoadingTest` (Android) and `ImageLoadingTests` (iOS) | #60; #61 |
+| Report a display reads the tag and writes nothing to it; the report shows only the start of the tag's ID | USAGE.md, UI text, PRIVACY.md | `DisplayProbeTest` (tags simulated from the NFC Forum Type 2 and Type 4 specs fail on any command that isn't a read; random replies over 300 seeds draw only bounded reads); `DisplayReportTest` (no full UID); `DisplayProbeTests` (iOS Info.plist lists exactly the probed AIDs) | #24 |
 | The tests would catch real mistakes | — | On-demand PIT run (`./gradlew :sharedLogic:pitest`) | #63 |
 | Re-labelling from a preset takes a few taps | C3 | — | Deferred: a logged walkthrough once #29 lands (#62) |
 

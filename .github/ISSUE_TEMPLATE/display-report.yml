@@ -1,0 +1,49 @@
+name: New display report
+description: Send in what an NFC e-paper display KegInker doesn't support says about itself.
+title: "Display report: <brand> <model>"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping KegInker support more displays. In the app, open
+        **Advanced → Report a display**, hold the display to your phone, then
+        **Open a GitHub issue**. See
+        [USAGE.md](https://github.com/cacack/keginker/blob/main/USAGE.md#report-an-unsupported-display).
+  - type: textarea
+    id: report
+    attributes:
+      label: Display report
+      description: The report from the app, unedited. If it isn't filled in already, it's on your clipboard; paste it here.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Brand and model
+      description: As printed on the display, its driver board or the box.
+      placeholder: Waveshare 2.9" NFC-Powered e-Paper
+    validations:
+      required: true
+  - type: textarea
+    id: photo
+    attributes:
+      label: Photo
+      description: A photo of the display, and of any label or printing on its back. Drag the images in here.
+    validations:
+      required: true
+  - type: input
+    id: vendor-app
+    attributes:
+      label: Vendor app
+      description: The app the seller tells you to use with the display, if any.
+      placeholder: NFC e-Paper (Waveshare)
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Panel size or colours, where you bought it, or what happened with the vendor app.
+    validations:
+      required: false

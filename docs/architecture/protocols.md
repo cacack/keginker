@@ -128,6 +128,22 @@ and fails if it exceeds the budget, or leaves room for another poll. A
 recorded real write would show how close typical commands are to the
 allowance.
 
+## Display probe
+
+**Report a display** reads an unknown tag without changing it. It sends only
+standard read commands, built in `ProbeCommands.kt`, and `DisplayProbeTest`
+checks over random replies that nothing else goes out.
+
+| Tag | Commands |
+|---|---|
+| ISO-DEP | SELECT each listed AID (`00 A4 04 00 …`; only `D2760000850101`, the NDEF application, which iOS needs listed in Info.plist). If the NDEF application answers: SELECT the capability container `E103` (`00 A4 00 0C`), READ BINARY its 15 bytes (`00 B0`), then SELECT the NDEF file it names and READ BINARY its length and message. |
+| NFC-A, not ISO-DEP | Type 2 READ (`30 <page>`) from page 3, the capability container, 16 bytes at a time, until the NDEF message TLV is complete. Pages 0–2 hold the full UID, which reports shorten, so they're never read. |
+
+Reads stop at 1,024 NDEF bytes, or 40 Type 2 reads. The vendor commands that
+look like device-info reads, such as Waveshare's `F0 D8` in
+magic-epaper-app, aren't documented as read-only, so the probe doesn't send
+them.
+
 ## Good Display
 
 - **Transport:** ISO 14443-4 (ISO-DEP).

@@ -16,13 +16,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Holds the [WriteSession] and runs writes in [viewModelScope], so a write
- * isn't cut short if the activity is recreated.
+ * Holds the [WriteSession] and the [probe], and runs writes and reads in
+ * [viewModelScope], so neither is cut short if the activity is recreated.
  */
 class WriteViewModel : ViewModel() {
     private val session = WriteSession(WavesharePanel.EPD_2IN7)
     val panel = session.panel
     val controller = session.controller
+
+    /** "Report a display"; while it waits, found tags are read instead of written. */
+    val probe = ProbeController()
     val dither: StateFlow<Dither> = session.dither
 
     /** The image exactly as the panel will show it; `true` is white. */
@@ -32,7 +35,7 @@ class WriteViewModel : ViewModel() {
     val loadError: StateFlow<String?> = mutableLoadError
 
     fun onTag(tag: FoundTag) {
-        viewModelScope.launch { session.onTag(tag) }
+        viewModelScope.launch { if (probe.isWaiting) probe.onTag(tag) else session.onTag(tag) }
     }
 
     fun write() = session.write()

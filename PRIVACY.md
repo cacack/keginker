@@ -1,6 +1,6 @@
 # Privacy policy
 
-*Effective 2026-10-18. Changes to this policy are listed in this file's
+*Effective 2026-10-19. Changes to this policy are listed in this file's
 [history](https://github.com/cacack/keginker/commits/main/PRIVACY.md).*
 
 KegInker collects, stores and sends no personal data. It has no accounts,
@@ -11,6 +11,10 @@ no analytics, no advertising, no crash reporting and no third-party SDKs.
 KegInker works fully offline and never connects to the internet. The
 Android app doesn't request internet access, so Android itself blocks it
 from the network. The iOS app contains no networking code.
+
+**Open a GitHub issue**, on a display report, opens a web page in your
+browser. Your browser sends what's in the link, including the report when it
+fits, to GitHub, and only when you tap it. KegInker itself sends nothing.
 
 ## Your images
 
@@ -24,7 +28,7 @@ your phone, and nowhere else.
 
 ## Diagnostics reports
 
-On Android, when a write fails or a tag isn't recognised, **Share details**
+When a write fails or a tag isn't recognised, **Share details**
 builds a plain-text report of what happened: the app and phone versions,
 what the tag reported about itself, which step failed, and the commands
 exchanged with the tag, with the tag's replies as it sent them. It contains
@@ -32,6 +36,13 @@ no image data, and shows only the start of the tag's ID. The app keeps
 the report in memory, shows it to you in full, and doesn't save it. It
 leaves your phone only if you share or copy it yourself; KegInker never
 sends it.
+
+**Report a display**, under **Advanced**, builds the same kind of report
+from a display you hold to your phone, reading it without writing to it: the
+app and phone versions, what the tag reported about itself, the start of its
+ID, its NDEF records (such as the vendor app it names), and the read
+commands sent to it with its replies. It's kept, shown and shared the same
+way.
 
 ## What stays on your phone
 

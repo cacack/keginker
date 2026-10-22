@@ -24,7 +24,7 @@ class WriteViewModel : ViewModel() {
     val panel = session.panel
     val controller = session.controller
 
-    /** "Report a display"; while it waits, found tags are read instead of written. */
+    /** "Report a display"; while it waits, found tags are read instead of written. Arm it with [reportDisplay]. */
     val probe = ProbeController()
     val dither: StateFlow<Dither> = session.dither
 
@@ -36,6 +36,15 @@ class WriteViewModel : ViewModel() {
 
     fun onTag(tag: FoundTag) {
         viewModelScope.launch { if (probe.isWaiting) probe.onTag(tag) else session.onTag(tag) }
+    }
+
+    /**
+     * Arms "Report a display", first disarming a waiting write, so a tag held
+     * during the report is never written. A failed write keeps its warning and report.
+     */
+    fun reportDisplay() {
+        if (controller.state.value == WriteState.Waiting) controller.cancel()
+        probe.arm()
     }
 
     fun write() = session.write()

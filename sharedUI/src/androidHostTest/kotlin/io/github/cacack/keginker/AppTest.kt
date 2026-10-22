@@ -28,6 +28,16 @@ private class AcceptingTag : Transport {
         if (command[1] == 0x0A.toByte()) byteArrayOf(0xFF.toByte(), 0x00) else byteArrayOf(0x00, 0x00)
 }
 
+/** A tag that records what it's sent and answers nothing useful. */
+private class RecordingTag : Transport {
+    val sent = mutableListOf<ByteArray>()
+
+    override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+        sent += command
+        return byteArrayOf(0x00)
+    }
+}
+
 /** A tag lifted away before the first command. */
 private class LiftedTag : Transport {
     override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray = error("Tag was lost")
@@ -126,6 +136,37 @@ class AppTest {
         compose.onNodeWithText("Advanced").performClick()
 
         compose.onNode(isToggleable()).assertIsOn()
+    }
+
+    @Test
+    fun reportADisplayDisarmsAWriteSoNoTagIsWritten() {
+        compose.setContent { App(tags, APP, DEVICE) }
+        compose.onNodeWithText("Write to tag").performScrollTo().performClick()
+        compose.onNodeWithText("Advanced").performScrollTo().performClick()
+        compose.onNodeWithText("Report a display").performScrollTo().performClick()
+        compose.waitForIdle()
+
+        // The probe reads the first tag; the next one, held while its report shows, isn't written.
+        tags.tryEmit(FoundTag.Waveshare(RecordingTag()))
+        compose.waitForIdle()
+        val next = RecordingTag()
+        tags.tryEmit(FoundTag.Waveshare(next))
+        compose.waitForIdle()
+
+        assertTrue("A tag was written during Report a display", next.sent.isEmpty())
+    }
+
+    @Test
+    fun reportADisplayKeepsAFailedWritesReport() {
+        failAWrite()
+        compose.onNodeWithText("Advanced").performScrollTo().performClick()
+        compose.onNodeWithText("Report a display").performScrollTo().performClick()
+        // Back out of the probe, then out of Advanced.
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("Back").performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Share details").performScrollTo().assertIsDisplayed()
     }
 
     @Test

@@ -33,6 +33,11 @@ const val REFRESH_UNCONFIRMED_MESSAGE =
     "The display didn't confirm it finished updating. " +
         "Lift the phone away, then hold it still against the tag and try again."
 
+/** Shown when a write runs past [WRITE_DEADLINE_MS]. */
+const val WRITE_TIMED_OUT_MESSAGE =
+    "The tag answered too slowly, so the write was stopped. " +
+        "Lift the phone away, then hold it still against the tag and try again."
+
 /**
  * A short explanation for the user that says how to recover. Diagnostics
  * belong in [WriteResult.Failure.reason] and [WriteResult.Failure.cause].

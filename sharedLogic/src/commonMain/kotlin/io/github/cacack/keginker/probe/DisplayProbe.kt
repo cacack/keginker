@@ -10,6 +10,7 @@ import io.github.cacack.keginker.nfc.protocolName
 import io.github.cacack.keginker.waveshare.TRANSCEIVE_TIMEOUT_MS
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.TimeSource
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Most NDEF message bytes the probe reads; a launcher record is far smaller. */
 internal const val MAX_NDEF_BYTES = 1_024
@@ -19,6 +20,14 @@ private const val TYPE4_CHUNK = 250
 
 /** Most Type 2 READs (16 bytes each) the probe sends. */
 internal const val MAX_TYPE2_READS = 40
+
+/**
+ * The real time a probe may take before it stops. The tag sets how many reads
+ * it takes (up to [MAX_NDEF_BYTES] one byte at a time), and on Android each
+ * may take up to [TRANSCEIVE_TIMEOUT_MS]. On a working tag a probe is at most
+ * a few dozen short reads, well under a second, so 10 s leaves ample room.
+ */
+internal const val PROBE_DEADLINE_MS = 10_000L
 
 /** The first Type 2 page the probe reads: the capability container. Pages 0–2 hold the UID, which reports shorten. */
 private const val TYPE2_FIRST_PAGE = 3
@@ -68,7 +77,8 @@ class ProbeResult(
 /**
  * Reads what [tag] says about itself, sending only the read commands in
  * ProbeCommands.kt. Takes ownership of the tag's transport and closes it.
- * Never throws, except to pass on cancellation.
+ * Stops after [PROBE_DEADLINE_MS] and says so in its note. Never throws,
+ * except to pass on cancellation.
  */
 suspend fun probeDisplay(tag: FoundTag): ProbeResult = probeDisplay(tag, TimeSource.Monotonic)
 
@@ -79,14 +89,18 @@ internal suspend fun probeDisplay(tag: FoundTag, timeSource: TimeSource): ProbeR
     }
     val probe = Probe(transport, timeSource)
     try {
-        when {
-            transport == null -> probe.note = "The probe can't send commands to this kind of tag."
-            tag.kind == TagKind.ISO_DEP -> probe.type4()
-            tag.kind == TagKind.NFC_A -> probe.type2()
-            else -> probe.note = "The probe can't send commands to this kind of tag."
-        }
-    } catch (_: Stopped) {
-        // The note says why.
+        withTimeoutOrNull(PROBE_DEADLINE_MS) {
+            try {
+                when {
+                    transport == null -> probe.note = "The probe can't send commands to this kind of tag."
+                    tag.kind == TagKind.ISO_DEP -> probe.type4()
+                    tag.kind == TagKind.NFC_A -> probe.type2()
+                    else -> probe.note = "The probe can't send commands to this kind of tag."
+                }
+            } catch (_: Stopped) {
+                // The note says why.
+            }
+        } ?: run { probe.note = "The tag answered too slowly; the probe stopped after ${PROBE_DEADLINE_MS / 1_000} s." }
     } finally {
         transport?.close()
     }

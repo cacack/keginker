@@ -9,12 +9,15 @@ import io.github.cacack.keginker.nfc.ImageWriter
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.DONE_MESSAGE
 import io.github.cacack.keginker.waveshare.UNSUPPORTED_TAG_MESSAGE
+import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
+import io.github.cacack.keginker.waveshare.WRITE_TIMED_OUT_MESSAGE
 import io.github.cacack.keginker.waveshare.WriteResult
 import io.github.cacack.keginker.waveshare.WriteStep
 import io.github.cacack.keginker.waveshare.userMessage
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed interface WriteState {
     /** Nothing to write yet. */
@@ -35,6 +38,7 @@ sealed interface WriteState {
 /**
  * Runs one write at a time: [arm] with a view, then each found tag is
  * written while armed. A failure leaves the view in place so [arm] retries.
+ * A write still running after [WRITE_DEADLINE_MS] is stopped and fails.
  */
 class WriteController(
     private val panel: WavesharePanel,
@@ -86,10 +90,17 @@ class WriteController(
                 val log = ExchangeLog()
                 mutableState.value = WriteState.Writing(0)
                 mutableState.value = try {
-                    when (val result = imageWriter.write(tag, panel, view, log) { mutableState.value = WriteState.Writing(it) }) {
+                    val result = withTimeoutOrNull(WRITE_DEADLINE_MS) {
+                        imageWriter.write(tag, panel, view, log) { mutableState.value = WriteState.Writing(it) }
+                    }
+                    when (result) {
                         WriteResult.Success -> WriteState.Done(report(tag, DONE_MESSAGE, Outcome.SUCCEEDED, log))
                         is WriteResult.Failure -> failed(
                             tag, result.userMessage, log, result.step, result.reason, result.cause,
+                        )
+                        null -> failed(
+                            tag, WRITE_TIMED_OUT_MESSAGE, log, log.entries.lastOrNull()?.step,
+                            "No result within $WRITE_DEADLINE_MS ms",
                         )
                     }
                 } catch (e: CancellationException) {

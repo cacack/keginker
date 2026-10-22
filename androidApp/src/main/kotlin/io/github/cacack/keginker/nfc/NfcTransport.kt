@@ -5,6 +5,7 @@ import android.nfc.tech.NfcA
 import android.nfc.tech.TagTechnology
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.withContext
 
 /**
@@ -13,10 +14,11 @@ import kotlinx.coroutines.withContext
  *
  * Connects on first use and applies each command's timeout, clamped to the
  * 1..Int.MAX_VALUE ms the tag technology accepts, so slow steps such as a
- * panel refresh aren't cut short. I/O never runs on the main thread,
- * and calls from all instances are serialized, since only one tag is in the
- * field at a time. With [logExchanges] (debug builds only, as frames carry the
- * user's image), every exchange is logged under the `keginker-nfc` tag.
+ * panel refresh aren't cut short. I/O, closing included, never runs on the
+ * main thread, and calls from all instances are serialized, since only one
+ * tag is in the field at a time. With [logExchanges] (debug builds only, as
+ * frames carry the user's image), every exchange is logged under the
+ * `keginker-nfc` tag.
  *
  * The constructor is internal so tests can stand fakes in for the tag
  * technology, which Android declares as final classes.
@@ -40,8 +42,9 @@ class NfcTransport internal constructor(
             }
         }
 
+    /** Queues the close behind any command in flight, on the same thread, and returns at once. */
     override fun close() {
-        runCatching { technology.close() }
+        nfcIo.asExecutor().execute { runCatching { technology.close() } }
     }
 
     companion object {

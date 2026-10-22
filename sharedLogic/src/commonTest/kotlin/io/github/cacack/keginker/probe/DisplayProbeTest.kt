@@ -16,6 +16,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 
 private val ISO_DEP_INFO = TagInfo(listOf("IsoDep", "NfcA"), bytes(0x04, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66), historicalBytes = bytes(0x80))
@@ -207,6 +209,27 @@ class DisplayProbeTest {
         }
 
         assertFailsWith<CancellationException> { probeDisplay(isoDep(tag)) }
+        assertEquals(1, tag.closes)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.currentTime
+    @Test
+    fun aProbeThatOverrunsTheDeadlineStopsAndSaysSo() = runTest {
+        // 15-byte reads make about 70 reads, each just inside the per-command timeout.
+        val tag = Type4Tag(ndefRecord(2, "x/y", ByteArray(1_000)), maxRead = 15)
+        val slowTag = object : Transport by tag {
+            override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+                delay(timeoutMs - 100)
+                return tag.transceive(command, timeoutMs)
+            }
+        }
+
+        val result = probeDisplay(isoDep(slowTag))
+
+        assertTrue(testScheduler.currentTime <= PROBE_DEADLINE_MS, "Stopped at ${testScheduler.currentTime} ms")
+        assertEquals("The tag answered too slowly; the probe stopped after ${PROBE_DEADLINE_MS / 1_000} s.", result.note)
+        assertNull(result.ndef)
+        assertNotNull(result.exchanges.last().error)
         assertEquals(1, tag.closes)
     }
 

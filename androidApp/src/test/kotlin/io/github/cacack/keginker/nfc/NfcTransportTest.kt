@@ -3,11 +3,13 @@ package io.github.cacack.keginker.nfc
 import android.nfc.Tag
 import android.nfc.tech.TagTechnology
 import java.io.IOException
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -24,6 +26,7 @@ class NfcTransportTest {
         val events = mutableListOf<String>()
         var connected = false
         var failClose = false
+        var closedOn: Thread? = null
 
         override fun getTag(): Tag = throw UnsupportedOperationException()
 
@@ -36,6 +39,7 @@ class NfcTransportTest {
 
         override fun close() {
             events += "close"
+            closedOn = Thread.currentThread()
             if (failClose) throw IOException("already closed")
         }
     }
@@ -151,9 +155,38 @@ class NfcTransportTest {
 
         transport.close()
         transport.close()
+        awaitTagIo()
 
         assertEquals(listOf("close", "close"), technology.events)
     }
+
+    @Test
+    fun closesOffTheCallingThreadAfterTheCommandInFlight() = runBlocking {
+        val caller = Thread.currentThread()
+        val technology = FakeTechnology()
+        val sending = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val transport = transport(technology) {
+            sending.countDown()
+            release.await()
+            REPLY
+        }
+        val command = async(Dispatchers.Default) { transport.transceive(COMMAND, 1000) }
+        sending.await()
+
+        transport.close()
+        val closedEarly = "close" in technology.events
+        release.countDown()
+        command.await()
+        awaitTagIo()
+
+        assertFalse(closedEarly)
+        assertEquals(listOf("connect", "timeout 1000", "send", "close"), technology.events)
+        assertNotSame(caller, technology.closedOn)
+    }
+
+    /** Returns once everything already queued for tag I/O has run: calls run in order, one at a time. */
+    private fun awaitTagIo() = runBlocking { transport().transceive(COMMAND, 1000) }
 
     private companion object {
         val COMMAND = byteArrayOf(0x00, 0xA4.toByte(), 0x04, 0x00)

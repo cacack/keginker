@@ -6,6 +6,8 @@ import io.github.cacack.keginker.nfc.ImageWriter
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.waveshare.DONE_MESSAGE
+import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
+import io.github.cacack.keginker.waveshare.WRITE_TIMED_OUT_MESSAGE
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteStep
 import kotlin.test.Test
@@ -15,6 +17,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 
@@ -45,6 +49,21 @@ private class FakeIsoDepTag : Transport {
         sent += command
         val busyPoll = command[1] == 0x9B.toByte()
         return if (busyPoll) byteArrayOf(0x00, 0x90.toByte(), 0x00) else byteArrayOf(0x90.toByte(), 0x00)
+    }
+
+    override fun close() {
+        closed = true
+    }
+}
+
+/** A tag that answers like [FakeTag], each command just inside the per-command timeout. */
+private class SlowTag : Transport {
+    private val tag = FakeTag()
+    var closed = false
+
+    override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+        delay(timeoutMs - 100)
+        return tag.transceive(command, timeoutMs)
     }
 
     override fun close() {
@@ -218,6 +237,30 @@ class WriteControllerTest {
 
         assertEquals(WriteState.Idle, controller.state.value)
         assertEquals(0, tag.sent)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.currentTime
+    @Test
+    fun aWriteThatOverrunsTheDeadlineFailsWithAReportAndRetrySucceeds() = runTest {
+        val controller = controller()
+        controller.arm(testView())
+        val tag = SlowTag()
+
+        controller.onTag(FoundTag.Waveshare(tag))
+
+        assertTrue(testScheduler.currentTime <= WRITE_DEADLINE_MS, "Stopped at ${testScheduler.currentTime} ms")
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertEquals(WRITE_TIMED_OUT_MESSAGE, failed.message)
+        val report = assertNotNull(failed.report)
+        assertEquals(Outcome.FAILED, report.outcome)
+        assertEquals(report.exchanges.last().step, report.step)
+        assertNotNull(report.exchanges.last().error)
+        assertTrue(tag.closed)
+
+        controller.arm(testView())
+        controller.onTag(FoundTag.Waveshare(FakeTag()))
+
+        assertIs<WriteState.Done>(controller.state.value)
     }
 
     @Test

@@ -128,6 +128,13 @@ and fails if it exceeds the budget, or leaves room for another poll. A
 recorded real write would show how close typical commands are to the
 allowance.
 
+Scheduled time assumes each command is quick, but on Android a tag can take
+up to 3 s over every command. So `WriteController` also stops any write
+still running after 30 s of real time (`WRITE_DEADLINE_MS`, twice the
+budget) and shows it as a failed write with a report and a retry. A write
+that uses the whole budget still has another 15 s for slow commands. On iOS
+the session limit comes first.
+
 ## Display probe
 
 **Report a display** reads an unknown tag without changing it. It sends only
@@ -139,8 +146,9 @@ checks over random replies that nothing else goes out.
 | ISO-DEP | SELECT each listed AID (`00 A4 04 00 …`; only `D2760000850101`, the NDEF application, which iOS needs listed in Info.plist). If the NDEF application answers: SELECT the capability container `E103` (`00 A4 00 0C`), READ BINARY its 15 bytes (`00 B0`), then SELECT the NDEF file it names and READ BINARY its length and message. |
 | NFC-A, not ISO-DEP | Type 2 READ (`30 <page>`) from page 3, the capability container, 16 bytes at a time, until the NDEF message TLV is complete. Pages 0–2 hold the full UID, which reports shorten, so they're never read. |
 
-Reads stop at 1,024 NDEF bytes, or 40 Type 2 reads. The vendor commands that
-look like device-info reads, such as Waveshare's `F0 D8` in
+Reads stop at 1,024 NDEF bytes, or 40 Type 2 reads, and the whole probe
+stops after 10 s (`PROBE_DEADLINE_MS`), with a note in its report. The
+vendor commands that look like device-info reads, such as Waveshare's `F0 D8` in
 magic-epaper-app, aren't documented as read-only, so the probe doesn't send
 them.
 

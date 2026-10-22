@@ -26,6 +26,18 @@ internal const val WRITE_BUDGET_MS = IOS_TAG_SESSION_MS - SESSION_MARGIN_MS
 internal const val COMMAND_ALLOWANCE_MS = 50L
 
 /**
+ * The real time a write may take before it's stopped as a failure. Android
+ * needs it: it has no session limit, and a tag that answers each command just
+ * inside [TRANSCEIVE_TIMEOUT_MS] could otherwise hold a write for minutes.
+ *
+ * Twice [WRITE_BUDGET_MS]: each writer gives up on its own within the
+ * budget's scheduled time, and a write that uses all of it still has another
+ * 15 s for commands slower than [COMMAND_ALLOWANCE_MS]. Writes that work on
+ * iOS, where Core NFC ends the session after about 20 s, finish well inside it.
+ */
+const val WRITE_DEADLINE_MS = 2 * WRITE_BUDGET_MS
+
+/**
  * Busy polls that fit in what [WRITE_BUDGET_MS] leaves after a write's other
  * [pausesMs] and [commands]; each poll is one command and a [pollPauseMs] pause.
  */

@@ -38,6 +38,12 @@ class WriteViewModel : ViewModel() {
         viewModelScope.launch { if (probe.isWaiting) probe.onTag(tag) else session.onTag(tag) }
     }
 
+    /** Arms "Report a display", first disarming any write, so a tag held during the report is never written. */
+    fun reportDisplay() {
+        controller.cancel()
+        probe.arm()
+    }
+
     fun write() = session.write()
 
     fun toggleDither() = session.toggleDither()

@@ -106,7 +106,7 @@ fun App(
     }
     BackHandler(enabled = showProbe, onBack = closeProbe)
     // After the process restarts, the screen is restored but the probe isn't.
-    LaunchedEffect(showProbe) { if (showProbe && probeState == ProbeState.Idle) model.probe.arm() }
+    LaunchedEffect(showProbe) { if (showProbe && probeState == ProbeState.Idle) model.reportDisplay() }
     BackHandler(enabled = shownReport != null) { showReport = false }
 
     val pickPhoto = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
@@ -127,7 +127,7 @@ fun App(
                         reportSetting.offerAfterSuccess = it
                     },
                     onReportDisplay = {
-                        model.probe.arm()
+                        model.reportDisplay()
                         showProbe = true
                     },
                     onBack = { showAdvanced = false },

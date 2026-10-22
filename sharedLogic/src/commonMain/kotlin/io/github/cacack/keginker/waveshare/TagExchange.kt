@@ -110,9 +110,19 @@ private suspend fun Transport.send(
 
 private fun checkReply(step: WriteStep, reply: ByteArray, isOk: (ByteArray) -> Boolean, detail: String?) {
     if (!isOk(reply)) {
-        throw StepFailed(step, FailureKind.UNEXPECTED_REPLY, listOfNotNull("Unexpected reply ${reply.toHex()}", detail).joinToString(" at "))
+        throw StepFailed(step, FailureKind.UNEXPECTED_REPLY, listOfNotNull("Unexpected reply ${reply.toShownHex(REPLY_SHOWN_BYTES)}", detail).joinToString(" at "))
     }
 }
 
 internal fun ByteArray.toHex(): String =
     joinToString(" ") { (it.toInt() and 0xFF).toString(16).padStart(2, '0').uppercase() }
+
+/**
+ * Most reply bytes a report shows: more than any reply the app asks for (a
+ * 250-byte READ BINARY and its status word), so only an oversized one is cut.
+ */
+internal const val REPLY_SHOWN_BYTES = 256
+
+/** [toHex] of at most [limit] bytes, then "… (N bytes)" if there were more, so a long reply can't swell a report. */
+internal fun ByteArray.toShownHex(limit: Int): String =
+    if (size > limit) "${copyOfRange(0, limit).toHex()} … ($size bytes)" else toHex()

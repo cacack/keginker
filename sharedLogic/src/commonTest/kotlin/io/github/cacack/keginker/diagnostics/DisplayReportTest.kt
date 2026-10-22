@@ -90,6 +90,13 @@ class DisplayReportTest {
     }
 
     @Test
+    fun issueLinkCaptionSaysIssuesArePublic() {
+        listOf(displayReportIssueLink("short"), displayReportIssueLink("x".repeat(MAX_ISSUE_URL_LENGTH))).forEach {
+            assertTrue("GitHub issues are public" in it.caption, it.caption)
+        }
+    }
+
+    @Test
     fun percentEncodingLeavesOnlyUnreservedCharacters() {
         val encoded = percentEncode((0..0x7F).map(Int::toChar).joinToString("") + "é…")
 

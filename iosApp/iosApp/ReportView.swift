@@ -44,9 +44,7 @@ struct ReportView: View {
                         openURL(url)
                     }
                     .buttonStyle(.bordered)
-                    Text(issueLink.includesReport
-                        ? "Opens the New display report form in your browser with this report filled in. Add a photo and the model printed on the display."
-                        : "Opens the New display report form in your browser and copies this report, which is too long to fill in, so you can paste it.")
+                    Text(issueLink.caption)
                         .font(.footnote)
                 }
                 Text(text)

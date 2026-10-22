@@ -1,6 +1,6 @@
 package io.github.cacack.keginker.probe
 
-import io.github.cacack.keginker.waveshare.toHex
+import io.github.cacack.keginker.waveshare.toShownHex
 
 /** Most payload bytes a report shows of one record. */
 private const val PAYLOAD_SHOWN_BYTES = 64
@@ -78,18 +78,35 @@ private fun tnfName(tnf: Int) = when (tnf) {
     else -> "Reserved type"
 }
 
-/** Text, cut to [PAYLOAD_SHOWN_BYTES], with control characters shown as `?` so a record can't fake report lines. */
+/**
+ * Text, cut to [PAYLOAD_SHOWN_BYTES], with each character that is invisible
+ * or breaks a line shown as `?`, so a record can't fake report lines or show
+ * other text than it holds.
+ */
 private fun shownText(bytes: ByteArray): String {
-    val shown = bytes.copyOfRange(0, minOf(bytes.size, PAYLOAD_SHOWN_BYTES)).decodeToString()
-        .map { if (it.isISOControl()) '?' else it }.joinToString("")
+    val text = bytes.copyOfRange(0, minOf(bytes.size, PAYLOAD_SHOWN_BYTES)).decodeToString()
+    val shown = buildString {
+        var at = 0
+        while (at < text.length) {
+            val c = text[at++]
+            when {
+                c.isISOControl() || c.category in HIDDEN_CATEGORIES -> append('?')
+                // Plane 14 (U+E0000 to U+E0FFF) holds only invisible tag and variation selector characters.
+                c in '\uDB40'..'\uDB43' -> {
+                    append('?')
+                    if (at < text.length && text[at].isLowSurrogate()) at++
+                }
+                else -> append(c)
+            }
+        }
+    }
     return if (bytes.size > PAYLOAD_SHOWN_BYTES) "$shown … (${bytes.size} bytes)" else shown
 }
 
-private fun shownHex(bytes: ByteArray): String = when {
-    bytes.isEmpty() -> "(empty)"
-    bytes.size > PAYLOAD_SHOWN_BYTES -> "${bytes.copyOfRange(0, PAYLOAD_SHOWN_BYTES).toHex()} … (${bytes.size} bytes)"
-    else -> bytes.toHex()
-}
+/** Unicode format characters (Cf: bidi controls, zero-width spaces and the like), and line and paragraph separators. */
+private val HIDDEN_CATEGORIES = setOf(CharCategory.FORMAT, CharCategory.LINE_SEPARATOR, CharCategory.PARAGRAPH_SEPARATOR)
+
+private fun shownHex(bytes: ByteArray): String = if (bytes.isEmpty()) "(empty)" else bytes.toShownHex(PAYLOAD_SHOWN_BYTES)
 
 /** NFC Forum URI Record Type Definition prefix codes. */
 private fun uriPrefix(code: Int): String = URI_PREFIXES.getOrNull(code) ?: ""

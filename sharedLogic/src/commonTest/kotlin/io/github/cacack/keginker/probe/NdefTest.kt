@@ -98,4 +98,43 @@ class NdefTest {
 
         assertTrue('\n' !in line, line)
     }
+
+    @Test
+    fun hiddenCharactersAreShownAsQuestionMarks() {
+        // U+202E reverses the text after it; U+2028 breaks the line without a control character.
+        val record = parseNdefMessage(launcherRecord("com.app\u202Egnp.exe\u2028Outcome: succeeded")).records.single()
+
+        assertEquals("Android app: com.app?gnp.exe?Outcome: succeeded", describeNdefRecord(record))
+    }
+
+    @Test
+    fun tagCharactersAreShownAsOneQuestionMark() {
+        // U+E0041, an invisible tag character, is two UTF-16 chars.
+        val record = parseNdefMessage(launcherRecord("a\uDB40\uDC41b")).records.single()
+
+        assertEquals("Android app: a?b", describeNdefRecord(record))
+    }
+
+    @Test
+    fun shownTextNeverHoldsACharacterThatHidesOrBreaksALine() {
+        val hidden = setOf(CharCategory.FORMAT, CharCategory.LINE_SEPARATOR, CharCategory.PARAGRAPH_SEPARATOR)
+        // Rare among all code points, so drawn often: soft hyphen, zero-width space, bidi marks and isolates, BOM, NEL, a tag character.
+        val likely = listOf(0xAD, 0x200B, 0x200E, 0x202E, 0x2066, 0xFEFF, 0x85, 0x2028, 0x2029, 0xE0041)
+        repeat(300) { seed ->
+            val random = Random(seed)
+            val text = buildString {
+                repeat(random.nextInt(1, 30)) {
+                    val codePoint = if (random.nextBoolean()) likely.random(random) else random.nextInt(0x110000)
+                    when {
+                        codePoint in 0xD800..0xDFFF -> append('x')
+                        codePoint >= 0x10000 -> append(Char(0xD800 + ((codePoint - 0x10000) shr 10))).append(Char(0xDC00 + (codePoint and 0x3FF)))
+                        else -> append(Char(codePoint))
+                    }
+                }
+            }
+            val line = describeNdefRecord(parseNdefMessage(launcherRecord(text)).records.single())
+
+            assertTrue(line.none { it.isISOControl() || it.category in hidden || it in '\uDB40'..'\uDB43' }, "Seed $seed: $line")
+        }
+    }
 }

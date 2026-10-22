@@ -84,14 +84,7 @@ fun ReportScreen(report: String, onBack: () -> Unit, title: String = "Diagnostic
                 }
             }) { Text("Open a GitHub issue") }
             if (noBrowser) Text("No browser is installed to open it. Share or copy the report instead.", color = MaterialTheme.colorScheme.error)
-            Text(
-                if (link.includesReport) {
-                    "Opens the New display report form in your browser with this report filled in. Add a photo and the model printed on the display."
-                } else {
-                    "Opens the New display report form in your browser and copies this report, which is too long to fill in, so you can paste it."
-                },
-                style = MaterialTheme.typography.bodySmall,
-            )
+            Text(link.caption, style = MaterialTheme.typography.bodySmall)
         }
         SelectionContainer {
             Text(report, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)

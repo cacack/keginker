@@ -75,7 +75,9 @@ private val DEVICE = DeviceInfo(manufacturer = "Google", model = "Pixel 8", os =
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "w360dp-h800dp-hdpi")
+// At 256 dpi (1.6x) the 220 dp preview scales the 176-pixel label by exactly 2;
+// at a fractional scale, pixel rounding differs between macOS and Linux.
+@Config(sdk = [35], qualifiers = "w360dp-h800dp-256dpi")
 class ScreenshotTest {
     @get:Rule
     val compose = createComposeRule()

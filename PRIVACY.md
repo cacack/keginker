@@ -12,9 +12,12 @@ KegInker works fully offline and never connects to the internet. The
 Android app doesn't request internet access, so Android itself blocks it
 from the network. The iOS app contains no networking code.
 
-**Open a GitHub issue**, on a display report, opens a web page in your
-browser. Your browser sends what's in the link, including the report when it
-fits, to GitHub, and only when you tap it. KegInker itself sends nothing.
+**Open a GitHub issue**, on a display report, opens GitHub's **New display
+report** form in your browser. When the report fits in the link, the form
+opens with it filled in. When it's too long, the button copies the report to
+your clipboard instead, so you can paste it into the form. Your browser sends
+what's in the link to GitHub, and only when you tap it. KegInker itself sends
+nothing. GitHub issues are public: once you submit one, anyone can read it.
 
 ## Your images
 
@@ -31,11 +34,15 @@ your phone, and nowhere else.
 When a write fails or a tag isn't recognised, **Share details**
 builds a plain-text report of what happened: the app and phone versions,
 what the tag reported about itself, which step failed, and the commands
-exchanged with the tag, with the tag's replies as it sent them. It contains
-no image data, and shows only the start of the tag's ID. The app keeps
-the report in memory, shows it to you in full, and doesn't save it. It
-leaves your phone only if you share or copy it yourself; KegInker never
-sends it.
+exchanged with the tag, with the tag's replies as it sent them. With
+**Offer a report after every write** turned on under **Advanced**, **Share
+details** also appears after a successful write. A report contains no image
+data, shows only the start of the tag's ID, and shows only the first 256
+bytes of a very long reply. The app keeps the report in memory, shows it to
+you in full, and doesn't save it. It leaves your phone only when you share
+it, or copy it and paste it somewhere; KegInker never sends it. Copying puts
+it on your clipboard, where other apps, and your other devices if you've set
+up clipboard sharing, can read it.
 
 **Report a display**, under **Advanced**, builds the same kind of report
 from a display you hold to your phone, reading it without writing to it: the

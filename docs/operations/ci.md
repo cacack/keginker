@@ -53,17 +53,22 @@ a mismatch or on an artifact the file doesn't list.
 After adding or bumping a dependency or plugin, including on a Dependabot
 Gradle PR that leaves the file unchanged (its CI fails until someone
 does), refresh the file on macOS, so the iOS artifacts are covered
-too. The second command adds the Linux build of AAPT2, which CI's ubuntu
-jobs use and a Mac never downloads:
+too. Use an empty Gradle home (`-g`): with a warm cache Gradle skips some
+parent POMs and BOMs, and CI then fails on them. The second command adds the
+Linux build of AAPT2, which CI's ubuntu jobs use and a Mac never downloads:
 
 ```sh
-./gradlew --write-verification-metadata sha256 \
+home=$(mktemp -d)
+./gradlew -g "$home" --write-verification-metadata sha256 \
   check :androidApp:assembleDebug :androidApp:assembleRelease \
   :sharedLogic:linkReleaseFrameworkIosArm64 :sharedLogic:linkDebugFrameworkIosSimulatorArm64 \
   :sharedLogic:pitest
-./gradlew --write-verification-metadata sha256 --no-configuration-cache \
+./gradlew -g "$home" --write-verification-metadata sha256 --no-configuration-cache \
   -I gradle/verification-linux.init.gradle.kts resolveLinuxAapt2
+rm -rf "$home"
 ```
+
+The first command downloads everything again and takes about 15 minutes.
 
 Gradle adds the new checksums and keeps the old ones. Review the diff: it
 should only add the components you changed and their new dependencies.

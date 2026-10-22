@@ -1,15 +1,18 @@
 # Signing and releases
 
 Android only installs an update signed with the same key as the installed
-app. One release key signs GitHub Releases, CI builds of `main`, and
-maintainers' local builds, so they install over each other. One exception:
-Android won't go from a release to a lower-versioned dev build. An F-Droid or
-Play release would carry the same key.
+app. One release key signs GitHub Releases and maintainers' local builds,
+so they install over each other. One exception: Android won't go from a
+release to a lower-versioned dev build. An F-Droid or Play release would
+carry the same key.
 
-Pull-request builds never get the key, because their build scripts haven't
-been reviewed yet. They use the default debug key.
+CI builds, of pull requests and of `main`, never get the key. Only the
+release workflow does, when a `v*` tag is pushed. CI builds use the runner's
+default debug key, which is new for every run, so a CI build doesn't install
+over anything else; uninstall first.
 
-The key never enters git. It lives in GitHub Actions secrets, in a gitignored
+The key never enters git. It lives in the secrets of the `release`
+environment, which only `v*` tags can deploy to, in a gitignored
 `local.properties` on maintainers' machines, and in its backups.
 
 ## Where the key comes from
@@ -43,14 +46,16 @@ keytool -genkeypair -keystore keginker-release.jks -alias keginker \
 
 The keystore is PKCS12, so the key password is the keystore password.
 
-Add it to GitHub. Each `gh secret set` without input prompts for the value,
-so passwords stay out of your shell history:
+Add it to the `release` environment (see
+[the release environment](#the-release-environment-once)). Each
+`gh secret set` without input prompts for the value, so passwords stay out
+of your shell history:
 
 ```sh
-base64 -i keginker-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 -R cacack/keginker
-gh secret set ANDROID_KEYSTORE_PASSWORD -R cacack/keginker
-gh secret set ANDROID_KEY_ALIAS -R cacack/keginker      # the alias given to keytool
-gh secret set ANDROID_KEY_PASSWORD -R cacack/keginker   # same as the keystore password
+base64 -i keginker-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 -R cacack/keginker -e release
+gh secret set ANDROID_KEYSTORE_PASSWORD -R cacack/keginker -e release
+gh secret set ANDROID_KEY_ALIAS -R cacack/keginker -e release      # the alias given to keytool
+gh secret set ANDROID_KEY_PASSWORD -R cacack/keginker -e release   # same as the keystore password
 ```
 
 To sign local builds too, add the four `keginker.*` keys to
@@ -151,6 +156,13 @@ secrets):
 4. uploads the ipa to TestFlight
 5. attaches `keginker-X.Y.Z.ipa` and its SHA-256 to the release
 
+On each platform, the steps that run Gradle or Xcode are in a build job
+that gets the signing secrets from the `release` environment but only a
+read-only token. A separate publish job, which runs no build code,
+attests, uploads and edits the release, so build code never holds the
+`contents: write`, OIDC or attestation permissions. The build job still
+holds the signing key, because Gradle and Xcode sign as they build.
+
 ### The release-please app (once)
 
 release-please authenticates as a GitHub App installed only on this
@@ -179,15 +191,46 @@ Builds without those properties (local and CI) use `versionCode` 1 and
 `versionName` `0.0.0-dev`. Android won't downgrade, so to go back to a dev
 build after installing a release, uninstall first.
 
-### Recommended repository settings
+### The release environment (once)
 
-`release.yml` requires the tag to be on `main` and to have a GitHub Release,
-but anyone who can push tags and create releases can still trigger it. To
-tighten that further, in the repository settings:
+The signing and App Store Connect secrets are environment secrets on a
+`release` environment that only `v*` tags can deploy to, so no branch, pull
+request or other workflow can read them. A tag ruleset limits who can
+create `v*` tags. `release.yml` also requires the tag to be on `main` and
+to have a GitHub Release.
 
-- add a tag ruleset that limits creating `v*` tags to maintainers, with the
-  release-please app on its bypass list
-- optionally move the four Android secrets and the four
-  [iOS secrets](testflight.md#secrets) into an environment (for example
-  `release`) that requires approval, and add `environment: release` to both
-  jobs
+1. Create the environment and allow only `v*` tags to deploy to it:
+
+   ```sh
+   gh api -X PUT repos/cacack/keginker/environments/release \
+     --input - <<< '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
+   gh api -X POST repos/cacack/keginker/environments/release/deployment-branch-policies \
+     -f name='v*' -f type=tag
+   ```
+
+2. Add the four Android secrets ([above](#creating-the-key-once)) and the
+   four [iOS secrets](testflight.md#secrets) with `-e release`. Secrets
+   can't be read back, so moving them means entering each value again from
+   its backup, then deleting the repository-level copy with
+   `gh secret delete <NAME> -R cacack/keginker`.
+3. Add a tag ruleset that lets only repository admins and the release-please
+   app create, update or delete `v*` tags:
+
+   ```sh
+   gh api -X POST repos/cacack/keginker/rulesets --input - <<'EOF'
+   {
+     "name": "Release tags",
+     "target": "tag",
+     "enforcement": "active",
+     "conditions": {"ref_name": {"include": ["refs/tags/v*"], "exclude": []}},
+     "rules": [{"type": "creation"}, {"type": "update"}, {"type": "deletion"}],
+     "bypass_actors": [
+       {"actor_type": "RepositoryRole", "actor_id": 5, "bypass_mode": "always"},
+       {"actor_type": "Integration", "actor_id": <release-please app ID>, "bypass_mode": "always"}
+     ]
+   }
+   EOF
+   ```
+
+Optionally, add yourself as a required reviewer on the environment, so
+every release waits for an approval before the build jobs get the keys.

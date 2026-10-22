@@ -7,7 +7,7 @@ pull request and every push to `main`.
 | Job | Runner | What it does |
 |---|---|---|
 | Shared tests | ubuntu | `:sharedLogic` and `:sharedUI` Android host tests (JVM), including Robolectric Compose tests of the Android screens |
-| Android APK | ubuntu | `:androidApp:testDebugUnitTest`, then `:androidApp:assembleDebug`, signed with the release key on pushes to `main` (pull requests use the debug key); uploads `keginker-debug-apk` (kept 14 days) |
+| Android APK | ubuntu | `:androidApp:testDebugUnitTest`, then `:androidApp:assembleDebug`, signed with the runner's debug key (never the release key); uploads `keginker-debug-apk` (kept 14 days) |
 | iOS build | macos | `:sharedLogic:iosSimulatorArm64Test`, then an unsigned simulator build of `iosApp`, then its XCTest target (`iosAppTests`) on any available iPhone simulator, then fails if it declares any permission beyond NFC ([constitution](../../CONSTITUTION.md) C4) |
 | CI Success | ubuntu | Gate: fails if any job above failed or was cancelled |
 
@@ -19,7 +19,9 @@ the `v*` tag and GitHub Release. It authenticates as the repository's
 release-please GitHub App so the release PR runs CI and the tag triggers
 [`.github/workflows/release.yml`](../../.github/workflows/release.yml), which
 attaches a signed APK and an App Store-signed ipa to the release and
-uploads the ipa to TestFlight. See [signing.md](signing.md) for the key, the
+uploads the ipa to TestFlight. Its build jobs hold the signing secrets but
+only a read token; separate publish jobs, which run no build code, attest
+and upload. See [signing.md](signing.md) for the key, the
 secrets and cutting a release, and [testflight.md](testflight.md) for the
 App Store Connect setup.
 
@@ -41,7 +43,8 @@ triaged as issues.
 
 Actions are pinned to full commit SHAs, with the version in a comment, and
 the repository's Actions settings reject any other reference. Dependabot
-keeps them current.
+keeps them current. Every `actions/checkout` sets `persist-credentials: false`, so the
+token isn't left in `.git/config` for the build to read.
 
 ## Gradle dependency verification
 

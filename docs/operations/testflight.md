@@ -33,24 +33,25 @@ These steps need a paid Apple Developer Program membership.
 
 ## Secrets
 
-Add the four secrets. Each `gh secret set` without input prompts for the
-value:
+Add the four secrets to the
+[`release` environment](signing.md#the-release-environment-once). Each
+`gh secret set` without input prompts for the value:
 
 ```sh
-gh secret set APPLE_TEAM_ID -R cacack/keginker                 # e.g. ABCDE12345
-gh secret set APP_STORE_CONNECT_KEY_ID -R cacack/keginker
-gh secret set APP_STORE_CONNECT_ISSUER_ID -R cacack/keginker
-gh secret set APP_STORE_CONNECT_KEY_P8 -R cacack/keginker < AuthKey_XXXX.p8
+gh secret set APPLE_TEAM_ID -R cacack/keginker -e release                 # e.g. ABCDE12345
+gh secret set APP_STORE_CONNECT_KEY_ID -R cacack/keginker -e release
+gh secret set APP_STORE_CONNECT_ISSUER_ID -R cacack/keginker -e release
+gh secret set APP_STORE_CONNECT_KEY_P8 -R cacack/keginker -e release < AuthKey_XXXX.p8
 ```
 
 Then back up the `.p8` in a password manager and delete the download. If it's
 lost, revoke the key and generate a new one. The iOS job fails, naming every
 missing secret, if any is unset.
 
-The key has the Admin role, so treat it like the Android release key. The
-[recommended repository settings](signing.md#recommended-repository-settings)
-suggest an approval-gated `release` environment; put these four secrets in it
-too.
+The key has the Admin role, so treat it like the Android release key. Only
+`v*` tags can deploy to the `release` environment, so only the release
+workflow can read it. It is used by the iOS build job, which signs the
+archive, and by the publish job, which uploads to TestFlight.
 
 ## Versions and build numbers
 

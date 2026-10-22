@@ -4,6 +4,11 @@ name: Release
 # -suffix) tag and its GitHub Release; this workflow attaches an APK signed by
 # the release key and an App Store-signed ipa, which it also uploads to
 # TestFlight. See docs/operations/signing.md.
+#
+# Build jobs run Gradle and Xcode, and so third-party build code, with the
+# signing secrets from the `release` environment but only a read token.
+# Publish jobs run no build code: they take the built files, attest them and
+# upload them, holding the write, OIDC and attestation permissions.
 on:
   push:
     tags: ['v*']
@@ -29,6 +34,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       # Only reviewed code gets the release keys and a public release.
       - name: Require the tag to be on main
         run: |
@@ -87,20 +93,18 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   android:
-    name: Publish Android release
+    name: Build Android release
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: release
     permissions:
-      contents: write
-      # Build provenance for the APK (CONSTITUTION.md C5).
-      id-token: write
-      attestations: write
-      artifact-metadata: write
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: zulu
@@ -159,6 +163,31 @@ jobs:
           fi
           echo "C4: the release APK requests only NFC"
 
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  android-publish:
+    name: Publish Android release
+    needs: [prepare, android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      # Build provenance for the APK (CONSTITUTION.md C5).
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      # Fails if the files don't match the digest the build job uploaded.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: android-release
+          path: dist
+
       # CONSTITUTION.md C5: anyone can check the APK was built here, from
       # this tag, with `gh attestation verify <apk> -R <owner>/<repo>`.
       - name: Attest build provenance (C5)
@@ -169,6 +198,7 @@ jobs:
       - name: Attach the APK to the release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           VERSION_NAME: ${{ needs.prepare.outputs.name }}
           PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
         run: |
@@ -176,16 +206,13 @@ jobs:
           gh release edit "$GITHUB_REF_NAME" --title "KegInker $VERSION_NAME" --prerelease="$PRERELEASE"
 
   ios:
-    name: Publish iOS release
+    name: Build iOS release
     needs: prepare
     runs-on: macos-latest
     timeout-minutes: 45
+    environment: release
     permissions:
-      contents: write
-      # Build provenance for the ipa (CONSTITUTION.md C5).
-      id-token: write
-      attestations: write
-      artifact-metadata: write
+      contents: read
     env:
       # Signing uses an App Store Connect API key with cloud-managed automatic
       # signing, so no certificate or profile is stored.
@@ -200,6 +227,8 @@ jobs:
       ORG_GRADLE_PROJECT_keginker.versionName: ${{ needs.prepare.outputs.name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # The Xcode build phase runs Gradle to compile the shared framework.
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
@@ -272,6 +301,37 @@ jobs:
           codesign -d --entitlements - --xml "$app" > "$RUNNER_TEMP/entitlements.plist"
           .github/scripts/check-ios-permissions.sh "$app" "$RUNNER_TEMP/entitlements.plist"
 
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  ios-publish:
+    name: Publish iOS release
+    needs: [prepare, ios]
+    runs-on: macos-latest
+    timeout-minutes: 20
+    # The App Store Connect key uploads to TestFlight.
+    environment: release
+    permissions:
+      contents: write
+      # Build provenance for the ipa (CONSTITUTION.md C5).
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      VERSION_NAME: ${{ needs.prepare.outputs.name }}
+    steps:
+      # Fails if the files don't match the digest the build job uploaded.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ios-release
+          path: dist
+
       # CONSTITUTION.md C5: anyone can check the ipa was built here, from
       # this tag, with `gh attestation verify <ipa> -R <owner>/<repo>`.
       - name: Attest build provenance (C5)
@@ -279,12 +339,20 @@ jobs:
         with:
           subject-path: dist/*.ipa
 
+      # The build job checked the secrets are set.
       - name: Upload to TestFlight
+        env:
+          ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
         run: |
+          # altool finds the key by this name in API_PRIVATE_KEYS_DIR.
+          export API_PRIVATE_KEYS_DIR="$RUNNER_TEMP/private_keys"
+          mkdir "$API_PRIVATE_KEYS_DIR"
+          printf '%s\n' "$ASC_KEY_P8" > "$API_PRIVATE_KEYS_DIR/AuthKey_$ASC_KEY_ID.p8"
           xcrun altool --upload-package "dist/keginker-$VERSION_NAME.ipa" \
             --api-key "$ASC_KEY_ID" --api-issuer "$ASC_ISSUER_ID"
 
       - name: Attach the ipa to the release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: gh release upload "$GITHUB_REF_NAME" dist/*

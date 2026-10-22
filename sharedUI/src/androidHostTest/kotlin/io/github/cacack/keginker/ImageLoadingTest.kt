@@ -62,6 +62,28 @@ class ImageLoadingTest {
         assertFailsWith<IOException> { runBlocking { loadGrayImage(context, Uri.fromFile(notAnImage)) } }
     }
 
+    @Test
+    fun photo48MpStillLoads() {
+        runBlocking { loadGrayImage(context, Uri.fromFile(File(fixtures, "48mp.png"))) }
+    }
+
+    @Test
+    fun imageOverPixelLimitFails() {
+        val photo = File(fixtures, "over-pixel-limit.png")
+        assertFailsWith<IOException> { runBlocking { loadGrayImage(context, Uri.fromFile(photo)) } }
+    }
+
+    @Test
+    fun fileOverSizeLimitFails() {
+        // A readable image, padded past the limit; decoders ignore what follows it.
+        val padded = File.createTempFile("over-size-limit", ".png").apply {
+            deleteOnExit()
+            writeBytes(File(fixtures, "tiny.png").readBytes())
+            appendBytes(ByteArray(MAX_FILE_BYTES))
+        }
+        assertFailsWith<IOException> { runBlocking { loadGrayImage(context, Uri.fromFile(padded)) } }
+    }
+
     private fun checkGolden(name: String) {
         val view = renderView(panel, runBlocking { loadGrayImage(context, Uri.fromFile(File(fixtures, name))) })
         val golden = File(fixtures, name.substringBeforeLast('.') + ".pbm")

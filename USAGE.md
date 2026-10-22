@@ -20,6 +20,7 @@ families involved.
 1. Open KegInker. The preview shows exactly what the tag will display; it
    starts with a test pattern whose solid corner marks the top-left.
 2. Optionally tap **Choose image**. Photos are centre-cropped to the panel.
+   Images up to 120 megapixels open (on Android, files up to 64 MB).
    Turn **Dither** off for text and logos; the slider that appears sets which
    greys become black. Raise it if light text in your image breaks up.
 3. Tap **Write to tag**, then hold the phone against the tag and keep it

@@ -9,7 +9,9 @@ import io.github.cacack.keginker.image.GrayImage
 import io.github.cacack.keginker.image.fill
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.waveshare.WavesharePanel
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -54,17 +56,26 @@ class WriteViewModel : ViewModel() {
     /** Sets where grey becomes black (0–255) when dithering is off. */
     fun setThreshold(level: Int) = session.setThreshold(level)
 
+    private var loading: Job? = null
+
     fun load(context: Context, uri: Uri) {
-        viewModelScope.launch {
+        load { loadGrayImage(context, uri) }
+    }
+
+    /** Loads an image from [read], cancelling any load still running, so the latest pick wins. */
+    internal fun load(read: suspend () -> GrayImage): Job {
+        loading?.cancel()
+        return viewModelScope.launch {
             runCatching {
-                val image = loadGrayImage(context, uri)
+                val image = read()
                 withContext(Dispatchers.Default) { image.fill(panel.viewWidth, panel.viewHeight) }
             }.onSuccess { image: GrayImage ->
                 mutableLoadError.value = null
                 session.imageLoaded(image)
             }.onFailure {
+                if (it is CancellationException) throw it
                 mutableLoadError.value = "Couldn't open that image."
             }
-        }
+        }.also { loading = it }
     }
 }

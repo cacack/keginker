@@ -150,16 +150,29 @@ private class Probe(private val transport: Transport?, timeSource: TimeSource) {
         if (length > wanted) note = "The NDEF message is $length bytes; only the first $wanted were read."
     }
 
-    /** NFC Forum Type 2: the capability container page, then memory until the NDEF TLV is complete. */
+    /**
+     * NFC Forum Type 2: the capability container page, then the data area it
+     * declares until the NDEF TLV is complete. Reads stay inside the data
+     * area: on many tags a read past the last page wraps around to the UID pages.
+     */
     suspend fun type2() {
         var memory = ByteArray(0)
+        var lastPage = 0xFF
         for (read in 0 until MAX_TYPE2_READS) {
             val page = TYPE2_FIRST_PAGE + read * 4
-            if (page > 0xFF) break
-            val reply = send(ProbeStep.READ_PAGES, type2Read(page))
+            if (page > lastPage) stop("No complete NDEF message in the tag's data area.")
+            // A read returns 4 pages; near the end, read the last 4 and keep only the new ones.
+            val from = minOf(page, lastPage - 3)
+            val reply = send(ProbeStep.READ_PAGES, type2Read(from))
             if (reply.size != 16) stop(if (read == 0) "The tag doesn't answer Type 2 reads." else "The tag stopped answering Type 2 reads.")
-            memory += reply
-            if (capabilityContainer == null) capabilityContainer = memory.copyOfRange(0, 4)
+            memory += reply.copyOfRange((page - from) * 4, 16)
+            if (capabilityContainer == null) {
+                capabilityContainer = memory.copyOfRange(0, 4)
+                // Byte 2 is the data area's size in 8-byte units, from page 4.
+                val dataPages = u8(memory, 2) * 2
+                if (dataPages < 4) stop("The capability container declares no data area.")
+                lastPage = minOf(TYPE2_FIRST_PAGE + dataPages, 0xFF)
+            }
             when (val found = findNdefTlv(memory.copyOfRange(4, memory.size))) {
                 is TlvSearch.Found -> {
                     ndef = parseNdefMessage(found.message)

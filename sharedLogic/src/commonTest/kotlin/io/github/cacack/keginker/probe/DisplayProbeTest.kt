@@ -107,6 +107,33 @@ class DisplayProbeTest {
     }
 
     @Test
+    fun type2ReadsStayInsideTheDataAreaSoTheyNeverWrapIntoTheUid() = runTest {
+        // An Ultralight: 16 pages, a 48-byte data area (pages 4–15), all NULL TLVs.
+        val memory = type2Memory(ByteArray(0), pages = 16)
+        memory[14] = 0x06
+        val tag = Type2Tag(memory)
+
+        val result = probeDisplay(nfcA(tag))
+
+        assertEquals(listOf(3, 7, 11, 12), tag.sent.map { it.page() })
+        val uid = memory.copyOfRange(0, 8)
+        assertTrue(result.exchanges.none { e -> e.reply!!.toList().windowed(8).any { it == uid.toList() } }, "The full UID leaked")
+        assertEquals("No complete NDEF message in the tag's data area.", result.note)
+    }
+
+    @Test
+    fun type2WithoutADataAreaSaysSo() = runTest {
+        val memory = type2Memory(ByteArray(0), pages = 16)
+        memory[14] = 0x00
+        val tag = Type2Tag(memory)
+
+        val result = probeDisplay(nfcA(tag))
+
+        assertEquals(1, tag.sent.size)
+        assertEquals("The capability container declares no data area.", result.note)
+    }
+
+    @Test
     fun type2WithoutAMessageSaysSo() = runTest {
         val tag = Type2Tag(type2Memory(bytes(0xFE)))
 

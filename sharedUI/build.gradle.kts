@@ -65,6 +65,7 @@ kotlin {
             implementation(libs.compose.uiTest.manifest)
             // Newer than ui-test brings in; older Espresso fails on Android 16.
             implementation(libs.androidx.espresso.core)
+            implementation(libs.roborazzi)
         }
     }
 }
@@ -76,6 +77,21 @@ tasks.withType<Test>().configureEach {
     systemProperty("keginker.photoFixtures", photoFixtures.asFile.path)
     // Robolectric's Android 16 runtime reads JDK internals.
     jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+}
+
+// The README screenshots ScreenshotTest records (-Proborazzi.test.record=true)
+// or checks (-Proborazzi.test.verify=true) from the sample label; without
+// either it only runs the flow.
+val screenshots = rootProject.layout.projectDirectory.dir("docs/images/screenshots")
+val sampleLabel = rootProject.layout.projectDirectory.file("fixtures/screenshots/sample-label.png")
+tasks.withType<Test>().configureEach {
+    inputs.dir(screenshots).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(sampleLabel).withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("keginker.screenshots", screenshots.asFile.path)
+    systemProperty("keginker.sampleLabel", sampleLabel.asFile.path)
+    for (mode in listOf("roborazzi.test.record", "roborazzi.test.verify")) {
+        providers.gradleProperty(mode).orNull?.let { systemProperty(mode, it) }
+    }
 }
 
 dependencies {

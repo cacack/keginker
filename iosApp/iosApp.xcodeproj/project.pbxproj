@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		DD4BAD07E88BC7F1750AA4DA /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 80C7FD6F9D465E56FE79D381 /* SnapshotTesting */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		162D8707B3E12DF73624E766 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -57,6 +61,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD4BAD07E88BC7F1750AA4DA /* SnapshotTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -110,6 +115,7 @@
 			);
 			name = iosAppTests;
 			packageProductDependencies = (
+				80C7FD6F9D465E56FE79D381 /* SnapshotTesting */,
 			);
 			productName = iosAppTests;
 			productReference = 689B1837700B82CE4E68893E /* iosAppTests.xctest */;
@@ -166,6 +172,9 @@
 			);
 			mainGroup = 9C563CE9311CB07CF6308181;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				499A03648578FDE024EF3D39 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 53AE71B3B87E502EF274CABC /* Products */;
 			projectDirPath = "";
@@ -486,6 +495,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		499A03648578FDE024EF3D39 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing";
+			requirement = {
+				kind = exactVersion;
+				version = 1.19.6;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		80C7FD6F9D465E56FE79D381 /* SnapshotTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 499A03648578FDE024EF3D39 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
+			productName = SnapshotTesting;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0E8DA779AF492742BF320939 /* Project object */;
 }

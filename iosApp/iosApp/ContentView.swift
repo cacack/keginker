@@ -18,6 +18,12 @@ struct ContentView: View {
     @State private var loadError: String?
     @AppStorage(offerReportsKey) private var offerReports = false
 
+    /// Tests (the README screenshots) supply [writer] and [source]; the app uses the defaults.
+    init(writer: TagWriter? = nil, source: GrayImage? = nil) {
+        _writer = StateObject(wrappedValue: writer ?? TagWriter())
+        _source = State(initialValue: source)
+    }
+
     private var panel: WavesharePanel { writer.panel }
 
     var body: some View {

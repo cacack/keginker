@@ -55,6 +55,10 @@ in a run with the **Hardware test run** issue form.
 CI runs all of the above on every pull request; the debug APK is attached to
 each run as an artifact.
 
+Gradle checks every dependency against `gradle/verification-metadata.xml`.
+A change that adds or bumps one refreshes that file; see
+[docs/operations/ci.md](docs/operations/ci.md#gradle-dependency-verification).
+
 Local builds use the default debug key unless you have the release key; see
 [docs/operations/signing.md](docs/operations/signing.md).
 

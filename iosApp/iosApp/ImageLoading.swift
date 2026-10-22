@@ -5,10 +5,16 @@ import UIKit
 /// Longest side photos are decoded to; far more than any panel needs.
 private let maxSide = 1024
 
+/// Most pixels an image may have, checked from its header before decoding:
+/// above the 108 MP of the largest common phone cameras. ImageIO may decode
+/// a PNG or GIF in full before downsampling it. Android has the same limit.
+private let maxPixels = 120_000_000
+
 /// Decodes image data, upright and downsampled while decoding, then crops
 /// and scales it to [panel]'s view. Like Android, it hands non-premultiplied
 /// ARGB to `GrayImage.fromArgb`, which converts to grey and composites
 /// transparency over white, so a photo makes the same label on both.
+/// Images over `maxPixels` fail.
 func loadGrayImage(_ data: Data, panel: WavesharePanel) -> GrayImage? {
     let options = [
         kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -16,6 +22,10 @@ func loadGrayImage(_ data: Data, panel: WavesharePanel) -> GrayImage? {
         kCGImageSourceThumbnailMaxPixelSize: maxSide,
     ] as CFDictionary
     guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+          let header = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+          let pixelWidth = header[kCGImagePropertyPixelWidth] as? Int,
+          let pixelHeight = header[kCGImagePropertyPixelHeight] as? Int,
+          pixelWidth * pixelHeight <= maxPixels,
           let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options),
           let srgb = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
     let width = image.width

@@ -29,6 +29,16 @@ final class ImageLoadingTests: XCTestCase {
         XCTAssertNil(loadGrayImage(Data("not an image".utf8), panel: panel))
     }
 
+    func testPhoto48MpStillLoads() throws {
+        let photo = try Data(contentsOf: fixtures.appendingPathComponent("48mp.png"))
+        XCTAssertNotNil(loadGrayImage(photo, panel: panel))
+    }
+
+    func testImageOverPixelLimitFails() throws {
+        let photo = try Data(contentsOf: fixtures.appendingPathComponent("over-pixel-limit.png"))
+        XCTAssertNil(loadGrayImage(photo, panel: panel))
+    }
+
     private func checkGolden(_ name: String, file: StaticString = #filePath, line: UInt = #line) throws {
         let photo = fixtures.appendingPathComponent(name)
         let image = try XCTUnwrap(loadGrayImage(try Data(contentsOf: photo), panel: panel), file: file, line: line)

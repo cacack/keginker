@@ -8,6 +8,9 @@ check the new golden by eye and commit it.
 
 Edges sit on 8-pixel boundaries and greys are neutral (r = g = b), so the
 JPEG decodes exactly on every platform.
+
+The size-limit photos have no golden: the tests check only that they load
+or fail. They're one-bit PNGs, so they stay small on disk.
 """
 
 from pathlib import Path
@@ -82,6 +85,16 @@ def tiny():
     image.convert("RGB").save(HERE / "tiny.png")
 
 
+def photo_48mp():
+    """8,000 x 6,000, the pixel count of a 48 MP phone photo: it must load."""
+    Image.new("1", (8000, 6000), 1).save(HERE / "48mp.png", optimize=True)
+
+
+def over_pixel_limit():
+    """12,000 x 12,000 (144 MP), over the loaders' 120 MP limit: it must fail."""
+    Image.new("1", (12000, 12000), 1).save(HERE / "over-pixel-limit.png", optimize=True)
+
+
 if __name__ == "__main__":
-    for make in (exif_rotated, transparent, saturated, wide, tall, tiny):
+    for make in (exif_rotated, transparent, saturated, wide, tall, tiny, photo_48mp, over_pixel_limit):
         make()

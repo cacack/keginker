@@ -33,12 +33,11 @@ debug APK in CI:
 
 CI artifacts need a GitHub login and are kept for 14 days.
 
-Releases, CI builds on `main` and maintainers' local builds share one key, so
-they install over each other. Builds signed with another key, such as your
-own local build or any pull request's artifact, fail to install with
-`INSTALL_FAILED_UPDATE_INCOMPATIBLE`. So does going from a release back to a
-dev build, which Android treats as a downgrade. Uninstall first in either
-case. See [signing.md](../operations/signing.md).
+CI builds are signed with a debug key that's new for every run, so a CI
+build doesn't install over a release, another CI build or a local build: the
+install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. So does going from
+a release back to a dev build, which Android treats as a downgrade.
+Uninstall first in either case. See [signing.md](../operations/signing.md).
 
 NFC writes need a real phone. The Android emulator has no NFC, but debug
 builds offer **Simulate a tag** after **Write to tag** to try the flow.

@@ -1,8 +1,10 @@
 package io.github.cacack.keginker.diagnostics
 
 import io.github.cacack.keginker.nfc.TagInfo
+import io.github.cacack.keginker.waveshare.REPLY_SHOWN_BYTES
 import io.github.cacack.keginker.waveshare.activity
 import io.github.cacack.keginker.waveshare.toHex
+import io.github.cacack.keginker.waveshare.toShownHex
 
 /**
  * Most UID bytes a report shows, and never more than half the UID: enough to
@@ -84,8 +86,9 @@ private fun reportLine(exchange: Exchange) = ReportLine(
     outcome = outcomeText(exchange.reply, exchange.error),
 )
 
-/** What came back for one exchange: the reply, or the error. */
-internal fun outcomeText(reply: ByteArray?, error: String?): String = error?.let { "! $it" } ?: "< ${reply?.toHex().orEmpty()}"
+/** What came back for one exchange: the reply, cut to [REPLY_SHOWN_BYTES], or the error. */
+internal fun outcomeText(reply: ByteArray?, error: String?): String =
+    error?.let { "! $it" } ?: "< ${reply?.toShownHex(REPLY_SHOWN_BYTES).orEmpty()}"
 
 /** One line per exchange; identical consecutive exchanges collapse into one line with ` × N`. */
 internal fun StringBuilder.exchangeLines(lines: List<ReportLine>) {

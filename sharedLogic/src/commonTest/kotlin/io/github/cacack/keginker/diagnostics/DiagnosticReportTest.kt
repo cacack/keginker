@@ -3,6 +3,7 @@ package io.github.cacack.keginker.diagnostics
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.Transport
+import io.github.cacack.keginker.waveshare.REPLY_SHOWN_BYTES
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteStep
 import kotlin.test.Test
@@ -195,5 +196,22 @@ class DiagnosticReportTest {
 
         assertTrue(text.all { it.code < 128 || it == '…' || it == '×' }, text)
         assertFalse(text.lines().any { it.startsWith("#") || it.startsWith("```") }, text)
+    }
+
+    @Test
+    fun cutsAnOversizedReply() {
+        val text = formatDiagnosticReport(APP, DEVICE, failedWrite(listOf(exchange(0, WriteStep.UNLOCK, bytes(0x74, 0xB1), reply = ByteArray(5_000)))))
+
+        val line = text.lines().single { "UNLOCK" in it }
+        assertTrue(line.endsWith("… (5000 bytes)"), line)
+        assertEquals(REPLY_SHOWN_BYTES, line.substringAfter("< ").substringBefore(" …").split(" ").size, line)
+    }
+
+    @Test
+    fun showsTheLongestRequestedReplyInFull() {
+        // A 250-byte READ BINARY and its status word.
+        val text = formatDiagnosticReport(APP, DEVICE, failedWrite(listOf(exchange(0, WriteStep.UNLOCK, bytes(0x74, 0xB1), reply = ByteArray(252)))))
+
+        assertFalse("bytes)" in text.lines().single { "UNLOCK" in it }, text)
     }
 }

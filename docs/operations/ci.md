@@ -6,9 +6,10 @@ pull request and every push to `main`.
 
 | Job | Runner | What it does |
 |---|---|---|
-| Shared tests | ubuntu | `:sharedLogic` and `:sharedUI` Android host tests (JVM), including Robolectric Compose tests of the Android screens |
+| Shared tests | ubuntu | `:sharedLogic` and `:sharedUI` Android host tests (JVM), including Robolectric Compose tests of the Android screens; fails if an Android README screenshot is stale and uploads `android-screenshot-diffs` |
 | Android APK | ubuntu | `:androidApp:testDebugUnitTest`, then `:androidApp:assembleDebug`, signed with the runner's debug key (never the release key); uploads `keginker-debug-apk` (kept 14 days) |
 | iOS build | macos | `:sharedLogic:iosSimulatorArm64Test`, then an unsigned simulator build of `iosApp`, then its XCTest target (`iosAppTests`) on any available iPhone simulator, then fails if it declares any permission beyond NFC ([constitution](../../CONSTITUTION.md) C4) |
+| iOS screenshots | xcode-27 (preview image) | Checks the iOS README screenshots on Xcode 27.1 and an iPhone 17e simulator on iOS 27.0, where they were recorded; uploads `ios-screenshot-diffs` if one is stale |
 | CI Success | ubuntu | Gate: fails if any job above failed or was cancelled |
 
 `CI Success` is the required status check for merging to `main`.

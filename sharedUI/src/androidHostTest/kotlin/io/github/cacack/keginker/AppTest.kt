@@ -157,6 +157,19 @@ class AppTest {
     }
 
     @Test
+    fun reportADisplayKeepsAFailedWritesReport() {
+        failAWrite()
+        compose.onNodeWithText("Advanced").performScrollTo().performClick()
+        compose.onNodeWithText("Report a display").performScrollTo().performClick()
+        // Back out of the probe, then out of Advanced.
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("Back").performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Share details").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun aFailedWriteOffersItsReportWithTheToggleOff() {
         failAWrite()
 

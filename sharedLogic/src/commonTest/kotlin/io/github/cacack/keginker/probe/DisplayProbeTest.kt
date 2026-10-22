@@ -27,6 +27,9 @@ private fun nfcA(tag: Transport) = classifyNfcATag(NFC_A_INFO) { tag }
 
 private fun ByteArray.page(): Int = this[1].toInt() and 0xFF
 
+/** Where [type2Memory] keeps capability container byte 2, the data area's size in 8-byte units (page 3, byte 2). */
+private const val CC_DATA_SIZE = 14
+
 class DisplayProbeTest {
     @Test
     fun type4TagReportsItsApplicationCapabilityContainerAndLauncherRecord() = runTest {
@@ -110,7 +113,7 @@ class DisplayProbeTest {
     fun type2ReadsStayInsideTheDataAreaSoTheyNeverWrapIntoTheUid() = runTest {
         // An Ultralight: 16 pages, a 48-byte data area (pages 4–15), all NULL TLVs.
         val memory = type2Memory(ByteArray(0), pages = 16)
-        memory[14] = 0x06
+        memory[CC_DATA_SIZE] = 0x06 // 6 × 8 bytes
         val tag = Type2Tag(memory)
 
         val result = probeDisplay(nfcA(tag))
@@ -124,13 +127,26 @@ class DisplayProbeTest {
     @Test
     fun type2WithoutADataAreaSaysSo() = runTest {
         val memory = type2Memory(ByteArray(0), pages = 16)
-        memory[14] = 0x00
+        memory[CC_DATA_SIZE] = 0x00
         val tag = Type2Tag(memory)
 
         val result = probeDisplay(nfcA(tag))
 
         assertEquals(1, tag.sent.size)
         assertEquals("The capability container declares no data area.", result.note)
+    }
+
+    @Test
+    fun type2WithoutACapabilityContainerStopsBeforeItCouldWrap() = runTest {
+        // A blank tag: its CC page is junk, so its declared size can't be trusted.
+        val memory = type2Memory(ByteArray(0), pages = 16)
+        bytes(0x00, 0x00, 0xFF, 0x00).copyInto(memory, CC_DATA_SIZE - 2)
+        val tag = Type2Tag(memory)
+
+        val result = probeDisplay(nfcA(tag))
+
+        assertEquals(1, tag.sent.size)
+        assertEquals("The tag has no NDEF capability container.", result.note)
     }
 
     @Test

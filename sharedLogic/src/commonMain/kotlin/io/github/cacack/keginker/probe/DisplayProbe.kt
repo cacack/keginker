@@ -168,9 +168,12 @@ private class Probe(private val transport: Transport?, timeSource: TimeSource) {
             memory += reply.copyOfRange((page - from) * 4, 16)
             if (capabilityContainer == null) {
                 capabilityContainer = memory.copyOfRange(0, 4)
+                // A blank or unformatted tag's CC holds no size to trust, and reading on could wrap.
+                if (u8(memory, 0) != 0xE1) stop("The tag has no NDEF capability container.")
                 // Byte 2 is the data area's size in 8-byte units, from page 4.
                 val dataPages = u8(memory, 2) * 2
                 if (dataPages < 4) stop("The capability container declares no data area.")
+                // Inclusive: the data area is pages 4 to 3 + dataPages.
                 lastPage = minOf(TYPE2_FIRST_PAGE + dataPages, 0xFF)
             }
             when (val found = findNdefTlv(memory.copyOfRange(4, memory.size))) {

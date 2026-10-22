@@ -5,7 +5,6 @@ import kotlin.random.Random
 
 // Test models of both Waveshare protocols, written from the protocol rather
 // than from the writers, so the fault tests can judge what the writers did.
-// sharedUI's WriteControllerFaultTest mirrors the reply formats; keep it in step.
 
 /** One write sequence: how a good tag answers, and what each command means. */
 internal class Protocol(
@@ -152,6 +151,12 @@ internal enum class Fault {
 /** Records every command and answers with [reply]. */
 internal class ScriptedTag(private val reply: (command: ByteArray, index: Int) -> ByteArray) : Transport {
     val sent = mutableListOf<ByteArray>()
+    var closed = false
+        private set
+
+    override fun close() {
+        closed = true
+    }
 
     override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
         sent += command

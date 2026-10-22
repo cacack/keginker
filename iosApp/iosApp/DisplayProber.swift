@@ -2,8 +2,8 @@ import CoreNFC
 import SharedLogic
 
 /// "Report a display" over a Core NFC session: reads what the first tag
-/// presented says about itself, writing nothing to it. Mirrors the shared
-/// `ProbeController`, as `TagWriter` mirrors `WriteController`.
+/// presented says about itself, writing nothing to it. Mirrors Android's
+/// `ProbeController`.
 @MainActor
 final class DisplayProber: NSObject, ObservableObject {
     enum State: Equatable {

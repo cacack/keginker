@@ -38,7 +38,7 @@ table marks only deferrals.
 | Promise | Source | Guarded by | Issues |
 |---|---|---|---|
 | The preview shows exactly what the tag will display | Mission, USAGE.md | `WaveshareFrameTest` corner pixels; `SimulatedPanelTest` (a panel simulated from [protocols.md](protocols.md) shows exactly the view written to it); `WriteSessionTest.previewAndWrittenLabelNeverDisagree` and the held-image tests | #59; #55; #61 |
-| A write completes and is confirmed, or fails clearly and can be retried at once | Principle 1, C2 | Writer and `WriteControllerTest` failure cases; `WriteFaultInjectionTest` and `WriteControllerFaultTest` (a fault at every write command fails clearly and the retry works); `WriteFuzzTest` (random replies never pass without a confirmed refresh); `WriteMessagesTest` (an unconfirmed refresh says how to retry without blaming the tag); `WriteBudgetTest` (each write's worst case fits a 15 s budget); `WriteControllerTest` (a tag that answers each command just inside the timeout fails at the 30 s deadline with a report, and the retry works) | #54; #57; #58 deferred; #46 deferred; #98 |
+| A write completes and is confirmed, or fails clearly and can be retried at once | Principle 1, C2 | Writer and `WriteControllerTest` failure cases, which run for Android and iOS, since both apps write through `WriteController`; `WriteFaultInjectionTest` and `WriteControllerFaultTest` (a fault at every write command fails clearly and the retry works); `WriteFuzzTest` (random replies never pass without a confirmed refresh); `WriteMessagesTest` (an unconfirmed refresh says how to retry without blaming the tag); `WriteBudgetTest` (each write's worst case fits a 15 s budget); `WriteControllerTest` (a tag that answers each command just inside the timeout fails at the 30 s deadline with a report, and the retry works; an iOS session that ends mid-write fails with the exchanges so far); `TagWriterTests` (the iOS screen shows a lost tag's failure and report, then a working retry) | #54; #57; #58 deferred; #46; #98 |
 | The protocol code matches real tags | Principle 1, Principle 5 | Synthetic fakes; `RecordingReplayTest` (no recordings yet); transport contract tests (`NfcTransportTest`, `MiFareTransportTests`, `Iso7816TransportTests`) | #56 deferred; #64 |
 | First-tap success on iOS and Android | C1 | [Hardware test script](../guides/run-hardware-tests.md) and [log](../operations/hardware-test-log.md), a run per MINOR or MAJOR release | #62 |
 | Photos centre-cropped, upright, transparency white; dither and threshold behave as described | USAGE.md, UI text | Seeded properties in `image/` tests; golden photos in `fixtures/photos` checked by `ImageLoadingTest` (Android) and `ImageLoadingTests` (iOS) | #60; #61 |
@@ -53,9 +53,6 @@ and aren't part of this map.
 
 ### Deferred
 
-- **#46 — iOS failure and retry behaviour.** iOS mirrors Android's write
-  controller in Swift, untested. Sharing or testing it is its own feature
-  work, outside this audit; until then C2 on iOS is checked by hand.
 - **#56 — real-tag recordings.** The replay harness is merged (#73), but a
   recording needs a real Rev2.2 or classic board and a phone. None is
   committed yet, so the replay checks run over an empty list.

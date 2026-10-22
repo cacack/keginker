@@ -17,6 +17,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -259,6 +260,91 @@ class WriteControllerTest {
 
         controller.arm(testView())
         controller.onTag(FoundTag.Waveshare(FakeTag()))
+
+        assertIs<WriteState.Done>(controller.state.value)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.runCurrent
+    @Test
+    fun failingARunningWriteKeepsItsExchangesAndDropsItsLateResult() = runTest {
+        val tagHeld = CompletableDeferred<Unit>()
+        val tag = object : Transport {
+            val inner = FakeTag()
+            var closed = false
+
+            override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+                if (inner.sent == 20) tagHeld.await()
+                return inner.transceive(command, timeoutMs)
+            }
+
+            override fun close() {
+                closed = true
+            }
+        }
+        val controller = controller()
+        controller.arm(testView())
+
+        val write = launch { controller.onTag(FoundTag.Waveshare(tag)) }
+        testScheduler.runCurrent()
+        controller.fail("The NFC session ended before the write finished.", "Session timeout", tag = null)
+        tagHeld.complete(Unit)
+        write.join()
+
+        // The write went on to succeed, but the failure stands.
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertEquals("The NFC session ended before the write finished.", failed.message)
+        val report = assertNotNull(failed.report)
+        assertEquals(Outcome.FAILED, report.outcome)
+        assertEquals("Session timeout", report.reason)
+        assertEquals(20, report.exchanges.size)
+        assertTrue(tag.closed)
+
+        controller.arm(testView())
+        controller.onTag(FoundTag.Waveshare(FakeTag()))
+
+        assertIs<WriteState.Done>(controller.state.value)
+    }
+
+    @Test
+    fun failingAWaitingWriteReportsOnTheTagWithoutExchanges() = runTest {
+        val controller = controller()
+        controller.arm(testView())
+        val tag = FoundTag.Waveshare(FakeTag())
+
+        controller.fail("Couldn't connect to the tag. Hold it still and try again.", "Connection lost", tag)
+
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        val report = assertNotNull(failed.report)
+        assertEquals(Outcome.FAILED, report.outcome)
+        assertEquals("Connection lost", report.reason)
+        assertEquals("Waveshare classic (NFC-A)", report.protocol)
+        assertTrue(report.exchanges.isEmpty())
+
+        controller.arm(testView())
+        controller.onTag(FoundTag.Waveshare(FakeTag()))
+
+        assertIs<WriteState.Done>(controller.state.value)
+    }
+
+    @Test
+    fun failingAWaitingWriteWithoutATagHasNoReport() {
+        val controller = controller()
+        controller.arm(testView())
+
+        controller.fail("Session timeout", reason = null, tag = null)
+
+        assertEquals(WriteState.Failed("Session timeout", report = null), controller.state.value)
+    }
+
+    @Test
+    fun failIsIgnoredOnceTheWriteHasEnded() = runTest {
+        val controller = controller()
+        controller.fail("Session timeout", reason = null, tag = null)
+        assertEquals(WriteState.Idle, controller.state.value)
+
+        controller.arm(testView())
+        controller.onTag(FoundTag.Waveshare(FakeTag()))
+        controller.fail("Session ended", reason = null, tag = null)
 
         assertIs<WriteState.Done>(controller.state.value)
     }

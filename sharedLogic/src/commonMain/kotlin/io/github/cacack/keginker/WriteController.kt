@@ -39,6 +39,8 @@ sealed interface WriteState {
  * Runs one write at a time: [arm] with a view, then each found tag is
  * written while armed. A failure leaves the view in place so [arm] retries.
  * A write still running after [WRITE_DEADLINE_MS] is stopped and fails.
+ * Both apps use it: Android's write screen, and iOS's `TagWriter` around its
+ * Core NFC session.
  */
 class WriteController(
     private val panel: WavesharePanel,
@@ -49,6 +51,9 @@ class WriteController(
 
     private var view: BooleanArray? = null
     private var testPattern = false
+
+    /** The running write's tag and exchanges, for [fail]'s report. */
+    private var running: Pair<FoundTag, ExchangeLog>? = null
 
     /**
      * Readies [view] (from `renderView`) for the next tag; it's packed for
@@ -71,6 +76,24 @@ class WriteController(
     }
 
     /**
+     * Fails the waiting or running write with [message], for a step outside
+     * the controller that ended it: on iOS, connecting to the tag or the NFC
+     * session ending. A running write's report holds its exchanges so far,
+     * and its own result is dropped when it ends; a waiting write reports on
+     * [tag], if there is one. [reason] goes in the report. Ignored otherwise.
+     */
+    fun fail(message: String, reason: String?, tag: FoundTag?) {
+        mutableState.value = when (mutableState.value) {
+            is WriteState.Writing -> {
+                val (runningTag, log) = running ?: return
+                WriteState.Failed(message, report(runningTag, message, Outcome.FAILED, log, reason = reason))
+            }
+            WriteState.Waiting -> WriteState.Failed(message, tag?.let { report(it, message, Outcome.FAILED, log = null, reason = reason) })
+            else -> return
+        }
+    }
+
+    /**
      * Handles a found tag, taking ownership of its transport; ignored unless
      * armed. Returns once any write ends.
      */
@@ -88,10 +111,11 @@ class WriteController(
                 )
             is FoundTag.Writable -> {
                 val log = ExchangeLog()
+                running = tag to log
                 mutableState.value = WriteState.Writing(0)
-                mutableState.value = try {
+                val ended = try {
                     val result = withTimeoutOrNull(WRITE_DEADLINE_MS) {
-                        imageWriter.write(tag, panel, view, log) { mutableState.value = WriteState.Writing(it) }
+                        imageWriter.write(tag, panel, view, log) { showUnlessFailed(WriteState.Writing(it)) }
                     }
                     when (result) {
                         WriteResult.Success -> WriteState.Done(report(tag, DONE_MESSAGE, Outcome.SUCCEEDED, log))
@@ -104,17 +128,24 @@ class WriteController(
                         )
                     }
                 } catch (e: CancellationException) {
-                    mutableState.value = failed(
-                        tag, "The write was interrupted. Hold the tag to the phone and try again.", log, cause = e,
+                    showUnlessFailed(
+                        failed(tag, "The write was interrupted. Hold the tag to the phone and try again.", log, cause = e),
                     )
                     throw e
                 } catch (e: Exception) {
                     failed(tag, "The write failed unexpectedly: ${e.message}", log, cause = e)
                 } finally {
+                    if (running?.second === log) running = null
                     tag.transport.close()
                 }
+                showUnlessFailed(ended)
             }
         }
+    }
+
+    /** Shows [state] for the running write, unless [fail] has already ended it. */
+    private fun showUnlessFailed(state: WriteState) {
+        if (mutableState.value is WriteState.Writing) mutableState.value = state
     }
 
     /** A [WriteState.Failed] showing [message], with a report of what happened. */

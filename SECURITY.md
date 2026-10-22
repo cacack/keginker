@@ -35,3 +35,9 @@ repository's CI, see
 Problems in tag firmware or in vendors' own apps belong with those vendors.
 If one affects how KegInker talks to a tag, a private report here is still
 welcome.
+
+## Security reviews
+
+Every minor release is covered by a full security review. The latest is
+[v0.4.2-alpha.1](docs/reviews/security/2026-10-21-0.4.2-alpha.1.md); all of
+them are in [docs/reviews/security/](docs/reviews/security/).

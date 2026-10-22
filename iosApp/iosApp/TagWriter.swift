@@ -3,7 +3,8 @@ import SharedLogic
 
 /// Runs one write at a time over a Core NFC session: begin the session, wait
 /// for a tag, write the frame, and report progress in the system NFC sheet.
-/// Mirrors Android's `WriteController`; keep their behaviour in step.
+/// The shared `WriteController` runs each write and decides how it ends, as
+/// on Android; this class connects it to the session.
 @MainActor
 final class TagWriter: NSObject, ObservableObject {
     enum State: Equatable {
@@ -25,15 +26,19 @@ final class TagWriter: NSObject, ObservableObject {
     private static let crcModeKey = "crcMode"
 
     let panel = WavesharePanel.epd2in7
+    private lazy var controller = WriteController(panel: panel, imageWriter: ImageWriter())
+    private var watching: (any KotlinAutoCloseable)?
     private var session: NFCTagReaderSession?
     private var isRunning = false
-    private var view: KotlinBooleanArray?
-    /// Whether [view] shows the built-in test pattern, for reports.
-    private var testPattern = false
-    /// The running write's tag and exchanges, for a report if the session ends under it.
-    private var current: (tag: FoundTag, log: ExchangeLog)?
 
     static var isNfcAvailable: Bool { NFCTagReaderSession.readingAvailable }
+
+    override init() {
+        super.init()
+        watching = SwiftInteropKt.watch(controller: controller) { [weak self] in self?.show($0) }
+    }
+
+    private var current: WriteState { controller.state.value as! WriteState }
 
     /// Opens the NFC sheet and writes [view] (from `renderView`) to the first
     /// tag presented, packed for whichever kind of tag it is. [testPattern]
@@ -41,67 +46,63 @@ final class TagWriter: NSObject, ObservableObject {
     func write(view: KotlinBooleanArray, testPattern: Bool) {
         guard !isBusy else { return }
         isBusy = true
-        self.view = view
-        self.testPattern = testPattern
-        state = .idle
+        controller.arm(view: view, testPattern: testPattern)
+        show(current)
         session = NFCTagReaderSession(pollingOption: .iso14443, delegate: self, queue: .main)
         session?.alertMessage = "Hold the top of your iPhone against the tag to write the label. Keep it still until it's done."
         NfcLog.log("Session starting (CRC \(crcMode.rawValue))")
         session?.begin()
     }
 
-    /// Writes [view] to a simulated tag that accepts everything. Debug and Simulator only.
-    func simulate(view: KotlinBooleanArray, testPattern: Bool) {
+    /// Writes [view] to a simulated tag that accepts everything, or to
+    /// [transport] in tests. Debug and Simulator only.
+    func simulate(
+        view: KotlinBooleanArray,
+        testPattern: Bool,
+        transport: any Transport = SimulatedWaveshareTransport(commandDelayMs: 20)
+    ) {
         guard !isBusy else { return }
         isBusy = true
-        self.testPattern = testPattern
-        let tag = FoundTagWaveshare(transport: SimulatedWaveshareTransport(commandDelayMs: 20))
-        Task { await run(tag, view: view, session: nil) }
+        controller.arm(view: view, testPattern: testPattern)
+        show(current)
+        Task { await handle(FoundTagWaveshare(transport: transport), session: nil) }
     }
 
-    private func run(_ tag: FoundTagWritable, view: KotlinBooleanArray, session: NFCTagReaderSession?) async {
+    /// Hands [tag] to the controller, then ends [session] with the outcome.
+    private func handle(_ tag: FoundTag, session: NFCTagReaderSession?) async {
         isRunning = true
-        state = .writing(0)
-        let log = ExchangeLog()
-        current = (tag, log)
-        let result: State
-        do {
-            let outcome = try await ImageWriter().write(tag: tag, panel: panel, view: view, log: log) { percent in
-                Task { @MainActor in self.progress(percent.intValue, session: session) }
-            }
-            if let failure = outcome as? WriteResultFailure {
-                NfcLog.log("Write failed at \(failure.step.name): \(failure.reason)")
-                let message = failure.userMessage
-                result = .failed(message, report(tag, message, .failed, log: log, step: failure.step, reason: failure.reason, cause: failure.cause))
-            } else {
-                NfcLog.log("Write succeeded")
-                result = .done(report(tag, WriteMessagesKt.DONE_MESSAGE, .succeeded, log: log))
-            }
-        } catch {
-            let message = "The write failed unexpectedly: \(error.localizedDescription)"
-            result = .failed(message, report(tag, message, .failed, log: log, reason: error.localizedDescription))
-        }
-        tag.transport.close()
-        current = nil
+        // Only cancellation is thrown, and nothing here cancels.
+        try? await controller.onTag(tag: tag)
         isRunning = false
-        // The session may already have ended (sheet dismissed, timeout); that
-        // failure stands, and the stale result must not replace it.
-        if case .writing = state { state = result }
-        if let session {
-            if case let .failed(message, _) = state {
-                session.invalidate(errorMessage: message)
-            } else {
-                session.alertMessage = "Done."
-                session.invalidate()
-            }
+        show(current)
+        switch state {
+        case let .failed(message, report):
+            NfcLog.log("Write failed at \(report?.step?.name ?? "no step"): \(report?.reason ?? message)")
+            session?.invalidate(errorMessage: message)
+        case .done:
+            NfcLog.log("Write succeeded")
+            session?.alertMessage = "Done."
+            session?.invalidate()
+        case .idle, .writing:
+            session?.invalidate()
         }
         settle()
     }
 
-    private func progress(_ percent: Int, session: NFCTagReaderSession?) {
-        guard case .writing = state else { return }
-        state = .writing(percent)
-        session?.alertMessage = WriteMessagesKt.writeProgressMessage(percent: Int32(percent), phone: "iPhone")
+    /// Shows the controller's [writeState]; waiting for a tag looks idle, since the NFC sheet prompts for it.
+    private func show(_ writeState: WriteState) {
+        let shown: State = switch writeState {
+        case let writing as WriteStateWriting: .writing(Int(writing.percent))
+        case let done as WriteStateDone: .done(done.report)
+        case let failed as WriteStateFailed: .failed(failed.message, failed.report)
+        default: .idle
+        }
+        guard shown != state else { return }
+        state = shown
+        // A write starts at 0%, before any progress; the sheet keeps its prompt until then.
+        if case let .writing(percent) = shown, percent > 0 {
+            session?.alertMessage = WriteMessagesKt.writeProgressMessage(percent: Int32(percent), phone: "iPhone")
+        }
     }
 
     /// Clears [isBusy] once nothing is left running.
@@ -109,30 +110,10 @@ final class TagWriter: NSObject, ObservableObject {
         if session == nil && !isRunning { isBusy = false }
     }
 
-    private func fail(_ message: String, report: WriteReport?, session: NFCTagReaderSession) {
-        state = .failed(message, report)
+    private func fail(_ message: String, reason: String?, tag: FoundTag?, session: NFCTagReaderSession) {
+        controller.fail(message: message, reason: reason, tag: tag)
+        show(current)
         session.invalidate(errorMessage: message)
-    }
-
-    /// A report on [tag], built as Android builds it.
-    private func report(
-        _ tag: FoundTag,
-        _ message: String,
-        _ outcome: Outcome,
-        log: ExchangeLog?,
-        step: WriteStep? = nil,
-        reason: String? = nil,
-        cause: KotlinThrowable? = nil
-    ) -> WriteReport {
-        WriteReportKt.writeReport(
-            tag: tag, panel: panel, message: message, outcome: outcome, testPattern: testPattern,
-            log: log, step: step, reason: reason, cause: cause
-        )
-    }
-
-    private func failUnsupported(_ tag: FoundTag, session: NFCTagReaderSession) {
-        let message = WriteMessagesKt.UNSUPPORTED_TAG_MESSAGE
-        fail(message, report: report(tag, message, .notAttempted, log: nil), session: session)
     }
 
     private func found(_ tags: [NFCTag], session: NFCTagReaderSession) {
@@ -142,13 +123,9 @@ final class TagWriter: NSObject, ObservableObject {
             session.restartPolling()
             return
         }
-        guard let view else {
-            fail("Nothing to write. Try again.", report: nil, session: session)
-            return
-        }
         let classified = classify(tag, crcMode: crcMode)
         guard let writable = classified as? FoundTagWritable else {
-            failUnsupported(classified, session: session)
+            Task { await handle(classified, session: session) }
             return
         }
         NfcLog.log("Classified as \(writable is FoundTagWaveshareIsoDep ? "Waveshare Rev2.2 (ISO-DEP)" : "Waveshare classic")")
@@ -158,12 +135,11 @@ final class TagWriter: NSObject, ObservableObject {
                     NfcLog.log("Connect failed: \(error.localizedDescription)")
                     writable.transport.close()
                     let message = "Couldn't connect to the tag. Hold it still and try again."
-                    let report = self.report(writable, message, .failed, log: nil, reason: error.localizedDescription)
-                    self.fail(message, report: report, session: session)
+                    self.fail(message, reason: error.localizedDescription, tag: writable, session: session)
                     return
                 }
                 NfcLog.log("Connected")
-                Task { await self.run(writable, view: view, session: session) }
+                Task { await self.handle(writable, session: session) }
             }
         }
     }
@@ -184,13 +160,17 @@ extension TagWriter: NFCTagReaderSessionDelegate {
             NfcLog.log("Session ended (code \(code)): \(error.localizedDescription)")
             guard session === self.session else { return }
             self.session = nil
-            if case .writing = state {
+            if current is WriteStateWriting {
                 let message = "The NFC session ended before the write finished. Try again and keep the iPhone still."
-                let report = current.map { self.report($0.tag, message, .failed, log: $0.log, reason: error.localizedDescription) }
-                state = .failed(message, report)
-            } else if case .idle = state, (error as? NFCReaderError)?.code != .readerSessionInvalidationErrorUserCanceled {
-                state = .failed(error.localizedDescription, nil)
+                controller.fail(message: message, reason: error.localizedDescription, tag: nil)
+            } else if current is WriteStateWaiting {
+                if (error as? NFCReaderError)?.code == .readerSessionInvalidationErrorUserCanceled {
+                    controller.cancel()
+                } else {
+                    controller.fail(message: error.localizedDescription, reason: nil, tag: nil)
+                }
             }
+            show(current)
             settle()
         }
     }

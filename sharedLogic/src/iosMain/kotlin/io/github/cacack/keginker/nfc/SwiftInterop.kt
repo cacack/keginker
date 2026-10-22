@@ -1,9 +1,13 @@
 package io.github.cacack.keginker.nfc
 
+import io.github.cacack.keginker.WriteController
+import io.github.cacack.keginker.WriteState
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import platform.Foundation.NSData
 import platform.Foundation.create
 import platform.posix.memcpy
@@ -29,3 +33,12 @@ fun kotlinInts(data: NSData): IntArray {
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 fun nsData(bytes: ByteArray): NSData =
     if (bytes.isEmpty()) NSData() else bytes.usePinned { NSData.create(bytes = it.addressOf(0), length = bytes.size.toULong()) }
+
+/**
+ * Calls [onEach] on the main thread with [controller]'s state, then with each
+ * change, until the returned handle is closed. For Swift, which can't collect a Flow.
+ */
+fun watch(controller: WriteController, onEach: (WriteState) -> Unit): AutoCloseable {
+    val job = MainScope().launch { controller.state.collect { onEach(it) } }
+    return AutoCloseable { job.cancel() }
+}

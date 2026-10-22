@@ -39,4 +39,33 @@ scanning.
 Neither feeds `CI Success`, so findings never block a merge; they are
 triaged as issues.
 
-Third-party actions are pinned to commit SHAs. Dependabot keeps them current.
+Actions are pinned to full commit SHAs, with the version in a comment, and
+the repository's Actions settings reject any other reference. Dependabot
+keeps them current.
+
+## Gradle dependency verification
+
+[`gradle/verification-metadata.xml`](../../gradle/verification-metadata.xml)
+holds the SHA-256 of every plugin and library the build resolves. Gradle
+checks each download against it, locally and in CI, and fails the build on
+a mismatch or on an artifact the file doesn't list.
+
+After adding or bumping a dependency or plugin, including on a Dependabot
+Gradle PR that leaves the file unchanged (its CI fails until someone
+does), refresh the file on macOS, so the iOS artifacts are covered
+too. The second command adds the Linux build of AAPT2, which CI's ubuntu
+jobs use and a Mac never downloads:
+
+```sh
+./gradlew --write-verification-metadata sha256 \
+  check :androidApp:assembleDebug :androidApp:assembleRelease \
+  :sharedLogic:linkReleaseFrameworkIosArm64 :sharedLogic:linkDebugFrameworkIosSimulatorArm64 \
+  :sharedLogic:pitest
+./gradlew --write-verification-metadata sha256 --no-configuration-cache \
+  -I gradle/verification-linux.init.gradle.kts resolveLinuxAapt2
+```
+
+Gradle adds the new checksums and keeps the old ones. Review the diff: it
+should only add the components you changed and their new dependencies.
+Then commit it with the bump. Checksums of versions no longer used can be
+dropped by deleting the file and running both commands again.

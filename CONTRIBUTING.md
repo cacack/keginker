@@ -93,4 +93,5 @@ Plain prose, not conventional commits: `Share a diagnostics report after a
 write`, not `feat(ios): share a diagnostics report after a write`. PRs land as
 merge commits whose body is the PR title, so a conventional title gives
 release-please a second copy of every change and duplicates its changelog
-entries. CI checks the title.
+entries. CI checks the title. Dependabot PRs are exempt: their `ci(deps)` and
+`chore(deps)` titles are types the changelog hides.

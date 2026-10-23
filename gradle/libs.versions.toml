@@ -18,6 +18,7 @@ kotlinx-coroutines = "1.11.0"
 material3 = "1.13.0-alpha02"
 pitest = "1.30.1"
 robolectric = "4.17"
+roborazzi = "1.76.0"
 androidx-compose = "1.12.1"
 
 [libraries]
@@ -38,6 +39,7 @@ androidx-lifecycle-viewmodelCompose = { module = "org.jetbrains.androidx.lifecyc
 androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
 pitest-commandLine = { module = "org.pitest:pitest-command-line", version.ref = "pitest" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }

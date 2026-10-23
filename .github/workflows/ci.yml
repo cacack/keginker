@@ -26,7 +26,15 @@ jobs:
           distribution: zulu
           java-version: 21
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-      - run: ./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest
+      # Fails if the Android README screenshots are stale; see CONTRIBUTING.md.
+      - run: ./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest -Proborazzi.test.verify=true
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-screenshot-diffs
+          path: sharedUI/build/outputs/roborazzi/
+          if-no-files-found: ignore
+          retention-days: 14
 
   android:
     name: Android APK
@@ -100,12 +108,47 @@ jobs:
             exit 1
           fi
 
+  # The iOS README screenshots, on the simulator they were recorded on
+  # (ScreenshotTests pins it); see CONTRIBUTING.md.
+  ios-screenshots:
+    name: iOS screenshots
+    runs-on: xcode-27
+    timeout-minutes: 30
+    env:
+      KEGINKER_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: zulu
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - run: sudo xcode-select -s /Applications/Xcode_27.1.app
+      - name: Verify screenshots
+        env:
+          TEST_RUNNER_KEGINKER_SCREENSHOTS: verify
+          TEST_RUNNER_SNAPSHOT_ARTIFACTS: ${{ runner.temp }}/screenshot-diffs
+        run: |
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
+            -destination 'platform=iOS Simulator,name=iPhone 17e,OS=27.0' \
+            -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO \
+            -only-testing:iosAppTests/ScreenshotTests test
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-screenshot-diffs
+          path: ${{ runner.temp }}/screenshot-diffs/
+          if-no-files-found: ignore
+          retention-days: 14
+
   # Gate job for branch protection - only require this one check
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [test, android, ios]
+    needs: [test, android, ios, ios-screenshots]
     if: always()
     steps:
       - name: Check all jobs passed

@@ -62,6 +62,27 @@ A change that adds or bumps one refreshes that file; see
 Local builds use the default debug key unless you have the release key; see
 [docs/operations/signing.md](docs/operations/signing.md).
 
+### Screenshots
+
+The README screenshots in `docs/images/screenshots` come from screenshot
+tests that load `fixtures/screenshots/sample-label.png` (made by the
+`generate.py` beside it) through each app's image loader and write it to a
+simulated tag. After a UI change, refresh them and commit the images:
+
+- Android: `./gradlew :sharedUI:testAndroidHostTest --tests '*ScreenshotTest' -Proborazzi.test.record=true`
+  (Roborazzi, rendered on the JVM by Robolectric)
+- iOS (macOS, Xcode 27.1 and an iPhone 17e simulator on iOS 27.0, which
+  the test checks): `TEST_RUNNER_KEGINKER_SCREENSHOTS=record xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'platform=iOS Simulator,name=iPhone 17e,OS=27.0' CODE_SIGNING_ALLOWED=NO -only-testing:iosAppTests/ScreenshotTests test`
+  (swift-snapshot-testing)
+
+`-Proborazzi.test.verify=true` and `TEST_RUNNER_KEGINKER_SCREENSHOTS=verify`
+check them instead, as CI does; a stale image fails the build, and CI
+uploads the differences as an artifact. Android images match exactly and
+come out byte-identical on every run. iOS images match when each pixel is
+within 2% (`perceptualPrecision` 0.98): the toolbar's glass can shift by
+one shade between simulator boots. Otherwise the screenshot tests run the
+flow without capturing (Android) or skip (iOS).
+
 ## Commits
 
 Conventional commits (`feat:`, `fix:`, `docs:`, `ci:` …).

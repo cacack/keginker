@@ -13,13 +13,13 @@ custom labels.
 
 ## Screenshots
 
-Preview, write, done. Captured in the Android emulator and iOS Simulator
-with a simulated tag; the emulator has no NFC, hence its warning.
+Preview, write, done, with a sample label and a simulated tag. Screenshot
+tests generate these; see [CONTRIBUTING.md](CONTRIBUTING.md#screenshots).
 
 | | Preview | Writing | Done |
 |---|---|---|---|
-| Android | <img src="docs/images/screenshots/android-1-preview.png" width="200" alt="Android: a Hop Lantern tap label previewed in black and white"> | <img src="docs/images/screenshots/android-2-writing.png" width="200" alt="Android: progress bar while the label is written"> | <img src="docs/images/screenshots/android-3-done.png" width="200" alt="Android: the write has finished"> |
-| iOS | <img src="docs/images/screenshots/ios-1-preview.png" width="200" alt="iOS: a Hop Lantern tap label previewed in black and white"> | <img src="docs/images/screenshots/ios-2-writing.png" width="200" alt="iOS: writing 60 percent"> | <img src="docs/images/screenshots/ios-3-done.png" width="200" alt="iOS: the write has finished"> |
+| Android | <img src="docs/images/screenshots/android.1-preview.png" width="200" alt="Android: a Hop Lantern tap label previewed in black and white"> | <img src="docs/images/screenshots/android.2-writing.png" width="200" alt="Android: writing 60 percent"> | <img src="docs/images/screenshots/android.3-done.png" width="200" alt="Android: the write has finished"> |
+| iOS | <img src="docs/images/screenshots/ios.1-preview.png" width="200" alt="iOS: a Hop Lantern tap label previewed in black and white"> | <img src="docs/images/screenshots/ios.2-writing.png" width="200" alt="iOS: writing 60 percent"> | <img src="docs/images/screenshots/ios.3-done.png" width="200" alt="iOS: the write has finished"> |
 
 ## Principles
 

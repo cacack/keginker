@@ -17,11 +17,19 @@ jobs:
     steps:
       - env:
           TITLE: ${{ github.event.pull_request.title }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           # release-please's own PR is exempt; the exact form keeps a
           # hand-written "chore(...): release" from slipping through.
           if [[ "$TITLE" =~ ^chore\(main\):\ release\ [0-9] ]]; then
             echo "Release PR, exempt"
+            exit 0
+          fi
+          # Dependabot titles its PRs with the commit prefixes in
+          # .github/dependabot.yml. Both are hidden changelog sections in
+          # release-please-config.json, so a second copy adds no entry.
+          if [[ "$AUTHOR" == "dependabot[bot]" && "$TITLE" =~ ^(ci|chore)\(deps\):\  ]]; then
+            echo "Dependabot PR with a hidden changelog type, exempt"
             exit 0
           fi
           if [[ "$TITLE" =~ ^[a-z]+(\(.+\))?!?:\  ]]; then

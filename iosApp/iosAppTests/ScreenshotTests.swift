@@ -66,14 +66,21 @@ final class ScreenshotTests: XCTestCase {
 
     private func capture(_ writer: TagWriter, _ name: String, file: StaticString = #filePath, line: UInt = #line) throws {
         let screen = UIHostingController(rootView: ContentView(writer: writer, source: try sampleLabel()))
+        // The key window draws the toolbar's glass, as the app shows it; 2x keeps the files small.
+        // The glass can shift by a shade between simulator boots, so a pixel matches within 2%.
+        let image: Snapshotting<UIViewController, UIImage> = .image(
+            on: .iPhone13, drawHierarchyInKeyWindow: true, perceptualPrecision: 0.98,
+            traits: UITraitCollection(displayScale: 2)
+        )
+        // The snapshot is 16-bit extended-range sRGB, and the PNG saves it as
+        // 8-bit sRGB. Compared before saving, the glass sometimes fails the 2%
+        // on a frame whose PNG matches, so compare what the PNG holds.
+        let asSaved = Snapshotting<UIViewController, UIImage>(pathExtension: image.pathExtension, diffing: image.diffing) {
+            image.snapshot($0).map { UIImage(data: $0.pngData()!, scale: $0.scale)! }
+        }
         let failure = verifySnapshot(
             of: screen,
-            // The key window draws the toolbar's glass, as the app shows it; 2x keeps the files small.
-            // The glass can shift by a shade between simulator boots, so a pixel matches within 2%.
-            as: .image(
-                on: .iPhone13, drawHierarchyInKeyWindow: true, perceptualPrecision: 0.98,
-                traits: UITraitCollection(displayScale: 2)
-            ),
+            as: asSaved,
             named: name,
             record: record,
             snapshotDirectory: root.appendingPathComponent("docs/images/screenshots").path,

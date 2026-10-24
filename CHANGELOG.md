@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.5.0](https://github.com/cacack/keginker/compare/v0.4.2-alpha.1...v0.5.0) (2026-10-24)
+
+
+### Features
+
+* add a read-only "Report a display" probe ([336f0d7](https://github.com/cacack/keginker/commit/336f0d7abf7f8b6a3a48d35df451076a8282f906)), closes [#24](https://github.com/cacack/keginker/issues/24)
+
+
+### Bug Fixes
+
+* **android:** close the tag on the serialized NFC thread ([f612a06](https://github.com/cacack/keginker/commit/f612a06c18b1140479d588ef21c0fa900417f0bd))
+* **android:** disarm a waiting write when "Report a display" opens ([80a3ef4](https://github.com/cacack/keginker/commit/80a3ef40d6dc17e0105cac77c8c243cd4bb158c0)), closes [#45](https://github.com/cacack/keginker/issues/45)
+* **android:** keep a failed write's report when opening "Report a display" ([e08ac7a](https://github.com/cacack/keginker/commit/e08ac7a27407655793ace9f6624c31110d71f66f)), closes [#45](https://github.com/cacack/keginker/issues/45)
+* **diagnostics:** show hidden tag text, cut long replies, say issues are public ([b8b6d27](https://github.com/cacack/keginker/commit/b8b6d27590945c608588414c0d97280ce8bc3abe)), closes [#100](https://github.com/cacack/keginker/issues/100)
+* **image:** refuse oversized picked images before decoding ([b77db1f](https://github.com/cacack/keginker/commit/b77db1f060070770cab5668a3514aeb85679347e)), closes [#99](https://github.com/cacack/keginker/issues/99)
+* **nfc:** stop writes and display probes that run past a deadline ([cc08e5b](https://github.com/cacack/keginker/commit/cc08e5bb0b6a865ffc038f4bd80642b16784748e))
+* **probe:** keep Type 2 reads inside the declared data area ([049580d](https://github.com/cacack/keginker/commit/049580d291460a5ae7990e803b7cf2e17f6ee907)), closes [#45](https://github.com/cacack/keginker/issues/45)
+* **probe:** stop Type 2 reads when the capability container isn't NDEF ([918b6a9](https://github.com/cacack/keginker/commit/918b6a9e4aa8506d7fce7b7862215adc2fbd9bde)), closes [#45](https://github.com/cacack/keginker/issues/45)
+
+
+### Miscellaneous
+
+* release 0.5.0 without a pre-release suffix ([a9a9d5d](https://github.com/cacack/keginker/commit/a9a9d5df1bbd9e3062d7849feb78c7ef17c0ed33))
+
 ## [0.4.2-alpha.1](https://github.com/cacack/keginker/compare/v0.4.1-alpha.1...v0.4.2-alpha.1) (2026-10-19)
 
 

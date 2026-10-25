@@ -62,6 +62,7 @@ internal fun StringBuilder.reportHeader(title: String, app: AppInfo, device: Dev
         field("ATQA", tag.atqa?.toHex() ?: UNAVAILABLE)
         field("SAK", tag.sak?.let { byteArrayOf(it.toByte()).toHex() } ?: UNAVAILABLE)
         field("Historical bytes", tag.historicalBytes?.toHex())
+        tag.details.forEach { field(it.name, it.value) }
     }
     appendLine()
 }
@@ -70,7 +71,8 @@ internal fun StringBuilder.field(label: String, value: String?) {
     if (value != null) appendLine("  $label: $value")
 }
 
-private fun shortUid(uid: ByteArray): String {
+/** The start of [uid] and its length, as every report shows a UID. */
+internal fun shortUid(uid: ByteArray): String {
     val shown = minOf(UID_SHOWN_BYTES, uid.size / 2)
     if (shown == 0) return "(${uid.size} bytes)"
     return "${uid.copyOfRange(0, shown).toHex()} … (${uid.size} bytes)"

@@ -18,7 +18,21 @@ class IssueLink(val url: String, val includesReport: Boolean) {
     } else {
         "Opens the New display report form in your browser and copies this report, which is too long to fill in, so you can paste it. $PUBLIC_NOTE"
     }
+
+    /**
+     * Whether Share sends the report as a [REPORT_FILE_NAME] file rather than
+     * as text: when the link couldn't include it, it may be too long for a
+     * share target to take as text too.
+     */
+    val sharesReportAsFile: Boolean get() = !includesReport
 }
+
+/**
+ * The one name a shared report file has, whatever the report, so each share
+ * replaces the last one's file. Both platforms write it to a `reports`
+ * folder they empty first.
+ */
+const val REPORT_FILE_NAME = "keginker-report.txt"
 
 private const val PUBLIC_NOTE = "GitHub issues are public: anyone can read the report once you submit it."
 

@@ -21,16 +21,20 @@ sealed interface ProbeState {
  * The "Report a display" flow: [arm], then the next found tag is read, never
  * written. Mirrors [WriteController]; while armed, found tags go here instead.
  */
-class ProbeController(private val probe: suspend (FoundTag) -> ProbeResult = ::probeDisplay) {
+class ProbeController(private val probe: suspend (FoundTag, vendorQueries: Boolean) -> ProbeResult = ::probeDisplay) {
     private val mutableState = MutableStateFlow<ProbeState>(ProbeState.Idle)
     val state: StateFlow<ProbeState> = mutableState
 
     /** Whether the next found tag is for the probe. */
     val isWaiting: Boolean get() = mutableState.value == ProbeState.Waiting
 
-    /** Waits for a tag to read. Ignored while one is being read. */
-    fun arm() {
-        if (mutableState.value != ProbeState.Reading) mutableState.value = ProbeState.Waiting
+    private var vendorQueries = false
+
+    /** Waits for a tag to read, also sending it its vendor's queries if [vendorQueries]. Ignored while one is being read. */
+    fun arm(vendorQueries: Boolean = false) {
+        if (mutableState.value == ProbeState.Reading) return
+        this.vendorQueries = vendorQueries
+        mutableState.value = ProbeState.Waiting
     }
 
     /** Returns to [ProbeState.Idle]. Ignored while a tag is being read; the read is quick. */
@@ -46,7 +50,7 @@ class ProbeController(private val probe: suspend (FoundTag) -> ProbeResult = ::p
         }
         mutableState.value = ProbeState.Reading
         try {
-            mutableState.value = ProbeState.Done(probe(tag))
+            mutableState.value = ProbeState.Done(probe(tag, vendorQueries))
         } finally {
             if (mutableState.value == ProbeState.Reading) mutableState.value = ProbeState.Waiting
         }

@@ -17,4 +17,9 @@ class TagInfo(
     val sak: Int? = null,
     /** ISO-DEP ATS historical bytes. */
     val historicalBytes: ByteArray? = null,
+    /** Everything else the platform reports about the tag, in the order it gives them. */
+    val details: List<TagDetail> = emptyList(),
 )
+
+/** One fact the platform reports about a tag, such as an NFC-V DSFID or a maximum transceive length. */
+class TagDetail(val name: String, val value: String)

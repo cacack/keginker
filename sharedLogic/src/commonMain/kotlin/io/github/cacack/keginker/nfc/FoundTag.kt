@@ -53,6 +53,9 @@ enum class TagKind {
     /** ISO 14443-3A raw frames, as NFC Forum Type 2 tags take them. */
     NFC_A,
 
+    /** ISO 15693 raw frames, as NFC Forum Type 5 tags take them. */
+    NFC_V,
+
     /** Anything else; the probe sends it nothing. */
     OTHER,
 }
@@ -96,3 +99,11 @@ fun classifyIsoDepTag(info: TagInfo, openTransport: () -> Transport): FoundTag =
     } else {
         FoundTag.Unsupported(info, TagKind.ISO_DEP, openTransport)
     }
+
+/**
+ * Classifies an NFC-V (ISO 15693) tag, without sending it any command; the
+ * result carries [info] for reports. No supported protocol uses NFC-V, so
+ * [openTransport] is never called here; the result keeps it for the display probe.
+ */
+fun classifyNfcVTag(info: TagInfo, openTransport: () -> Transport): FoundTag =
+    FoundTag.Unsupported(info, TagKind.NFC_V, openTransport)

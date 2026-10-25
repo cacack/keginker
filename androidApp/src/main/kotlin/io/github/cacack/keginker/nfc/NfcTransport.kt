@@ -2,6 +2,7 @@ package io.github.cacack.keginker.nfc
 
 import android.nfc.tech.IsoDep
 import android.nfc.tech.NfcA
+import android.nfc.tech.NfcV
 import android.nfc.tech.TagTechnology
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -10,7 +11,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * [Transport] over one Android tag technology: [forNfcA] for raw ISO 14443-3A
- * frames, [forIsoDep] for ISO-DEP APDUs (replies include the status word).
+ * frames, [forIsoDep] for ISO-DEP APDUs (replies include the status word),
+ * [forNfcV] for raw ISO 15693 frames (replies start with the response flags).
  *
  * Connects on first use and applies each command's timeout, clamped to the
  * 1..Int.MAX_VALUE ms the tag technology accepts, so slow steps such as a
@@ -53,6 +55,10 @@ class NfcTransport internal constructor(
 
         fun forIsoDep(isoDep: IsoDep, logExchanges: Boolean) =
             NfcTransport(isoDep, { isoDep.timeout = it }, isoDep::transceive, logExchanges)
+
+        /** NfcV has no timeout setting, so commands get the platform's own. */
+        fun forNfcV(nfcV: NfcV, logExchanges: Boolean) =
+            NfcTransport(nfcV, {}, nfcV::transceive, logExchanges)
 
         private const val LOG_TAG = "keginker-nfc"
 

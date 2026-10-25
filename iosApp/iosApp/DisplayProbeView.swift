@@ -5,6 +5,8 @@ import SwiftUI
 /// it, and shows the report.
 struct DisplayProbeView: View {
     @StateObject private var prober: DisplayProber
+    /// Off each time the screen opens.
+    @State private var vendorQueries = false
 
     init(crcMode: CrcMode) {
         _prober = StateObject(wrappedValue: DisplayProber(crcMode: crcMode))
@@ -23,10 +25,16 @@ struct DisplayProbeView: View {
             Form {
                 Section {
                     Text("KegInker reads what the tag says about itself and writes nothing to it. You see the report in full, then choose whether to share it.")
-                    Button("Read a display", action: prober.read)
+                    Toggle("Also try vendor commands", isOn: $vendorQueries)
+                        .disabled(prober.isBusy)
+                } footer: {
+                    Text("These commands aren't documented. They could change what the display shows.")
+                }
+                Section {
+                    Button("Read a display") { prober.read(vendorQueries: vendorQueries) }
                         .disabled(prober.isBusy || !TagWriter.isNfcAvailable)
                 } footer: {
-                    Text("iPhone only finds tags that use NFC-A or offer an application KegInker lists. If yours isn't found, an Android phone can usually read it.")
+                    Text("iPhone only finds tags that use NFC-A or ISO 15693, or offer an application KegInker lists. If yours isn't found, an Android phone can usually read it.")
                 }
                 if case .reading = prober.state {
                     Text("Reading the tag. Keep the iPhone still.")

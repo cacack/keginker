@@ -1,10 +1,12 @@
 import SharedLogic
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// A diagnostics or display report, shown in full before the user shares or
 /// copies it. Nothing is sent anywhere unless they choose to. With an
-/// [issueLink], it can also open a pre-filled GitHub issue in the browser.
+/// [issueLink], it can also open a pre-filled GitHub issue in the browser; if
+/// the report is too long for the link, Share sends it as a `.txt` file.
 struct ReportView: View {
     let title: String
     let text: String
@@ -31,7 +33,7 @@ struct ReportView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("This is everything the report contains. Nothing leaves your iPhone unless you share it.")
                 HStack {
-                    ShareLink("Share", item: text, subject: Text("KegInker \(title.lowercased())"))
+                    shareLink
                         .buttonStyle(.borderedProminent)
                     Button("Copy", action: copy)
                         .buttonStyle(.bordered)
@@ -56,8 +58,35 @@ struct ReportView: View {
         .navigationTitle(title)
     }
 
+    @ViewBuilder private var shareLink: some View {
+        let subject = "KegInker \(title.lowercased())"
+        if issueLink?.sharesReportAsFile == true {
+            ShareLink("Share", item: ReportFile(text: text), subject: Text(subject), preview: SharePreview(IssueLinkKt.REPORT_FILE_NAME))
+        } else {
+            ShareLink("Share", item: text, subject: Text(subject))
+        }
+    }
+
     private func copy() {
         UIPasteboard.general.string = text
         copied = true
+    }
+}
+
+/// A report shared as a `REPORT_FILE_NAME` file, written alone to a folder in
+/// the temporary directory only when shared. Each share replaces the last
+/// one's file.
+struct ReportFile: Transferable {
+    let text: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .utf8PlainText) { file in
+            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("reports", isDirectory: true)
+            try? FileManager.default.removeItem(at: folder)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let url = folder.appendingPathComponent(IssueLinkKt.REPORT_FILE_NAME)
+            try file.text.write(to: url, atomically: true, encoding: .utf8)
+            return SentTransferredFile(url)
+        }
     }
 }

@@ -157,6 +157,21 @@ class AppTest {
     }
 
     @Test
+    fun reportADisplayOpensWithVendorCommandsOffAndWarned() {
+        compose.setContent { App(tags, APP, DEVICE) }
+        compose.onNodeWithText("Advanced").performScrollTo().performClick()
+        compose.onNodeWithText("Report a display").performScrollTo().performClick()
+
+        compose.onNodeWithText("These commands aren't documented. They could change what the display shows.").assertIsDisplayed()
+        compose.onNode(isToggleable()).assertIsOff().performClick().assertIsOn()
+
+        // Off again the next time the screen opens.
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("Report a display").performScrollTo().performClick()
+        compose.onNode(isToggleable()).assertIsOff()
+    }
+
+    @Test
     fun reportADisplayKeepsAFailedWritesReport() {
         failAWrite()
         compose.onNodeWithText("Advanced").performScrollTo().performClick()

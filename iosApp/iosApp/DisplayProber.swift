@@ -23,12 +23,18 @@ final class DisplayProber: NSObject, ObservableObject {
         self.crcMode = crcMode
     }
 
-    /// Opens the NFC sheet and reads the first tag presented.
-    func read() {
+    /// Whether the read also sends the tag its vendor's undocumented queries.
+    private var vendorQueries = false
+
+    /// Opens the NFC sheet and reads the first tag presented, also sending it
+    /// its vendor's queries if [vendorQueries].
+    func read(vendorQueries: Bool) {
         guard session == nil else { return }
         state = .idle
         isBusy = true
-        session = NFCTagReaderSession(pollingOption: .iso14443, delegate: self, queue: .main)
+        self.vendorQueries = vendorQueries
+        // The TAG entitlement covers both; ISO 15693 is for NFC-V tags.
+        session = NFCTagReaderSession(pollingOption: [.iso14443, .iso15693], delegate: self, queue: .main)
         session?.alertMessage = "Hold the top of your iPhone against the display. KegInker reads it and writes nothing."
         NfcLog.log("Probe session starting")
         session?.begin()
@@ -52,6 +58,7 @@ final class DisplayProber: NSObject, ObservableObject {
             return
         }
         let classified = classify(tag, crcMode: crcMode)
+        let vendorQueries = self.vendorQueries
         session.connect(to: tag) { error in
             MainActor.assumeIsolated {
                 if let error {
@@ -63,7 +70,7 @@ final class DisplayProber: NSObject, ObservableObject {
                 self.state = .reading
                 Task {
                     do {
-                        let result = try await DisplayProbeKt.probeDisplay(tag: classified)
+                        let result = try await DisplayProbeKt.probeDisplay(tag: classified, vendorQueries: vendorQueries)
                         if case .reading = self.state { self.state = .done(result) }
                         session.alertMessage = "Done."
                         session.invalidate()

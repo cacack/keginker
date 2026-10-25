@@ -4,6 +4,7 @@ import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.nfc.classifyIsoDepTag
+import io.github.cacack.keginker.probe.probeDisplay
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -68,11 +69,28 @@ class ProbeControllerTest {
 
     @Test
     fun anInterruptedReadWaitsForTheNextTag() = runTest {
-        val controller = ProbeController { throw CancellationException("screen closed") }
+        val controller = ProbeController { _, _ -> throw CancellationException("screen closed") }
         controller.arm()
 
         assertFailsWith<CancellationException> { controller.onTag(FoundTag.Unsupported(INFO)) }
 
         assertEquals(ProbeState.Waiting, controller.state.value)
+    }
+
+    @Test
+    fun armingPassesTheVendorQueryChoiceToTheProbe() = runTest {
+        val asked = mutableListOf<Boolean>()
+        val controller = ProbeController { tag, vendorQueries ->
+            asked += vendorQueries
+            probeDisplay(tag, vendorQueries)
+        }
+
+        controller.arm(vendorQueries = true)
+        controller.onTag(FoundTag.Unsupported(INFO))
+        controller.arm()
+        controller.onTag(FoundTag.Unsupported(INFO))
+
+        assertEquals(listOf(true, false), asked)
+        assertEquals(null, assertIs<ProbeState.Done>(controller.state.value).result.vendorQueriesListed)
     }
 }

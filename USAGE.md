@@ -53,22 +53,30 @@ says about itself helps add it.
 
 1. Open **Advanced** and tap **Report a display**. On iPhone, tap **Read a
    display** too.
-2. Hold the phone against the display and keep it still. KegInker sends it
-   only standard read commands and writes nothing, so the display keeps
-   what it shows.
-3. The report appears in full: the app and phone versions, what the tag
-   reported about itself (only the start of its ID), which applications it
-   accepts, its NDEF records (these often name the vendor's app), and every
-   command sent with the reply.
-4. Tap **Open a GitHub issue** to open the **New display report** form in
+2. Optionally turn on **Also try vendor commands**. It's off by default.
+   After the standard reads, KegInker also sends the info queries that
+   vendors' own apps use, which often name the panel's size and colours.
+   No standard defines these as reads, so they could change what the
+   display shows. Leave it off for a display you want to keep as it is.
+3. Hold the phone against the display and keep it still. With the switch
+   off, KegInker sends only standard read commands and writes nothing, so
+   the display keeps what it shows.
+4. The report appears in full: the app and phone versions, what the tag and
+   the phone's OS reported about it (only the start of its ID), which
+   applications it accepts, its NDEF records (these often name the vendor's
+   app), its memory and version where it offers them, and every command
+   sent with the reply.
+5. Tap **Open a GitHub issue** to open the **New display report** form in
    your browser with the report filled in. If it's too long to fill in, it's
    copied instead, ready to paste. Add the brand and model printed on the
    display or box, a photo, and the vendor app's name. **Share** and **Copy**
-   work too, if you'd rather send it another way.
+   work too, if you'd rather send it another way; **Share** sends a long
+   report as a `.txt` file.
 
-Android phones see more kinds of tags than iPhones: iOS shows an app only
-the ISO-DEP tags that accept an application the app lists in advance. If
-your iPhone doesn't find the display, an Android phone usually can.
+Android phones detect NFC-A, NFC-B, NFC-F and NFC-V (ISO 15693) tags.
+iPhones detect ISO 14443 and ISO 15693 tags, and ISO-DEP tags that accept
+an application KegInker lists. Android reaches the widest range, so it's the
+best phone to try if an iPhone doesn't find the display.
 
 ## Permissions
 

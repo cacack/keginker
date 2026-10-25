@@ -83,6 +83,8 @@ fun App(
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     val probeState by model.probe.state.collectAsState()
     var showProbe by rememberSaveable { mutableStateOf(false) }
+    // Off each time "Report a display" opens; saved so it matches the armed probe after recreation.
+    var vendorQueries by rememberSaveable { mutableStateOf(false) }
     val reportSetting = remember { ReportSetting(context) }
     var offerReports by remember { mutableStateOf(reportSetting.offerAfterSuccess) }
     // Saved so the report stays open across rotation.
@@ -106,7 +108,7 @@ fun App(
     }
     BackHandler(enabled = showProbe, onBack = closeProbe)
     // After the process restarts, the screen is restored but the probe isn't.
-    LaunchedEffect(showProbe) { if (showProbe && probeState == ProbeState.Idle) model.reportDisplay() }
+    LaunchedEffect(showProbe) { if (showProbe && probeState == ProbeState.Idle) model.reportDisplay(vendorQueries) }
     BackHandler(enabled = shownReport != null) { showReport = false }
 
     val pickPhoto = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
@@ -116,7 +118,18 @@ fun App(
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
             if (showProbe) {
-                DisplayProbeScreen(probeState, appInfo, deviceInfo, nfcProblem, onBack = closeProbe)
+                DisplayProbeScreen(
+                    probeState,
+                    appInfo,
+                    deviceInfo,
+                    nfcProblem,
+                    vendorQueries = vendorQueries,
+                    onVendorQueriesChange = {
+                        vendorQueries = it
+                        model.reportDisplay(it)
+                    },
+                    onBack = closeProbe,
+                )
                 return@Surface
             }
             if (showAdvanced) {
@@ -127,7 +140,8 @@ fun App(
                         reportSetting.offerAfterSuccess = it
                     },
                     onReportDisplay = {
-                        model.reportDisplay()
+                        vendorQueries = false
+                        model.reportDisplay(vendorQueries)
                         showProbe = true
                     },
                     onBack = { showAdvanced = false },

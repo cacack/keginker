@@ -42,11 +42,13 @@ class WriteViewModel : ViewModel() {
 
     /**
      * Arms "Report a display", first disarming a waiting write, so a tag held
-     * during the report is never written. A failed write keeps its warning and report.
+     * during the report is never written. A failed write keeps its warning and
+     * report. With [vendorQueries], the tag is also sent its vendor's
+     * undocumented queries.
      */
-    fun reportDisplay() {
+    fun reportDisplay(vendorQueries: Boolean) {
         if (controller.state.value == WriteState.Waiting) controller.cancel()
-        probe.arm()
+        probe.arm(vendorQueries)
     }
 
     fun write() = session.write()

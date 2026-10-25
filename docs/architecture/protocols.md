@@ -137,20 +137,43 @@ the session limit comes first.
 
 ## Display probe
 
-**Report a display** reads an unknown tag without changing it. It sends only
-standard read commands, built in `ProbeCommands.kt`, and `DisplayProbeTest`
-checks over random replies that nothing else goes out.
+**Report a display** reads an unknown tag without changing it. By default it
+sends only reads that a standard or datasheet defines, built in
+`ProbeCommands.kt`. A second, opt-in pass sends vendor queries after them.
+`DisplayProbeTest` checks over random replies that nothing else goes out, and
+that vendor queries go out only when the user turns them on.
 
-| Tag | Commands |
-|---|---|
-| ISO-DEP | SELECT each listed AID (`00 A4 04 00 …`; only `D2760000850101`, the NDEF application, which iOS needs listed in Info.plist). If the NDEF application answers: SELECT the capability container `E103` (`00 A4 00 0C`), READ BINARY its 15 bytes (`00 B0`), then SELECT the NDEF file it names and READ BINARY its length and message. |
-| NFC-A, not ISO-DEP | Type 2 READ (`30 <page>`) from page 3, the capability container, 16 bytes at a time, until the NDEF message TLV is complete. Pages 0–2 hold the full UID, which reports shorten, so they're never read. |
+| Tag | Commands | Defined by |
+|---|---|---|
+| ISO-DEP | SELECT each listed AID (`00 A4 04 00 …`; only `D2760000850101`, the NDEF application, which iOS needs listed in Info.plist). If the NDEF application answers: SELECT the capability container `E103` (`00 A4 00 0C`), READ BINARY its 15 bytes (`00 B0`), then SELECT the NDEF file it names and READ BINARY its length and message. | ISO/IEC 7816-4; NFC Forum Type 4 Tag |
+| NFC-A, not ISO-DEP | Type 2 READ (`30 <page>`) from page 3, the capability container, 16 bytes at a time, until the NDEF message TLV is complete. Pages 0–2 hold the full UID, which reports shorten, so they're never read. | NFC Forum Type 2 Tag |
+| NFC-A identity | After the Type 2 reads: GET_VERSION (`60`), the 8-byte vendor, product and storage size, and READ_SIG (`3C 00`), the 32-byte originality signature, which reports shorten as they do the UID. An error reply, or none (Android throws on a NAK), is recorded and the probe moves on. | NXP NTAG213/215/216 and MIFARE Ultralight EV1 datasheets |
+| NFC-V | Get System Information (`02 2B`), then Read Single Block (`02 20 <block>`) from block 0 until the declared count (64 if the tag doesn't answer Get System Information) or the first error. If the memory starts with a capability container, the NDEF message TLV in it. Flags `02` mean not addressed, so commands never carry the UID. | ISO/IEC 15693-3; NFC Forum Type 5 Tag |
 
-Reads stop at 1,024 NDEF bytes, or 40 Type 2 reads, and the whole probe
-stops after 10 s (`PROBE_DEADLINE_MS`), with a note in its report. The
-vendor commands that look like device-info reads, such as Waveshare's `F0 D8` in
-magic-epaper-app, aren't documented as read-only, so the probe doesn't send
-them.
+Reads stop at 1,024 NDEF bytes, 40 Type 2 reads or 64 NFC-V blocks. The whole
+probe, both passes together, stops at 120 commands (`MAX_PROBE_EXCHANGES`)
+or after 10 s (`PROBE_DEADLINE_MS`), with a note in its report. A probe that
+reaches the command limit, or loses contact on a read it needs, skips the
+vendor pass. The report shows memory read by Type 2 READ and Read Single
+Block once, under Memory, where a UID split across replies is still hidden;
+those exchanges show only the status and a count of data bytes.
+
+### Vendor queries (opt-in)
+
+The **Also try vendor commands** switch, off by default, adds a pass that
+sends `VENDOR_QUERIES` for the tag's family after every documented read. Each
+query comes from a vendor's app or an open-source writer. No standard defines
+it as a read, so its effect on a given tag is unverified. On ISO-DEP, a
+command the tag refuses (not `90 00`) ends its query.
+
+| Query | Family | Bytes | Expected reply | Source |
+|---|---|---|---|---|
+| EZ Sign device information | ISO-DEP | SELECT `D2760000850101`, then `00 D1 00 00 00` | TLVs, then `90 00`: A0 panel geometry and colour mode, A1 panel flags, C0 a 10-character serial, C1 a 4-byte device ID. Reports shorten C0 and C1 as they do the UID. | [niw/EPaperNFCSwift](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/Command.swift#L117-L121), [alt-core/nfc-eink](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/protocol.py#L76-L82) |
+
+INS `D1` is WRITE BINARY in ISO/IEC 7816-4; only vendor behaviour makes this
+query a read. Waveshare's `F0 D8 … 0E`, found in magic-epaper-app, is a
+panel-type configuration write (alt-core/nfc-eink `build_panel_type_apdu`),
+so the probe never sends it, in either pass.
 
 ## Good Display
 
@@ -178,5 +201,8 @@ them.
   used as a reference only).
 - [mogenson/flipperzero-waveshare-nfc](https://github.com/mogenson/flipperzero-waveshare-nfc):
   Waveshare panel constants (MIT).
+- [alt-core/nfc-eink](https://github.com/alt-core/nfc-eink): a Python EZ
+  Sign writer, the source of the device-information TLV layout and of the
+  `F0 D8` panel-type finding (MIT).
 - [niw's EZ Sign protocol notes](https://gist.github.com/niw/3885b22d502bb1e145984d41568f202d)
   and [EPaperNFCSwift](https://github.com/niw/EPaperNFCSwift) (MIT).

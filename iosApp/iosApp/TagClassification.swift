@@ -12,6 +12,8 @@ func classify(_ tag: NFCTag, crcMode: CrcMode) -> FoundTag {
         return FoundTagKt.classifyNfcATag(info: info) { MiFareTransport(tag: miFare, crcMode: crcMode) }
     case let .iso7816(iso7816):
         return FoundTagKt.classifyIsoDepTag(info: info) { Iso7816Transport(tag: iso7816) }
+    case let .iso15693(iso15693):
+        return FoundTagKt.classifyNfcVTag(info: info) { Iso15693Transport(tag: iso15693) }
     default:
         return FoundTagUnsupported(info: info)
     }

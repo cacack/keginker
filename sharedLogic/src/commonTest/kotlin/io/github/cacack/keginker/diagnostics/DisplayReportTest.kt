@@ -1,14 +1,28 @@
 package io.github.cacack.keginker.diagnostics
 
+import io.github.cacack.keginker.nfc.TagDetail
 import io.github.cacack.keginker.nfc.TagInfo
+import io.github.cacack.keginker.nfc.TagKind
 import io.github.cacack.keginker.nfc.classifyIsoDepTag
 import io.github.cacack.keginker.nfc.classifyNfcATag
+import io.github.cacack.keginker.nfc.classifyNfcVTag
+import io.github.cacack.keginker.probe.DEVICE_INFO
+import io.github.cacack.keginker.probe.EZ_SIGN_DEVICE_INFO
+import io.github.cacack.keginker.probe.NFCV_UID
+import io.github.cacack.keginker.probe.NTAG213_VERSION
+import io.github.cacack.keginker.probe.NfcVTag
+import io.github.cacack.keginker.probe.ProbeExchange
+import io.github.cacack.keginker.probe.ProbePass
+import io.github.cacack.keginker.probe.ProbeResult
+import io.github.cacack.keginker.probe.ProbeStep
+import io.github.cacack.keginker.probe.TEST_VENDOR_QUERIES
 import io.github.cacack.keginker.probe.Type2Tag
 import io.github.cacack.keginker.probe.Type4Tag
 import io.github.cacack.keginker.probe.launcherRecord
 import io.github.cacack.keginker.probe.ndefTlv
 import io.github.cacack.keginker.probe.probeDisplay
 import io.github.cacack.keginker.probe.type2Memory
+import io.github.cacack.keginker.probe.type5Memory
 import io.github.cacack.keginker.waveshare.toHex
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,6 +35,43 @@ private fun bytes(vararg values: Int) = ByteArray(values.size) { values[it].toBy
 private val APP = AppInfo(version = "1.4.0", buildType = "release", commit = "abc1234")
 private val DEVICE = DeviceInfo(manufacturer = "Google", model = "Pixel 8", os = "Android 15", nfcEnabled = true)
 private val UID = bytes(0x04, 0xA2, 0x3F, 0x11, 0x22, 0x33, 0x44)
+
+private val SERIAL = "SEAA000282".encodeToByteArray()
+
+/**
+ * Fails if [text] holds [uid] in either byte order, or, in an exchange line
+ * or the Memory section, its first or last 4 bytes, as when the UID is split
+ * across replies. (A UID marker shows only 3.)
+ */
+private fun assertNoUidInExchangesOrMemory(text: String, uid: ByteArray) {
+    assertNoFullUid(text, uid)
+    val halves = listOf(uid.copyOfRange(0, 4), uid.copyOfRange(uid.size - 4, uid.size))
+    val lines = text.lines().filter { "  > " in it || it.startsWith("    ") }
+    for (half in halves + halves.map { it.reversedArray() }) {
+        lines.forEach { assertFalse(half.toHex() in it, "\"${half.toHex()}\" in \"$it\" of:\n$text") }
+    }
+}
+
+/** A probe result whose only exchange is the vendor pass's [DEVICE_INFO], answered with [reply]. */
+private fun deviceInfoResult(reply: ByteArray, vendorPassSkipped: String? = null) = ProbeResult(
+    tag = null,
+    protocol = "unsupported",
+    kind = TagKind.ISO_DEP,
+    acceptedAids = emptyList(),
+    capabilityContainer = null,
+    ndef = null,
+    note = null,
+    exchanges = listOf(ProbeExchange(0, ProbeStep.VENDOR_QUERY, DEVICE_INFO, reply, null, ProbePass.VENDOR)),
+    vendorQueriesListed = 1,
+    vendorQueriesSent = 1,
+    vendorPassSkipped = vendorPassSkipped,
+)
+
+/** Fails unless [text] is free of [uid] in both byte orders. */
+private fun assertNoFullUid(text: String, uid: ByteArray) {
+    assertFalse(uid.toHex() in text, text)
+    assertFalse(uid.reversedArray().toHex() in text, text)
+}
 
 class DisplayReportTest {
     @Test
@@ -62,6 +113,177 @@ class DisplayReportTest {
     }
 
     @Test
+    fun reportShowsTheTagDetailsTheOsReported() = runTest {
+        val info = TagInfo(listOf("NfcV"), NFCV_UID.reversedArray(), details = listOf(TagDetail("DSFID", "00"), TagDetail("Max transceive", "253 bytes")))
+        val result = probeDisplay(classifyNfcVTag(info) { NfcVTag(type5Memory(ByteArray(0))) })
+
+        val text = formatDisplayReport(APP, DEVICE, result)
+
+        assertTrue("  ATQA: unavailable\n  SAK: unavailable\n  DSFID: 00\n  Max transceive: 253 bytes\n" in text, text)
+    }
+
+    @Test
+    fun nfcVReportShowsTheSystemInformationAndMemory() = runTest {
+        val result = probeDisplay(classifyNfcVTag(TagInfo(listOf("NfcV"), NFCV_UID.reversedArray())) { NfcVTag(type5Memory(ndefTlv(launcherRecord("com.example.epaper")))) })
+
+        val text = formatDisplayReport(APP, DEVICE, result)
+
+        listOf(
+            "System information: DSFID 00, AFI 00, 28 blocks of 4 bytes, IC reference 01",
+            "Capability container: E1 40 0E 01",
+            "Memory (112 bytes)",
+            "    0000  E1 40 0E 01 03",
+            "    0060  00 00",
+            "1. Android app: com.example.epaper",
+            "Vendor queries: off",
+            "documented GET_SYSTEM_INFO",
+            "documented READ_BLOCKS",
+        ).forEach { assertTrue(it in text, "Missing \"$it\" in:\n$text") }
+    }
+
+    @Test
+    fun nfcVReportNeverShowsTheFullUid() = runTest {
+        // The UID also turns up in user memory, in both byte orders.
+        val memory = type5Memory(NFCV_UID + NFCV_UID.reversedArray())
+        val result = probeDisplay(classifyNfcVTag(TagInfo(listOf("NfcV"), NFCV_UID.reversedArray())) { NfcVTag(memory) })
+
+        val text = formatDisplayReport(APP, DEVICE, result)
+
+        assertNoUidInExchangesOrMemory(text, NFCV_UID)
+        assertTrue("< 00 0F [UID 78 56 34 … (8 bytes)] 00 00 1B 03 01" in text, text)
+    }
+
+    @Test
+    fun nfcVMemoryReadsNeverShowAUidSplitAcrossBlocks() = runTest {
+        // Each copy of the 8-byte UID spans three 4-byte blocks.
+        val memory = type5Memory(bytes(0x00, 0x00) + NFCV_UID + bytes(0x00, 0x00, 0x00) + NFCV_UID.reversedArray())
+        val result = probeDisplay(classifyNfcVTag(TagInfo(listOf("NfcV"), NFCV_UID.reversedArray())) { NfcVTag(memory) })
+
+        val text = formatDisplayReport(APP, DEVICE, result)
+
+        assertNoUidInExchangesOrMemory(text, NFCV_UID)
+        assertTrue("documented READ_BLOCKS" in text && "< 00 + 4 data bytes (see Memory)" in text, text)
+        assertTrue("    0000  E1 40 0E 01 00 00 [UID 78 56 34 … (8 bytes)] 00 00\n    0010  00 [UID 78 56 34 … (8 bytes)]" in text, text)
+    }
+
+    @Test
+    fun type2MemoryReadsNeverShowAUidSplitAcrossReads() = runTest {
+        // A proprietary TLV before the message holds the UID across the first two reads, and reversed across the next two.
+        val tlv = bytes(0xFD, 31) + ByteArray(8) + UID + ByteArray(9) + UID.reversedArray()
+        val result = probeDisplay(classifyNfcATag(TagInfo(listOf("NfcA"), UID)) { Type2Tag(type2Memory(tlv + ndefTlv(launcherRecord("x")))) })
+
+        val text = formatDisplayReport(APP, DEVICE, result)
+
+        assertNoUidInExchangesOrMemory(text, UID)
+        assertTrue("documented READ_PAGES" in text && "< 16 data bytes (see Memory)" in text, text)
+        assertTrue("  Memory (" in text && "    000C  E1 10 3E 00" in text, text)
+        assertTrue("1. Android app: x" in text, text)
+    }
+
+    @Test
+    fun aSystemInformationReplyHidesItsUidEvenWithoutTagDetails() {
+        val reply = bytes(0x00, 0x0F) + NFCV_UID.reversedArray() + bytes(0x00, 0x00, 0x1B, 0x03, 0x01)
+        val result = ProbeResult(
+            tag = null,
+            protocol = "unsupported",
+            kind = TagKind.NFC_V,
+            acceptedAids = emptyList(),
+            capabilityContainer = null,
+            ndef = null,
+            note = null,
+            exchanges = listOf(ProbeExchange(0, ProbeStep.GET_SYSTEM_INFO, bytes(0x02, 0x2B), reply, null, ProbePass.DOCUMENTED)),
+        )
+
+        val text = formatDisplayReport(APP, DEVICE, result)
+
+        assertNoFullUid(text, NFCV_UID)
+        assertTrue("< 00 0F [UID E0 04 01 … (8 bytes)] 00 00 1B 03 01" in text, text)
+    }
+
+    @Test
+    fun type2ReportDecodesTheNxpIdentity() = runTest {
+        val signature = ByteArray(32) { it.toByte() }
+        val result = probeDisplay(classifyNfcATag(TagInfo(listOf("NfcA"), UID)) { Type2Tag(type2Memory(ndefTlv(launcherRecord("x"))), NTAG213_VERSION, signature) })
+
+        val text = formatDisplayReport(APP, DEVICE, result)
+
+        listOf(
+            "Product version: 00 04 04 02 01 00 0F 03 (vendor 04, type 04, subtype 02, version 1.0, storage 0F: 128 to 256 bytes)",
+            "Signature: 00 01 02 … (32 bytes)",
+            "documented GET_VERSION",
+            "documented READ_SIGNATURE",
+            "< [signature 00 01 02 … (32 bytes)]",
+        ).forEach { assertTrue(it in text, "Missing \"$it\" in:\n$text") }
+        // The signature identifies one chip, so only its start is shown.
+        assertFalse(signature.copyOfRange(2, 32).toHex() in text, text)
+    }
+
+    @Test
+    fun reportLabelsTheVendorPass() = runTest {
+        val memory = type2Memory(ndefTlv(launcherRecord("x")))
+        val on = probeDisplay(classifyNfcATag(TagInfo(listOf("NfcA"), UID)) { Type2Tag(memory, vendorQueries = TEST_VENDOR_QUERIES) }, true, TEST_VENDOR_QUERIES)
+        val none = probeDisplay(classifyNfcATag(TagInfo(listOf("NfcA"), UID)) { Type2Tag(memory) }, true, emptyList())
+
+        val onText = formatDisplayReport(APP, DEVICE, on)
+
+        assertTrue("Vendor queries: on, 1 listed, 1 sent" in onText, onText)
+        assertTrue("vendor VENDOR_QUERY" in onText && "> F0 DF 00 00 01  < 00" in onText, onText)
+        assertTrue("Vendor queries: on, none listed for this kind of tag" in formatDisplayReport(APP, DEVICE, none))
+    }
+
+    @Test
+    fun reportShortensTheDeviceSerialAndIdInTheDeviceInformationReply() = runTest {
+        val info = TagInfo(listOf("IsoDep", "NfcA"), UID)
+        val result = probeDisplay(classifyIsoDepTag(info) { Type4Tag(launcherRecord("x"), deviceInfo = EZ_SIGN_DEVICE_INFO) }, vendorQueries = true)
+
+        val text = formatDisplayReport(APP, DEVICE, result)
+
+        val serial = "SEAA000282".encodeToByteArray()
+        assertTrue("Vendor queries: on, 1 listed, 1 sent" in text, text)
+        assertTrue(
+            "< A0 07 00 07 14 02 58 01 90 A1 07 01 00 00 00 00 00 00 C0 0A [C0 53 45 41 … (10 bytes)] C1 04 [C1 12 34 … (4 bytes)] 90 00" in text,
+            text,
+        )
+        assertFalse(serial.toHex() in text, text)
+        assertFalse("12 34 AB CD" in text, text)
+    }
+
+    @Test
+    fun reportSaysWhyTheVendorPassWasSkipped() {
+        val result = deviceInfoResult(bytes(0x6A, 0x82), vendorPassSkipped = "contact with the tag was lost")
+
+        val text = formatDisplayReport(APP, DEVICE, result)
+
+        assertTrue("Vendor queries: on, skipped: contact with the tag was lost" in text, text)
+    }
+
+    @Test
+    fun aDeviceInformationReplyWithoutAStatusWordStillHidesTheSerial() {
+        val text = formatDisplayReport(APP, DEVICE, deviceInfoResult(EZ_SIGN_DEVICE_INFO))
+
+        assertTrue("C0 0A [C0 53 45 41 … (10 bytes)] C1 04 [C1 12 34 … (4 bytes)]\n" in text, text)
+        assertFalse(SERIAL.toHex() in text, text)
+    }
+
+    @Test
+    fun aDeviceInformationReplyThatDoesNotParseIsHiddenWhole() {
+        // C0 claims 0x20 bytes, past the end of the data.
+        val reply = bytes(0xA0, 0x01, 0x00, 0xC0, 0x20) + SERIAL + bytes(0x90, 0x00)
+
+        val text = formatDisplayReport(APP, DEVICE, deviceInfoResult(reply))
+
+        assertTrue("< [15 bytes hidden] 90 00" in text, text)
+        assertFalse(SERIAL.copyOfRange(0, 4).toHex() in text, text)
+    }
+
+    @Test
+    fun aDeviceInformationReplyWithoutASerialOrIdIsShownInFull() {
+        val text = formatDisplayReport(APP, DEVICE, deviceInfoResult(bytes(0xA0, 0x02, 0x01, 0x02, 0x90, 0x00)))
+
+        assertTrue("< A0 02 01 02 90 00" in text, text)
+    }
+
+    @Test
     fun aProbeThatStoppedSaysWhy() = runTest {
         val result = probeDisplay(classifyIsoDepTag(TagInfo(listOf("IsoDep"), UID)) { Type4Tag(ByteArray(0), hasNdefApp = false) })
 
@@ -87,6 +309,12 @@ class DisplayReportTest {
 
         assertFalse(link.includesReport)
         assertEquals("https://github.com/cacack/keginker/issues/new?template=display-report.yml", link.url)
+    }
+
+    @Test
+    fun shareSendsAFileOnlyWhenTheLinkLeavesTheReportOut() {
+        assertFalse(displayReportIssueLink("short").sharesReportAsFile)
+        assertTrue(displayReportIssueLink("x".repeat(MAX_ISSUE_URL_LENGTH)).sharesReportAsFile)
     }
 
     @Test

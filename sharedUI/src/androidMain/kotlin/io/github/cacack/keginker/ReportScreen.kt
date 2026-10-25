@@ -2,6 +2,7 @@ package io.github.cacack.keginker
 
 import android.content.ActivityNotFoundException
 import android.content.ClipData
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -31,13 +32,17 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import io.github.cacack.keginker.diagnostics.IssueLink
+import io.github.cacack.keginker.diagnostics.REPORT_FILE_NAME
+import java.io.File
 import kotlinx.coroutines.launch
 
 /**
  * A diagnostics or display [report], shown in full before the user shares or
  * copies it. Nothing is sent anywhere unless they choose to. With an
- * [issueLink], it can also open a pre-filled GitHub issue in the browser.
+ * [issueLink], it can also open a pre-filled GitHub issue in the browser; if
+ * the report is too long for the link, Share sends it as a `.txt` file.
  */
 @Composable
 fun ReportScreen(report: String, onBack: () -> Unit, title: String = "Diagnostics report", issueLink: IssueLink? = null) {
@@ -62,10 +67,17 @@ fun ReportScreen(report: String, onBack: () -> Unit, title: String = "Diagnostic
         Text("This is everything the report contains. Nothing leaves your phone unless you share it.")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = {
+                val subject = "KegInker ${title.lowercase()}"
                 val send = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, "KegInker ${title.lowercase()}")
-                    putExtra(Intent.EXTRA_TEXT, report)
+                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                    if (issueLink?.sharesReportAsFile == true) {
+                        putExtra(Intent.EXTRA_STREAM, reportFile(context, report))
+                        putExtra(Intent.EXTRA_TEXT, "$subject attached as a text file.")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    } else {
+                        putExtra(Intent.EXTRA_TEXT, report)
+                    }
                 }
                 context.startActivity(Intent.createChooser(send, "Share ${title.lowercase()}"))
             }) { Text("Share") }
@@ -91,3 +103,17 @@ fun ReportScreen(report: String, onBack: () -> Unit, title: String = "Diagnostic
         }
     }
 }
+
+/**
+ * Writes [report] to the cache as [REPORT_FILE_NAME], alone in its folder,
+ * and returns a content URI the share target can read, through the app's
+ * `.reports` FileProvider (see the manifest). Each share replaces the last
+ * one's file.
+ */
+private fun reportFile(context: Context, report: String) =
+    File(context.cacheDir, "reports").run {
+        listFiles()?.forEach { it.delete() }
+        mkdirs()
+        val file = File(this, REPORT_FILE_NAME).apply { writeText(report) }
+        FileProvider.getUriForFile(context, "${context.packageName}.reports", file)
+    }

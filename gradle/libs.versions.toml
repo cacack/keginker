@@ -20,6 +20,14 @@ pitest = "1.30.1"
 robolectric = "4.17"
 roborazzi = "1.76.0"
 androidx-compose = "1.12.1"
+# Floors for libraries the build tools bring in (AGP, Android lint, Kotlin swift
+# export), raised past known vulnerabilities; root build.gradle.kts applies them.
+tool-bouncycastle = "1.85"
+tool-commonsLang3 = "3.18.0"
+tool-httpclient = "4.5.14"
+tool-jdom2 = "2.0.6.1"
+tool-jose4j = "0.9.6"
+tool-opentelemetry = "1.62.0"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
@@ -48,6 +56,17 @@ compose-components-resources = { module = "org.jetbrains.compose.components:comp
 compose-uiTest-junit4 = { module = "androidx.compose.ui:ui-test-junit4", version.ref = "androidx-compose" }
 compose-uiTest-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "androidx-compose" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
+tool-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "tool-bouncycastle" }
+tool-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "tool-bouncycastle" }
+tool-bcutil = { module = "org.bouncycastle:bcutil-jdk18on", version.ref = "tool-bouncycastle" }
+tool-commonsLang3 = { module = "org.apache.commons:commons-lang3", version.ref = "tool-commonsLang3" }
+tool-httpclient = { module = "org.apache.httpcomponents:httpclient", version.ref = "tool-httpclient" }
+tool-jdom2 = { module = "org.jdom:jdom2", version.ref = "tool-jdom2" }
+tool-jose4j = { module = "org.bitbucket.b_c:jose4j", version.ref = "tool-jose4j" }
+tool-opentelemetryApi = { module = "io.opentelemetry:opentelemetry-api", version.ref = "tool-opentelemetry" }
+
+[bundles]
+toolFloors = ["tool-bcpkix", "tool-bcprov", "tool-bcutil", "tool-commonsLang3", "tool-httpclient", "tool-jdom2", "tool-jose4j", "tool-opentelemetryApi"]
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

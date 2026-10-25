@@ -1,3 +1,13 @@
+// Raise the build tools' own dependencies to patched versions (see libs.versions.toml).
+// Constraints only lift a version; a tool that later needs a newer one still gets it.
+buildscript {
+    dependencies {
+        constraints {
+            libs.bundles.toolFloors.get().forEach { classpath(it) }
+        }
+    }
+}
+
 plugins {
     // this is necessary to avoid the plugins to be loaded multiple times
     // in each subproject's classloader
@@ -6,6 +16,14 @@ plugins {
     alias(libs.plugins.composeMultiplatform) apply false
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
+}
+
+subprojects {
+    configurations.configureEach {
+        if (isCanBeDeclared) {
+            libs.bundles.toolFloors.get().forEach { project.dependencies.constraints.add(name, it) }
+        }
+    }
 }
 
 /** `git rev-parse --short=7 HEAD`, or null without a repository or without git installed. */

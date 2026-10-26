@@ -1,5 +1,10 @@
 package io.github.cacack.keginker.diagnostics
 
+import io.github.cacack.keginker.ezsign.DEVICE_ID_TLVS
+import io.github.cacack.keginker.ezsign.EZ_SIGN_DECODER_SOURCE
+import io.github.cacack.keginker.ezsign.EzSignDeviceInfo
+import io.github.cacack.keginker.ezsign.TestWriteRecord
+import io.github.cacack.keginker.ezsign.ezSignTlvs
 import io.github.cacack.keginker.nfc.TagKind
 import io.github.cacack.keginker.probe.DEVICE_INFO
 import io.github.cacack.keginker.probe.NfcVSystemInfo
@@ -9,22 +14,17 @@ import io.github.cacack.keginker.probe.ProbePass
 import io.github.cacack.keginker.probe.ProbeStep
 import io.github.cacack.keginker.probe.describeNdefRecord
 import io.github.cacack.keginker.waveshare.REPLY_SHOWN_BYTES
+import io.github.cacack.keginker.waveshare.activity
 import io.github.cacack.keginker.waveshare.toHex
 
 /** Bytes per row of memory a report shows. */
 private const val MEMORY_ROW_BYTES = 16
 
 /** Shortest UID the report hides inside replies; ISO 14443 UIDs are 4, 7 or 10 bytes, ISO 15693 UIDs 8. */
-private const val MIN_HIDDEN_UID_BYTES = 4
+internal const val MIN_HIDDEN_UID_BYTES = 4
 
 /** Where an ISO/IEC 15693-3 Get System Information reply holds the 8-byte UID, after the flags and info flags. */
 private val SYSTEM_INFO_UID = 2..9
-
-/** The [DEVICE_INFO] reply TLVs that identify one device: C0 its serial, C1 its ID. */
-private val DEVICE_ID_TLVS = setOf(0xC0, 0xC1)
-
-/** Bytes a report shows as [marker] instead of their hex. */
-private class Hidden(val range: IntRange, val marker: String)
 
 /** The documented steps that read the tag's memory, whose data the report shows only under Memory. */
 private val DATA_READS = setOf(ProbeStep.READ_PAGES, ProbeStep.READ_BLOCKS)
@@ -36,8 +36,18 @@ private val DATA_READS = setOf(ProbeStep.READ_PAGES, ProbeStep.READ_BLOCKS)
  * only the start of the originality signature and of a device's serial and
  * ID in a vendor query's reply. Memory reads show their data only under
  * Memory, where a UID split across two replies is still found and hidden.
+ * A decoded EZ Sign device-information reply gets its own section, which
+ * leaves out the device's serial and ID.
  */
-fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult): String = buildString {
+fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult): String =
+    formatDisplayReport(app, device, result, emptyList())
+
+/**
+ * [formatDisplayReport], then a "Test writes" section for [testWrites], if
+ * there are any: each pattern's answers, refresh time and exchanges, with
+ * image data counted, not shown, and the UID hidden as above.
+ */
+fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult, testWrites: List<TestWriteRecord>): String = buildString {
     reportHeader("KegInker display report", app, device, result.tag)
     val uid = result.tag?.uid?.takeIf { it.size >= MIN_HIDDEN_UID_BYTES }
     fun hex(bytes: ByteArray) = hexHiding(bytes, 0, bytes.size, uidHidden(bytes, uid))
@@ -78,7 +88,9 @@ fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult): 
             appendLine("    $offset  ${hexHiding(memory, from, minOf(from + MEMORY_ROW_BYTES, memory.size), hidden)}")
         }
     }
-    field("Note", result.note)
+    val notDecoded = result.deviceInfoNotDecoded?.let { "The EZ Sign device information didn't decode: $it." }
+    field("Note", listOfNotNull(result.note, notDecoded).joinToString(" ").ifEmpty { null })
+    result.deviceInfo?.let { ezSignSection(it, ::hex) }
     appendLine()
     exchangeLines(
         result.exchanges.map {
@@ -90,7 +102,66 @@ fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult): 
             )
         },
     )
+    testWritesSection(testWrites, uid)
 }
+
+/** Each of [records]: its pattern, answers, refresh time or failure, and exchanges, with [uid] hidden. */
+private fun StringBuilder.testWritesSection(records: List<TestWriteRecord>, uid: ByteArray?) {
+    if (records.isEmpty()) return
+    fun hidingUid(text: String) = textHidingUid(text, uid)
+    appendLine()
+    appendLine("Test writes (${records.size})")
+    records.forEachIndexed { index, record ->
+        val outcome = record.outcome
+        appendLine()
+        appendLine("${index + 1}. ${record.pattern}")
+        record.answers.forEach {
+            appendLine("  Q: ${it.question}")
+            appendLine("  A: ${it.answer}")
+        }
+        if (record.answers.isEmpty() && outcome.failure == null) appendLine("  Not answered")
+        field("Refresh", outcome.refreshMs?.let { "$it ms" })
+        outcome.busyAtMs?.let { appendLine("  Still busy at $it ms (write budget reached)") }
+        outcome.failure?.let {
+            field("Failed", hidingUid("${it.step.name} (${it.step.activity}): ${it.reason}"))
+            field("Cause", it.cause?.let { cause -> hidingUid(describe(cause)) })
+        }
+        exchangeLines(outcome.log.entries.map { reportLine(it).copy(outcome = testWriteOutcomeText(it, uid)) })
+    }
+}
+
+/** What came back for one test-write exchange, as [outcomeText] shows it, with [uid] hidden. */
+private fun testWriteOutcomeText(exchange: Exchange, uid: ByteArray?): String {
+    exchange.error?.let { return "! ${textHidingUid(it, uid)}" }
+    val reply = exchange.reply ?: ByteArray(0)
+    return "< ${shownHex(reply, uidHidden(reply, uid))}"
+}
+
+/** [text] with the hex of [uid], in either byte order, replaced by its marker, as in a failure's reason. */
+private fun textHidingUid(text: String, uid: ByteArray?): String {
+    if (uid == null) return text
+    return listOf(uid, uid.reversedArray()).fold(text) { shown, order -> shown.replace(order.toHex(), uidMarker(uid)) }
+}
+
+/** [reply] as hex, cut to [REPLY_SHOWN_BYTES], with [hidden] bytes shown as their markers. */
+private fun shownHex(reply: ByteArray, hidden: List<Hidden>): String {
+    val text = hexHiding(reply, 0, minOf(reply.size, REPLY_SHOWN_BYTES), hidden)
+    return if (reply.size > REPLY_SHOWN_BYTES) "$text … (${reply.size} bytes)" else text
+}
+
+/** What [info] says about the panel; [hex] shows a raw value with any UID hidden. */
+private fun StringBuilder.ezSignSection(info: EzSignDeviceInfo, hex: (ByteArray) -> String) {
+    appendLine()
+    appendLine("EZ Sign device information")
+    val native = if (info.nativeWidth != info.viewWidth) " (native ${info.nativeWidth} × ${info.nativeHeight})" else ""
+    field("Resolution", "${info.viewWidth} × ${info.viewHeight}$native")
+    field("Colours", "${info.colourNames.size} (${info.colourNames.joinToString(", ")}), mode ${byteHex(info.colourMode)}")
+    field("Rows per block", info.rowsPerBlock.toString())
+    info.otherTlvs.forEach { (tag, value) -> field(byteHex(tag), hex(value).ifEmpty { "(empty)" }) }
+    field("Decoded from", EZ_SIGN_DECODER_SOURCE)
+}
+
+private fun byteHex(value: Int) = byteArrayOf(value.toByte()).toHex()
 
 /** NXP GET_VERSION's fields (NTAG21x and MIFARE Ultralight EV1 datasheets). */
 private fun describeVersion(version: ByteArray): String {
@@ -132,8 +203,7 @@ private fun replyText(exchange: ProbeExchange, uid: ByteArray?): String {
         hidden += Hidden(SYSTEM_INFO_UID, uidMarker(shown))
     }
     if (exchange.pass == ProbePass.VENDOR && exchange.command.contentEquals(DEVICE_INFO)) hidden += deviceIdHidden(reply)
-    val text = hexHiding(reply, 0, minOf(reply.size, REPLY_SHOWN_BYTES), hidden)
-    return if (reply.size > REPLY_SHOWN_BYTES) "$text … (${reply.size} bytes)" else text
+    return shownHex(reply, hidden)
 }
 
 /**
@@ -151,19 +221,6 @@ private fun dataReadText(step: ProbeStep, reply: ByteArray): String? = when {
     else -> null
 }
 
-private fun uidMarker(uid: ByteArray?) = "[UID ${uid?.let(::shortUid) ?: "hidden"}]"
-
-/** Where [uid] appears in [bytes], in either byte order. */
-private fun uidHidden(bytes: ByteArray, uid: ByteArray?): List<Hidden> {
-    if (uid == null) return emptyList()
-    val reversed = uid.reversedArray()
-    val marker = uidMarker(uid)
-    return (0..bytes.size - uid.size).filter { at ->
-        val window = bytes.copyOfRange(at, at + uid.size)
-        window.contentEquals(uid) || window.contentEquals(reversed)
-    }.map { Hidden(it until it + uid.size, marker) }
-}
-
 /**
  * The values of the [DEVICE_ID_TLVS] in a [DEVICE_INFO] reply: one-byte tag,
  * one-byte length and value, to the end of the data, then `90 00` if the tag
@@ -173,39 +230,11 @@ private fun uidHidden(bytes: ByteArray, uid: ByteArray?): List<Hidden> {
 private fun deviceIdHidden(reply: ByteArray): List<Hidden> {
     if (reply.size == 2) return emptyList()
     val end = if (isOk(reply)) reply.size - 2 else reply.size
-    val hidden = mutableListOf<Hidden>()
-    var at = 0
-    while (at < end) {
-        val valueStart = at + 2
-        val valueEnd = if (valueStart <= end) valueStart + (reply[at + 1].toInt() and 0xFF) else end + 1
-        if (valueEnd > end) return listOf(Hidden(0 until end, "[$end bytes hidden]"))
-        val tag = reply[at].toInt() and 0xFF
-        if (tag in DEVICE_ID_TLVS && valueEnd > valueStart) {
-            val value = reply.copyOfRange(valueStart, valueEnd)
-            hidden += Hidden(valueStart until valueEnd, "[${reply.copyOfRange(at, at + 1).toHex()} ${shortUid(value)}]")
-        }
-        at = valueEnd
+    val tlvs = ezSignTlvs(reply, end) ?: return listOf(Hidden(0 until end, "[$end bytes hidden]"))
+    return tlvs.filter { it.tag in DEVICE_ID_TLVS && it.valueEnd > it.valueStart }.map {
+        Hidden(it.valueStart until it.valueEnd, "[${byteHex(it.tag)} ${shortUid(reply.copyOfRange(it.valueStart, it.valueEnd))}]")
     }
-    return hidden
 }
 
 private fun isOk(reply: ByteArray) =
     reply.size >= 2 && reply[reply.size - 2] == 0x90.toByte() && reply[reply.size - 1] == 0x00.toByte()
-
-/** Bytes [from] until [to] of [bytes] as hex, with each run of bytes inside a [hidden] range shown once, as the first one's marker. */
-private fun hexHiding(bytes: ByteArray, from: Int, to: Int, hidden: List<Hidden>): String {
-    val parts = mutableListOf<String>()
-    var at = from
-    while (at < to) {
-        val run = hidden.firstOrNull { at in it.range }
-        if (run != null) {
-            parts += run.marker
-            // Past this run, including any hidden range that overlaps it.
-            while (at < to && hidden.any { at in it.range }) at++
-        } else {
-            parts += bytes.copyOfRange(at, at + 1).toHex()
-            at++
-        }
-    }
-    return parts.joinToString(" ")
-}

@@ -1,11 +1,13 @@
 package io.github.cacack.keginker.diagnostics
 
+import io.github.cacack.keginker.image.forEachSeed
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.waveshare.REPLY_SHOWN_BYTES
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteStep
+import io.github.cacack.keginker.waveshare.toHex
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -23,6 +25,11 @@ private val TAG = TagInfo(
     sak = 0x20,
     historicalBytes = bytes(0x59, 0x5A, 0x52, 0x43, 0x4F, 0x53, 0x03, 0x00),
 )
+
+/** The historical-bytes line of a report on a tag with [uid] and [historical]. */
+private fun historicalLine(uid: ByteArray, historical: ByteArray) =
+    formatDiagnosticReport(APP, DEVICE, WriteReport(TagInfo(listOf("IsoDep"), uid, historicalBytes = historical), "unsupported", "EPD_2IN7", "x", Outcome.NOT_ATTEMPTED, testPattern = false))
+        .lines().single { it.trim().startsWith("Historical bytes:") }.trim()
 
 private object NoTransport : Transport {
     override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray = error("unused")
@@ -126,6 +133,57 @@ class DiagnosticReportTest {
         assertEquals("UID: 08 1F … (4 bytes)", uidLine(bytes(0x08, 0x1F, 0x2E, 0x3D)))
         assertEquals("UID: (1 bytes)", uidLine(bytes(0x08)))
         assertEquals("UID: (0 bytes)", uidLine(ByteArray(0)))
+    }
+
+    @Test
+    fun hidesUidBytesInsideTheHistoricalBytes() {
+        // Made-up UID; EZ Sign tags put its first three bytes in their historical bytes.
+        val uid = bytes(0x3C, 0x5D, 0x7E, 0x9F)
+        fun historicalLine(historical: ByteArray) = historicalLine(uid, historical)
+
+        assertEquals("Historical bytes: 90 [UID 3C 5D … (4 bytes)] 1D 03", historicalLine(bytes(0x90, 0x3C, 0x5D, 0x7E, 0x1D, 0x03)))
+        assertEquals("Historical bytes: [UID 3C 5D … (4 bytes)] 00", historicalLine(bytes(0x3C, 0x5D, 0x7E, 0x9F, 0x00)))
+        // Least significant byte first.
+        assertEquals("Historical bytes: 80 [UID 3C 5D … (4 bytes)]", historicalLine(bytes(0x80, 0x9F, 0x7E, 0x5D)))
+        // No more than the UID line shows.
+        assertEquals("Historical bytes: 3C 5D 01 7E 9F", historicalLine(bytes(0x3C, 0x5D, 0x01, 0x7E, 0x9F)))
+    }
+
+    @Test
+    fun hidesAWindowFromTheMiddleOfTheUidInsideTheHistoricalBytes() {
+        val uid = TAG.uid
+
+        // 3F 11 22 33: bytes 2 to 5 of the UID, more than the 3 the UID line shows.
+        assertEquals("Historical bytes: 80 [UID 04 A2 3F … (7 bytes)] 00", historicalLine(uid, bytes(0x80, 0x3F, 0x11, 0x22, 0x33, 0x00)))
+        // The same, least significant byte first.
+        assertEquals("Historical bytes: 80 [UID 04 A2 3F … (7 bytes)] 00", historicalLine(uid, bytes(0x80, 0x33, 0x22, 0x11, 0x3F, 0x00)))
+        // No more than the UID line shows.
+        assertEquals("Historical bytes: 80 11 22 33 00", historicalLine(uid, bytes(0x80, 0x11, 0x22, 0x33, 0x00)))
+        // An OS name that shares no bytes with the UID stays as it is.
+        assertEquals("Historical bytes: 59 5A 52 43 4F 53 03 00", historicalLine(uid, TAG.historicalBytes!!))
+    }
+
+    @Test
+    fun noRunOfTheUidLongerThanTheUidLineSurvivesInTheHistoricalBytes() = forEachSeed { random ->
+        val uid = random.nextBytes(listOf(4, 7, 10).random(random))
+        val orders = listOf(uid, uid.reversedArray())
+        // Random bytes, with windows of the UID from anywhere in it, in either order, between them.
+        var historical = ByteArray(0)
+        repeat(random.nextInt(1, 5)) {
+            val order = orders.random(random)
+            val from = random.nextInt(order.size)
+            historical += random.nextBytes(random.nextInt(0, 4)) + order.copyOfRange(from, random.nextInt(from + 1, order.size + 1))
+        }
+
+        val line = historicalLine(uid, historical)
+
+        val longest = uidShownBytes(uid) + 1
+        for (order in orders) {
+            for (from in 0..order.size - longest) {
+                val window = order.copyOfRange(from, from + longest).toHex()
+                assertFalse(window in line, "\"$window\" in \"$line\" for UID ${uid.toHex()}")
+            }
+        }
     }
 
     @Test

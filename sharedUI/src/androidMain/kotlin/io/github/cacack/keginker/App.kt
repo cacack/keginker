@@ -82,6 +82,7 @@ fun App(
     val busy = state is WriteState.Writing
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     val probeState by model.probe.state.collectAsState()
+    val testWrites by model.testWrites.collectAsState()
     var showProbe by rememberSaveable { mutableStateOf(false) }
     // Off each time "Report a display" opens; saved so it matches the armed probe after recreation.
     var vendorQueries by rememberSaveable { mutableStateOf(false) }
@@ -103,7 +104,7 @@ fun App(
     LaunchedEffect(tags) { tags.collect(model::onTag) }
     BackHandler(enabled = showAdvanced) { showAdvanced = false }
     val closeProbe = {
-        model.probe.cancel()
+        model.closeProbe()
         showProbe = false
     }
     BackHandler(enabled = showProbe, onBack = closeProbe)
@@ -120,6 +121,7 @@ fun App(
             if (showProbe) {
                 DisplayProbeScreen(
                     probeState,
+                    testWrites,
                     appInfo,
                     deviceInfo,
                     nfcProblem,
@@ -128,6 +130,8 @@ fun App(
                         vendorQueries = it
                         model.reportDisplay(it)
                     },
+                    onOfferTestWrites = model::offerTestWrites,
+                    onLeaveTestWrites = model::leaveTestWrites,
                     onBack = closeProbe,
                 )
                 return@Surface

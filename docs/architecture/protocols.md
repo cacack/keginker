@@ -128,6 +128,17 @@ and fails if it exceeds the budget, or leaves room for another poll. A
 recorded real write would show how close typical commands are to the
 allowance.
 
+EZ Sign [test writes](#test-writes-opt-in) don't use a poll count. They're
+diagnostic, and their job is to measure the refresh within the iOS session,
+so they poll every 500 ms until another poll would take real time since the
+first command past the budget. Real tags answer a command in about 8 ms, far
+under the allowance, so a count would give up seconds before a slow refresh
+finishes. At 8 ms a command, a 400 × 300 4-colour panel gets about 13.7 s of
+refresh window (27 polls) and a 128 × 296 one about 14.2 s. A panel still
+busy then is recorded as a finding, not a failure. `WriteBudgetTest` and
+`EzSignTestWriterTest` check that the wait ends within the budget whatever
+each command costs, and that a fast tag waits out a 12 s refresh.
+
 Scheduled time assumes each command is quick, but on Android a tag can take
 up to 3 s over every command. So `WriteController` also stops any write
 still running after 30 s of real time (`WRITE_DEADLINE_MS`, twice the
@@ -140,6 +151,8 @@ the session limit comes first.
 **Report a display** reads an unknown tag without changing it. By default it
 sends only reads that a standard or datasheet defines, built in
 `ProbeCommands.kt`. A second, opt-in pass sends vendor queries after them.
+Only the separate, opt-in [test writes](#test-writes-opt-in) change what the
+display shows.
 `DisplayProbeTest` checks over random replies that nothing else goes out, and
 that vendor queries go out only when the user turns them on.
 
@@ -170,10 +183,81 @@ command the tag refuses (not `90 00`) ends its query.
 |---|---|---|---|---|
 | EZ Sign device information | ISO-DEP | SELECT `D2760000850101`, then `00 D1 00 00 00` | TLVs, then `90 00`: A0 panel geometry and colour mode, A1 panel flags, C0 a 10-character serial, C1 a 4-byte device ID. Reports shorten C0 and C1 as they do the UID. | [niw/EPaperNFCSwift](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/Command.swift#L117-L121), [alt-core/nfc-eink](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/protocol.py#L76-L82) |
 
+The report decodes an EZ Sign device-information reply per alt-core/nfc-eink
+`parse_device_info` into a section giving the panel's resolution, colours,
+rows per block and any other TLVs raw (never C0 or C1), and names the
+protocol `EZ Sign (ISO-DEP), no label writer yet`; a reply that has data but
+doesn't decode gets a note saying why. A bare refusal (a status word alone),
+which other Type 4 tags give, gets no note.
+
 INS `D1` is WRITE BINARY in ISO/IEC 7816-4; only vendor behaviour makes this
 query a read. Waveshare's `F0 D8 … 0E`, found in magic-epaper-app, is a
 panel-type configuration write (alt-core/nfc-eink `build_panel_type_apdu`),
 so the probe never sends it, in either pass.
+
+### Test writes (opt-in)
+
+After a probe whose report names a family KegInker can test-write
+(`testWriteFamilyFor`; so far an EZ Sign tag whose device information
+decoded), the report offers **Test writes**. `TestWriteController` writes
+nothing until the user confirms on a second screen, and then writes only the
+probed tag, matched by UID. Each pattern is one write, then a few questions;
+the answers, the refresh time and every exchange (image bytes counted, never
+kept) go into the report's "Test writes" section.
+
+An EZ Sign test write (`EzSignTestWriter`) sends:
+
+| Step | Bytes | Expected reply |
+|---|---|---|
+| SELECT the NDEF application | `00 A4 04 00 07 D2760000850101` | `90 00` |
+| Authenticate | `00 20 00 01 04 20 09 12 10` | `90 00` |
+| Image fragment | `F0 D3 00 <last> <Lc> <block> <fragment> <data>`; `<last>` is `01` on a block's last fragment, else `00` | `90 00` |
+| Refresh | `F0 D4 85 80 00` | `90 00` |
+| Poll, every 500 ms | `F0 DE 00 00 01` | `01 90 00` while busy, `00 90 00` when done |
+
+The frame is packed at the panel's bits per pixel in its native layout
+(`packFrame`): a row's first byte holds its last pixels, lowest bits first.
+It's cut into 2,000-byte blocks, each sent as an LZO1X stream in fragments of
+at most 250 bytes. The stream is one literal run and the end marker
+(`lzoLiteralStream`), not LZO1X-1 compression. Any conforming LZO1X
+decompressor turns it back into the block, so the panel gets the same pixels;
+the only cost is more fragments, about 138 commands for a 400 × 300
+4-colour panel. A test write needs no smaller stream.
+
+The patterns (`TestPatterns.kt`) are generated from the decoded resolution
+and colours, in native coordinates, so the write assumes nothing about how
+the panel is turned:
+
+- **Corner and line:** white, with a black square at native (0, 0) a quarter
+  of the short side across, and a black line along native rows 0–3 to the
+  middle of the row. Where the square lands shows how native (0, 0) is
+  turned; the line's edge shows which way native rows run.
+- **Colour bands** (4-colour panels only): four equal bands along native
+  rows, band k in colour index k, from native row 0. The answers map each
+  index to a colour.
+
+A fixed image would fit one panel size and would need a known orientation to
+be read; generated patterns fit any decoded panel and turn the user's answers
+into its orientation and colour order.
+
+Label writers stop polling after a count set before they start
+(`busyPollLimit`, see [Write time budget](#write-time-budget)). A test write
+is diagnostic: its job is to measure the refresh within the iOS session. So
+it polls until another poll and its pause would take real time since its
+first command past `WRITE_BUDGET_MS`. A panel still busy then isn't a
+failure; the report records "Still busy at *n* ms (write budget reached)",
+and the image may still appear. A refused or unexpected reply is a failure
+that names its step, with a retry.
+
+Sources: alt-core/nfc-eink
+[protocol.py](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/protocol.py),
+[card.py](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/card.py)
+and
+[image.py](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/image.py)
+for the commands, packing and fragments;
+[niw/EPaperNFCSwift](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/Command.swift)
+and [niw's protocol notes](https://gist.github.com/niw/3885b22d502bb1e145984d41568f202d)
+for the same sequence.
 
 ## Good Display
 
@@ -190,6 +274,9 @@ so the probe never sends it, in either pass.
   fragments. 2- or 4-colour panels.
 - **Coverage:** some newer tags from other vendors may use this protocol too.
   That's unverified.
+- **In KegInker:** Report a display decodes its device information and can
+  write [test patterns](#test-writes-opt-in). There's no label writer yet
+  (#135).
 
 ## Sources
 

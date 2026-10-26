@@ -2,7 +2,7 @@ package io.github.cacack.keginker.waveshare
 
 /** What the tag was doing at this step, for messages such as "failed while …". */
 val WriteStep.activity: String get() = when (this) {
-    WriteStep.INIT, WriteStep.SELECT_PANEL, WriteStep.UNLOCK -> "starting the write"
+    WriteStep.INIT, WriteStep.SELECT_PANEL, WriteStep.UNLOCK, WriteStep.AUTHENTICATE -> "starting the write"
     WriteStep.POWER_ON, WriteStep.RESET -> "powering the panel"
     WriteStep.CONFIGURE -> "preparing to send the image"
     WriteStep.PREPARE_DATA, WriteStep.START_DATA -> "preparing to send the image"

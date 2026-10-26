@@ -33,6 +33,9 @@ enum class WriteStep {
 
     /** Rev2.2 only: setting up the controller's RAM window. */
     CONFIGURE,
+
+    /** EZ Sign only: authenticating before the image is sent. */
+    AUTHENTICATE,
 }
 
 /** What went wrong in a failed write; it decides what the user is told. */

@@ -66,10 +66,20 @@ says about itself helps add it.
    applications it accepts, its NDEF records (these often name the vendor's
    app), its memory and version where it offers them, and every command
    sent with the reply.
-5. Tap **Open a GitHub issue** to open the **New display report** form in
+5. Optionally tap **Test writes**. They're offered only for a display
+   KegInker recognises from its vendor commands, so far the EZ Sign family,
+   which means **Also try vendor commands** must be on. **Test writes** opens
+   a screen that explains them; nothing is written until you tap **Start test
+   writes**. Each test pattern replaces what the display shows, and the
+   display keeps the last one afterwards. For each pattern, hold the display
+   to the phone once, then answer a few questions about what it shows. Your
+   answers and how long each refresh took are added to the report you share.
+6. Tap **Open a GitHub issue** to open the **New display report** form in
    your browser with the report filled in. If it's too long to fill in, it's
    copied instead, ready to paste. Add the brand and model printed on the
-   display or box, a photo, and the vendor app's name. **Share** and **Copy**
+   display or box, a photo, the panel size, how many colours it shows, a
+   link to where you bought it, and the vendor app's name and what happened
+   when you used it. **Share** and **Copy**
    work too, if you'd rather send it another way; **Share** sends a long
    report as a `.txt` file.
 

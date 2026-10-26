@@ -453,6 +453,47 @@ class DisplayProbeTest {
     }
 
     @Test
+    fun aDecodedDeviceInformationReplyNamesTheFamily() = runTest {
+        val result = probeDisplay(isoDep(Type4Tag(launcherRecord("x"), deviceInfo = EZ_SIGN_29_DEVICE_INFO)), vendorQueries = true)
+
+        val info = assertNotNull(result.deviceInfo)
+        assertEquals(296 to 128, info.viewWidth to info.viewHeight)
+        assertNull(result.deviceInfoNotDecoded)
+        assertEquals(EZ_SIGN_PROTOCOL, result.protocol)
+    }
+
+    @Test
+    fun aRefusedDeviceInformationQueryIsNotRemarkedOnAndKeepsTheProtocol() = runTest {
+        // A bare status word, as any Type 4 tag that isn't EZ Sign may give.
+        val result = probeDisplay(isoDep(Type4Tag(launcherRecord("x"))), vendorQueries = true)
+
+        assertNull(result.deviceInfo)
+        assertNull(result.deviceInfoNotDecoded)
+        assertEquals("unsupported", result.protocol)
+    }
+
+    @Test
+    fun aDeviceInformationReplyWithDataThatDoesNotDecodeSaysWhy() = runTest {
+        val result = probeDisplay(isoDep(Type4Tag(launcherRecord("x"), deviceInfo = byteArrayOf(0xA1.toByte(), 0x01, 0x00))), vendorQueries = true)
+
+        assertNull(result.deviceInfo)
+        assertEquals("it has no A0 TLV", result.deviceInfoNotDecoded)
+    }
+
+    @Test
+    fun deviceInformationIsOnlyDecodedWhenTheQueryWasSent() = runTest {
+        val off = probeDisplay(isoDep(Type4Tag(launcherRecord("x"), deviceInfo = EZ_SIGN_29_DEVICE_INFO)), vendorQueries = false)
+        // The SELECT is refused, so the query that relies on it isn't sent.
+        val unselected = probeDisplay(isoDep(Type4Tag(ByteArray(0), hasNdefApp = false, deviceInfo = EZ_SIGN_29_DEVICE_INFO)), vendorQueries = true)
+
+        listOf(off, unselected).forEach {
+            assertNull(it.deviceInfo)
+            assertNull(it.deviceInfoNotDecoded)
+            assertEquals("unsupported", it.protocol)
+        }
+    }
+
+    @Test
     fun theListedQueriesSendNothingToOtherKinds() = runTest {
         val nfcATag = Type2Tag(type2Memory(ndefTlv(launcherRecord("com.example.vendor"))))
         val nfcVTag = NfcVTag(type5Memory(ndefTlv(launcherRecord("com.example.vendor"))))

@@ -1,5 +1,6 @@
 package io.github.cacack.keginker
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,20 +30,52 @@ import io.github.cacack.keginker.diagnostics.formatDisplayReport
  * without writing to it, and shows the report. [nfcProblem] explains why tags
  * can't be read, if so. [vendorQueries] is the "Also try vendor commands"
  * switch, which can't change while a tag is being read.
+ *
+ * A report on a display that can be test-written offers them through
+ * [onOfferTestWrites]. Once offered, [testWrites]' screens show until it's
+ * done, and the report then holds its records. [onLeaveTestWrites] backs
+ * out of them.
  */
 @Composable
 fun DisplayProbeScreen(
     state: ProbeState,
+    testWrites: TestWriteController?,
     appInfo: AppInfo,
     deviceInfo: DeviceInfo,
     nfcProblem: String?,
     vendorQueries: Boolean,
     onVendorQueriesChange: (Boolean) -> Unit,
+    onOfferTestWrites: (TestWriteController) -> Unit,
+    onLeaveTestWrites: () -> Unit,
     onBack: () -> Unit,
 ) {
     if (state is ProbeState.Done) {
-        val text = remember(state) { formatDisplayReport(appInfo, deviceInfo, state.result) }
-        ReportScreen(report = text, onBack = onBack, title = "Display report", issueLink = remember(text) { displayReportIssueLink(text) })
+        val testWriteState = testWrites?.state?.collectAsState()?.value
+        if (testWrites != null && testWriteState != null && testWriteState !is TestWriteState.Done) {
+            // Composed after App's handlers, so it takes Back first.
+            BackHandler(onBack = onLeaveTestWrites)
+            TestWriteScreen(
+                state = testWriteState,
+                familyName = testWrites.familyName,
+                onOptIn = testWrites::optIn,
+                onAnswer = testWrites::answer,
+                onRetry = testWrites::retry,
+                onFinish = testWrites::cancel,
+                onBack = onLeaveTestWrites,
+            )
+            return
+        }
+        val records = (testWriteState as? TestWriteState.Done)?.records.orEmpty()
+        val text = remember(state, records) { formatDisplayReport(appInfo, deviceInfo, state.result, records) }
+        // Offered until taken up; a finished run's records are in the report.
+        val offer = remember(state, testWrites) { if (testWrites == null) testWriteControllerFor(state.result) else null }
+        ReportScreen(
+            report = text,
+            onBack = onBack,
+            title = "Display report",
+            issueLink = remember(text) { displayReportIssueLink(text) },
+            extra = offer?.let { { TestWritesOffer(onTestWrites = { onOfferTestWrites(it) }) } },
+        )
         return
     }
     Column(

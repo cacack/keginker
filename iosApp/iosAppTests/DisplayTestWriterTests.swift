@@ -22,7 +22,7 @@ final class DisplayTestWriterTests: XCTestCase {
             deviceInfo: info, deviceInfoNotDecoded: nil
         )
         let controller = try XCTUnwrap(TestWriteControllerKt.testWriteControllerFor(result: result))
-        return DisplayTestWriter(controller: controller, crcMode: .auto)
+        return DisplayTestWriter(result: result, controller: controller, crcMode: .auto)
     }
 
     func testNothingIsSentBeforeTheOptIn() async throws {
@@ -75,5 +75,41 @@ final class DisplayTestWriterTests: XCTestCase {
 
         let done = try XCTUnwrap(writer.controller.state.value as? TestWriteStateDone)
         XCTAssertEqual(done.records.count, 1)
+    }
+
+    func testTheReportAddsTheRecordsWhenTheTestWritesEnd() async throws {
+        let tag = FakeIso7816Tag()
+        let writer = try writer(for: tag)
+        let offered = writer.report.text
+        writer.controller.optIn()
+        await writer.handle(classify(.iso7816(tag), crcMode: .auto), session: nil)
+        await caughtUp(writer)
+
+        XCTAssertFalse(writer.state is TestWriteStateDone)
+        XCTAssertEqual(writer.report.text, offered, "Steps before the end leave the report as it was")
+
+        writer.finish()
+        await caughtUp(writer)
+
+        XCTAssertNotEqual(writer.report.text, offered)
+    }
+
+    func testADiscardedWriterIsFreed() throws {
+        weak var discarded: DisplayTestWriter?
+        try autoreleasepool {
+            let writer = try writer(for: FakeIso7816Tag())
+            discarded = writer
+        }
+
+        XCTAssertNil(discarded, "Its deinit closes the watcher")
+    }
+
+    /// Waits until [writer] shows its controller's state, which reaches it on the main queue.
+    private func caughtUp(_ writer: DisplayTestWriter) async {
+        let caughtUp = { writer.state === (writer.controller.state.value as AnyObject) }
+        for _ in 0..<100 where !caughtUp() {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertTrue(caughtUp())
     }
 }

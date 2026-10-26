@@ -186,8 +186,9 @@ command the tag refuses (not `90 00`) ends its query.
 The report decodes an EZ Sign device-information reply per alt-core/nfc-eink
 `parse_device_info` into a section giving the panel's resolution, colours,
 rows per block and any other TLVs raw (never C0 or C1), and names the
-protocol `EZ Sign (ISO-DEP), no writer yet`; a reply it can't decode gets a
-note saying why.
+protocol `EZ Sign (ISO-DEP), no label writer yet`; a reply that has data but
+doesn't decode gets a note saying why. A bare refusal (a status word alone),
+which other Type 4 tags give, gets no note.
 
 INS `D1` is WRITE BINARY in ISO/IEC 7816-4; only vendor behaviour makes this
 query a read. Waveshare's `F0 D8 … 0E`, found in magic-epaper-app, is a

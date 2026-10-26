@@ -7,12 +7,11 @@ let testWritesOffer = "Writes a few test patterns to the display and asks what y
 /// The display report with its test writes: offered under the report,
 /// confirmed and run on their own screen, and added to the report when they end.
 struct TestWriteReportView: View {
-    let result: ProbeResult
     @ObservedObject var writer: DisplayTestWriter
     @State private var showingTestWrites = false
 
     var body: some View {
-        displayReport(result, testWrites: writer.records)
+        writer.report
             .safeAreaInset(edge: .bottom) {
                 if writer.state is TestWriteStateOffered { offer }
             }

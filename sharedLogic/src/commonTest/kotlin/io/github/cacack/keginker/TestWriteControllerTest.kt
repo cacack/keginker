@@ -1,6 +1,9 @@
 package io.github.cacack.keginker
 
+import io.github.cacack.keginker.diagnostics.AppInfo
+import io.github.cacack.keginker.diagnostics.DeviceInfo
 import io.github.cacack.keginker.diagnostics.ExchangeLog
+import io.github.cacack.keginker.diagnostics.formatDisplayReport
 import io.github.cacack.keginker.ezsign.PANEL_29
 import io.github.cacack.keginker.ezsign.SimulatedEzSignTag
 import io.github.cacack.keginker.ezsign.TestQuestion
@@ -11,10 +14,14 @@ import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.TagKind
 import io.github.cacack.keginker.nfc.Transport
+import io.github.cacack.keginker.probe.EZ_SIGN_PROTOCOL
 import io.github.cacack.keginker.probe.ProbeResult
 import io.github.cacack.keginker.waveshare.FailureKind
+import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
+import io.github.cacack.keginker.waveshare.WRITE_TIMED_OUT_MESSAGE
 import io.github.cacack.keginker.waveshare.WriteResult
 import io.github.cacack.keginker.waveshare.WriteStep
+import io.github.cacack.keginker.waveshare.toHex
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -25,6 +32,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
 private val UID = byteArrayOf(0x04, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66)
@@ -47,6 +58,9 @@ private class RecordingTag : Transport {
 
 private fun pattern(id: String, vararg questions: TestQuestion) =
     TestWritePattern(id, "Pattern $id", 1, 1, ByteArray(1), questions.toList())
+
+private val REPORT_APP = AppInfo(version = "1.4.0", buildType = "release", commit = "abc1234")
+private val REPORT_DEVICE = DeviceInfo(manufacturer = "Google", model = "Pixel 8", os = "Android 15", nfcEnabled = true)
 
 private val SIDE = TestQuestion("side", "Which side?", listOf("Left", "Right"))
 private val COLOUR = TestQuestion("colour", "Which colour?", listOf("Black", "Red"))
@@ -73,6 +87,37 @@ private class FakeFamily(private val failures: Int = 0) : TestWriteFamily {
         }
     }
 }
+
+/** One pattern with a question; its write sends one command, then runs [write]. */
+private class ScriptedFamily(private val write: suspend () -> TestWriteOutcome) : TestWriteFamily {
+    override val name = "Scripted"
+    override val patterns = listOf(pattern("one", SIDE))
+
+    override suspend fun write(
+        transport: Transport,
+        pattern: TestWritePattern,
+        log: ExchangeLog,
+        onProgress: (Int) -> Unit,
+    ): TestWriteOutcome {
+        transport.transceive(byteArrayOf(0x01), 100)
+        return write()
+    }
+}
+
+private fun succeeded() = TestWriteOutcome(ExchangeLog(), refreshMs = 1200, busyAtMs = null, failure = null)
+
+/** A probe of the EZ Sign display [PANEL_29] whose UID is [uid]. */
+private fun ezSignProbe(uid: ByteArray) = ProbeResult(
+    tag = TagInfo(listOf("IsoDep"), uid),
+    protocol = EZ_SIGN_PROTOCOL,
+    kind = TagKind.ISO_DEP,
+    acceptedAids = emptyList(),
+    capabilityContainer = null,
+    ndef = null,
+    note = null,
+    exchanges = emptyList(),
+    deviceInfo = PANEL_29,
+)
 
 /** The probed display, or another ISO-DEP tag with [uid], whose transport opens as [tag]. */
 private fun display(tag: Transport, uid: ByteArray = UID, kind: TagKind = TagKind.ISO_DEP) =
@@ -199,17 +244,98 @@ class TestWriteControllerTest {
         assertEquals(listOf("one", "one"), family.written)
         assertSame(failed.record, controller.records.single())
         assertNotNull(failed.record.outcome.failure)
+        controller.answer(listOf("Left", "Red"))
+        // The failed attempt stays, so the retried pattern appears twice.
+        assertEquals(listOf("Pattern one", "Pattern one"), controller.records.map { it.pattern })
     }
 
     @Test
-    fun answersMustBeOptionsOfEachQuestion() = runTest {
+    fun answersThatAreNotOptionsOfEachQuestionAreIgnored() = runTest {
         val controller = TestWriteController(FakeFamily(), UID)
         controller.optIn()
         controller.onTag(display(RecordingTag()))
+        val asking = controller.state.value
 
-        assertFailsWith<IllegalArgumentException> { controller.answer(listOf("Left")) }
-        assertFailsWith<IllegalArgumentException> { controller.answer(listOf("Left", "Green")) }
+        controller.answer(listOf("Left"))
+        controller.answer(listOf("Left", "Red", "Black"))
+        controller.answer(listOf("Left", "Green"))
+        controller.answer(emptyList())
+
+        assertSame(asking, controller.state.value)
+        assertTrue(controller.records.isEmpty())
+        controller.answer(listOf("Left", "Red"))
+        assertIs<TestWriteState.Waiting>(controller.state.value)
+    }
+
+    @Test
+    fun anExceptionFromTheWriteIsRecordedAsAFailedWrite() = runTest {
+        // The message quotes the UID, as an exception's might; the report hides it.
+        val bug = IllegalStateException("Bug near ${UID.toHex()}")
+        val tag = RecordingTag()
+        val controller = TestWriteController(ScriptedFamily { throw bug }, UID)
+        controller.optIn()
+
+        controller.onTag(display(tag))
+
+        val failed = assertIs<TestWriteState.Failed>(controller.state.value)
+        assertEquals(TEST_WRITE_ERROR_MESSAGE, failed.message)
+        assertSame(failed.record, controller.records.single())
+        val failure = assertNotNull(failed.record.outcome.failure)
+        // Coroutines may rethrow a copy, so compare what the report shows.
+        assertIs<IllegalStateException>(failure.cause)
+        assertEquals(bug.message, failure.cause?.message)
+        assertTrue(tag.closed)
+        val report = formatDisplayReport(REPORT_APP, REPORT_DEVICE, ezSignProbe(UID), controller.records)
+        assertTrue("Cause: IllegalStateException: Bug near [UID 04 11 22 … (7 bytes)]" in report, report)
+        assertTrue(UID.toHex() !in report, report)
+    }
+
+    @Test
+    fun aWriteThatNeverEndsFailsAtTheDeadline() = runTest {
+        val tag = RecordingTag()
+        val controller = TestWriteController(ScriptedFamily { awaitCancellation() }, UID)
+        controller.optIn()
+
+        controller.onTag(display(tag))
+
+        val failed = assertIs<TestWriteState.Failed>(controller.state.value)
+        assertEquals(WRITE_TIMED_OUT_MESSAGE, failed.message)
+        assertEquals(WRITE_DEADLINE_MS, testScheduler.currentTime)
+        val failure = assertNotNull(controller.records.single().outcome.failure)
+        assertEquals("didn't finish within ${WRITE_DEADLINE_MS / 1_000} s", failure.reason)
+        assertTrue(tag.closed)
+    }
+
+    @Test
+    fun cancelWhileWritingIsIgnoredAndTheWriteMovesOn() = runTest {
+        val finish = CompletableDeferred<TestWriteOutcome>()
+        val controller = TestWriteController(ScriptedFamily { finish.await() }, UID)
+        controller.optIn()
+        val write = launch { controller.onTag(display(RecordingTag())) }
+        runCurrent()
+        val writing = assertIs<TestWriteState.Writing>(controller.state.value)
+
+        controller.cancel()
+
+        assertSame(writing, controller.state.value)
+        finish.complete(succeeded())
+        write.join()
         assertIs<TestWriteState.Asking>(controller.state.value)
+    }
+
+    @Test
+    fun thePatternsAreGeneratedOnlyOnceTheUserOptsIn() {
+        var reads = 0
+        val family = object : TestWriteFamily by FakeFamily() {
+            override val patterns: List<TestWritePattern>
+                get() = FakeFamily().patterns.also { reads++ }
+        }
+
+        val controller = TestWriteController(family, UID)
+
+        assertEquals(0, reads)
+        controller.optIn()
+        assertIs<TestWriteState.Waiting>(controller.state.value)
     }
 
     @Test
@@ -248,7 +374,7 @@ class TestWriteControllerTest {
     fun aProbedEzSignDisplayIsTestWrittenEndToEnd() = runTest {
         val result = ProbeResult(
             tag = TagInfo(listOf("IsoDep"), UID),
-            protocol = "EZ Sign (ISO-DEP), no writer yet",
+            protocol = EZ_SIGN_PROTOCOL,
             kind = TagKind.ISO_DEP,
             acceptedAids = emptyList(),
             capabilityContainer = null,
@@ -282,5 +408,13 @@ class TestWriteControllerTest {
         )
 
         assertNull(testWriteControllerFor(result))
+    }
+
+    @Test
+    fun aProbeWithAUidTooShortToMatchOnOffersNone() {
+        for (uid in listOf(ByteArray(0), byteArrayOf(0x04), byteArrayOf(0x04, 0x11, 0x22))) {
+            assertNull(testWriteControllerFor(ezSignProbe(uid)), "${uid.size}-byte UID")
+        }
+        assertNotNull(testWriteControllerFor(ezSignProbe(byteArrayOf(0x04, 0x11, 0x22, 0x33))))
     }
 }

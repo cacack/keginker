@@ -20,7 +20,7 @@ struct DisplayProbeView: View {
     @ViewBuilder private var content: some View {
         if case let .done(result) = prober.state {
             if let testWriter = prober.testWriter {
-                TestWriteReportView(result: result, writer: testWriter)
+                TestWriteReportView(writer: testWriter)
             } else {
                 displayReport(result, testWrites: [])
             }

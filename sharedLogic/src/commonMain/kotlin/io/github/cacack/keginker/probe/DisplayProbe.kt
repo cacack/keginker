@@ -19,7 +19,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 internal const val MAX_NDEF_BYTES = 1_024
 
 /** The protocol a report names for a tag whose [DEVICE_INFO] reply decoded. */
-internal const val EZ_SIGN_PROTOCOL = "EZ Sign (ISO-DEP), no writer yet"
+internal const val EZ_SIGN_PROTOCOL = "EZ Sign (ISO-DEP), no label writer yet"
 
 /** Most bytes one Type 4 READ BINARY asks for. */
 private const val TYPE4_CHUNK = 250
@@ -139,7 +139,11 @@ class ProbeResult(
     val vendorPassSkipped: String? = null,
     /** The vendor pass's [DEVICE_INFO] reply, decoded; null if the query wasn't sent or didn't decode. */
     val deviceInfo: EzSignDeviceInfo? = null,
-    /** Why the [DEVICE_INFO] reply didn't decode; null if none came back, or it decoded. */
+    /**
+     * Why the [DEVICE_INFO] reply didn't decode; null if none came back, it
+     * decoded, or it was a bare refusal (a status word alone, not `90 00`),
+     * which any Type 4 tag that isn't EZ Sign may give.
+     */
     val deviceInfoNotDecoded: String? = null,
 )
 
@@ -214,9 +218,14 @@ internal suspend fun probeDisplay(
         vendorQueriesSent = probe.vendorQueriesSent,
         vendorPassSkipped = probe.vendorPassSkipped,
         deviceInfo = deviceInfo,
-        deviceInfoNotDecoded = (parsed as? EzSignDeviceInfoParse.NotDecoded)?.reason,
+        deviceInfoNotDecoded = (parsed as? EzSignDeviceInfoParse.NotDecoded)?.reason
+            ?.takeUnless { probe.deviceInfoReply?.let(::isBareRefusal) == true },
     )
 }
+
+/** Whether [reply] is a status word alone, other than `90 00`: the tag refused the command and sent no data. */
+private fun isBareRefusal(reply: ByteArray) =
+    reply.size == 2 && !(reply[0] == 0x90.toByte() && reply[1] == 0x00.toByte())
 
 /** The probe stopped short; [Probe.note] says why. [endsPass] when the rest of the pass can't run either. */
 private class Stopped(val endsPass: Boolean) : Exception()

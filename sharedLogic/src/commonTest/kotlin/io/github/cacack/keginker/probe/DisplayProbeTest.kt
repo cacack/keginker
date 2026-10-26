@@ -459,16 +459,25 @@ class DisplayProbeTest {
         val info = assertNotNull(result.deviceInfo)
         assertEquals(296 to 128, info.viewWidth to info.viewHeight)
         assertNull(result.deviceInfoNotDecoded)
-        assertEquals("EZ Sign (ISO-DEP), no writer yet", result.protocol)
+        assertEquals(EZ_SIGN_PROTOCOL, result.protocol)
     }
 
     @Test
-    fun aRefusedDeviceInformationQuerySaysWhyAndKeepsTheProtocol() = runTest {
+    fun aRefusedDeviceInformationQueryIsNotRemarkedOnAndKeepsTheProtocol() = runTest {
+        // A bare status word, as any Type 4 tag that isn't EZ Sign may give.
         val result = probeDisplay(isoDep(Type4Tag(launcherRecord("x"))), vendorQueries = true)
 
         assertNull(result.deviceInfo)
-        assertEquals("the tag refused the query (status 6D 00)", result.deviceInfoNotDecoded)
+        assertNull(result.deviceInfoNotDecoded)
         assertEquals("unsupported", result.protocol)
+    }
+
+    @Test
+    fun aDeviceInformationReplyWithDataThatDoesNotDecodeSaysWhy() = runTest {
+        val result = probeDisplay(isoDep(Type4Tag(launcherRecord("x"), deviceInfo = byteArrayOf(0xA1.toByte(), 0x01, 0x00))), vendorQueries = true)
+
+        assertNull(result.deviceInfo)
+        assertEquals("it has no A0 TLV", result.deviceInfoNotDecoded)
     }
 
     @Test

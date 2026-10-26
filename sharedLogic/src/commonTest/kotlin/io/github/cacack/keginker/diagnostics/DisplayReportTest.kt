@@ -18,6 +18,7 @@ import io.github.cacack.keginker.probe.DEVICE_INFO
 import io.github.cacack.keginker.probe.EZ_SIGN_29_DEVICE_INFO
 import io.github.cacack.keginker.probe.EZ_SIGN_42_DEVICE_INFO
 import io.github.cacack.keginker.probe.EZ_SIGN_DEVICE_INFO
+import io.github.cacack.keginker.probe.EZ_SIGN_PROTOCOL
 import io.github.cacack.keginker.probe.MADE_UP_ID
 import io.github.cacack.keginker.probe.MADE_UP_SERIAL
 import io.github.cacack.keginker.probe.NFCV_UID
@@ -338,7 +339,7 @@ class DisplayReportTest {
         val text = formatDisplayReport(APP, DEVICE, probeEzSign(EZ_SIGN_29_DEVICE_INFO + OK))
 
         listOf(
-            "Detected protocol: EZ Sign (ISO-DEP), no writer yet",
+            "Detected protocol: $EZ_SIGN_PROTOCOL",
             "\nEZ Sign device information\n" +
                 "  Resolution: 296 × 128 (native 128 × 296)\n" +
                 "  Colours: 4 (black, white, yellow, red), mode 07\n" +
@@ -364,7 +365,7 @@ class DisplayReportTest {
     }
 
     @Test
-    fun aReplyThatDoesNotDecodeGetsANoteAndNoSection() = runTest {
+    fun aReplyWithDataThatDoesNotDecodeGetsANoteAndARefusalNone() = runTest {
         val unknownMode = probeEzSign(bytes(0xA0, 0x07, 0xF0, 0x99, 0x20, 0x02, 0x58, 0x01, 0x90) + OK)
         val refused = probeEzSign(bytes(0x6D, 0x00))
 
@@ -372,7 +373,8 @@ class DisplayReportTest {
         val refusedText = formatDisplayReport(APP, DEVICE, refused)
 
         assertTrue("Note: The EZ Sign device information didn't decode: colour mode 99 isn't one alt-core/nfc-eink knows." in unknownText, unknownText)
-        assertTrue("Note: The EZ Sign device information didn't decode: the tag refused the query (status 6D 00)." in refusedText, refusedText)
+        // Any Type 4 tag that isn't EZ Sign may refuse the query.
+        assertFalse("Note:" in refusedText, refusedText)
         listOf(unknownText, refusedText).forEach {
             assertTrue("Detected protocol: unsupported" in it, it)
             assertFalse("EZ Sign device information\n" in it, it)

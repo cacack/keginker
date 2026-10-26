@@ -22,6 +22,13 @@ internal val DEVICE_ID_TLVS = setOf(0xC0, 0xC1)
 private const val PANEL_TLV = 0xA0
 private const val PANEL_TLV_BYTES = 7
 
+/**
+ * Most pixels a decoded panel may have. Real EZ Sign panels top out well
+ * under 1 million pixels, so a reply that claims more is garbled; its test
+ * patterns would cost more memory than a phone should spend on them.
+ */
+internal const val MAX_PANEL_PIXELS = 2_000_000L
+
 /** Bits per pixel for each A0 colour mode alt-core knows. */
 private val BITS_PER_PIXEL = mapOf(0x01 to 1, 0x07 to 2, 0x47 to 1)
 
@@ -82,6 +89,11 @@ fun parseEzSignDeviceInfo(reply: ByteArray): EzSignDeviceInfoParse {
     val nativeWidth = u8(5) shl 8 or u8(6)
     // A0 holds the height times the bits per pixel.
     val nativeHeight = (u8(3) shl 8 or u8(4)) / bitsPerPixel
+    val size = "$nativeWidth × $nativeHeight"
+    if (nativeWidth == 0 || nativeHeight == 0) return fail("its panel is $size, which has no pixels")
+    if (nativeWidth.toLong() * nativeHeight > MAX_PANEL_PIXELS) {
+        return fail("its panel is $size, more than the $MAX_PANEL_PIXELS pixels KegInker accepts")
+    }
     val portrait = nativeWidth < nativeHeight
     return EzSignDeviceInfoParse.Decoded(
         EzSignDeviceInfo(

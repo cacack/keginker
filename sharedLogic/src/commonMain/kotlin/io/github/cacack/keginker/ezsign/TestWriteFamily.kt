@@ -15,13 +15,21 @@ interface TestWriteFamily {
     /** The family as reports name it. */
     val name: String
 
-    /** The patterns to write, in order, generated for this display. */
+    /**
+     * The patterns to write, in order, generated for this display. Read only
+     * once the user opts in, since a pattern holds a byte per pixel.
+     */
     val patterns: List<TestWritePattern>
 
     /**
      * Writes [pattern] to the display over [transport], recording every
-     * exchange in [log]. Never throws for a write that fails or a refresh
-     * that runs past the budget; those are in the outcome. Cancellation propagates.
+     * exchange in [log]. A write the tag fails, and a refresh that runs past
+     * the budget, are in the outcome, not thrown. It throws
+     * [kotlin.coroutines.cancellation.CancellationException] when cancelled,
+     * and [IllegalArgumentException] when [pattern] wasn't generated for this
+     * display (not one of [patterns]). Nothing else is expected;
+     * [io.github.cacack.keginker.TestWriteController] records any exception
+     * but cancellation as a failed write.
      * [onProgress] receives 0–100 and never decreases.
      */
     @Throws(Exception::class)
@@ -44,7 +52,8 @@ internal class EzSignTestWriteFamily(
 ) : TestWriteFamily {
     override val name = "EZ Sign"
 
-    override val patterns = ezSignTestPatterns(info)
+    /** Built on first use, so offering test writes allocates no pixels. */
+    override val patterns by lazy { ezSignTestPatterns(info) }
 
     @Throws(Exception::class)
     override suspend fun write(
@@ -67,7 +76,8 @@ class TestAnswer(
 /**
  * One test write, for the display report: the pattern written, how the
  * write went, and the answers to its questions; empty when the write failed
- * or the user stopped before answering.
+ * or the user stopped before answering. A failed write keeps its record when
+ * the pattern is retried, so a retried pattern has one record per attempt.
  */
 class TestWriteRecord(
     /** The [TestWritePattern.title]. */

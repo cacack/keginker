@@ -12,24 +12,38 @@ final class DisplayTestWriter: NSObject, ObservableObject {
     @Published private(set) var isBusy = false
     /// Why the last session ended without a write, when the controller doesn't say.
     @Published private(set) var notice: String?
+    /// The display report with the records so far, built only when they change,
+    /// not on each step or progress update of a write.
+    @Published private(set) var report: ReportView
     let controller: TestWriteController
+    private let result: ProbeResult
     private let crcMode: CrcMode
-    private var watching: (any KotlinAutoCloseable)?
+    /// Set once in init and closed in deinit, which isn't main-actor isolated;
+    /// closing it only cancels a coroutine, which is safe from any thread.
+    nonisolated(unsafe) private var watching: (any KotlinAutoCloseable)?
     private var session: NFCTagReaderSession?
     private var isRunning = false
     /// Set when the user finishes during a write; the controller ends once the write does.
     private var finishing = false
 
-    init(controller: TestWriteController, crcMode: CrcMode) {
+    /// The test writes of [controller], made for the probe [result].
+    init(result: ProbeResult, controller: TestWriteController, crcMode: CrcMode) {
+        self.result = result
         self.controller = controller
         self.crcMode = crcMode
-        state = controller.state.value as! TestWriteState
+        let state = controller.state.value as! TestWriteState
+        self.state = state
+        report = displayReport(result, testWrites: (state as? TestWriteStateDone)?.records ?? [])
         super.init()
         watching = SwiftInteropKt.watchTestWrites(controller: controller) { [weak self] in self?.show($0) }
     }
 
+    deinit {
+        watching?.close()
+    }
+
     /// The records once the test writes have ended; empty before.
-    var records: [TestWriteRecord] { (state as? TestWriteStateDone)?.records ?? [] }
+    private var records: [TestWriteRecord] { (state as? TestWriteStateDone)?.records ?? [] }
 
     /// The user's opt-in: writes the first pattern to the next tap.
     func start() {
@@ -99,6 +113,8 @@ final class DisplayTestWriter: NSObject, ObservableObject {
         if let writing = newState as? TestWriteStateWriting, !(state is TestWriteStateWriting) {
             session?.alertMessage = "Writing \(writing.pattern.title). Keep the iPhone still."
         }
+        let newRecords = (newState as? TestWriteStateDone)?.records ?? []
+        if newRecords != records { report = displayReport(result, testWrites: newRecords) }
         state = newState
     }
 

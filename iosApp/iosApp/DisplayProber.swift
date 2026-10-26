@@ -76,7 +76,7 @@ final class DisplayProber: NSObject, ObservableObject {
                         let result = try await DisplayProbeKt.probeDisplay(tag: classified, vendorQueries: vendorQueries)
                         if case .reading = self.state {
                             self.testWriter = TestWriteControllerKt.testWriteControllerFor(result: result)
-                                .map { DisplayTestWriter(controller: $0, crcMode: self.crcMode) }
+                                .map { DisplayTestWriter(result: result, controller: $0, crcMode: self.crcMode) }
                             self.state = .done(result)
                         }
                         session.alertMessage = "Done."

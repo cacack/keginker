@@ -47,7 +47,7 @@ body:
       description: How many colours the display can show.
       options:
         - 2 (black and white)
-        - "3"
+        - 3 (black, white, red)
         - 4 (black, white, yellow, red)
         - Other or not sure
     validations:

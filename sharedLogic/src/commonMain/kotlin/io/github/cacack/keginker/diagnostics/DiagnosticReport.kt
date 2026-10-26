@@ -79,7 +79,7 @@ internal fun shortUid(uid: ByteArray): String {
 }
 
 /** How many bytes of [uid] a report shows: at most [UID_SHOWN_BYTES], and never more than half. */
-private fun uidShownBytes(uid: ByteArray) = minOf(UID_SHOWN_BYTES, uid.size / 2)
+internal fun uidShownBytes(uid: ByteArray) = minOf(UID_SHOWN_BYTES, uid.size / 2)
 
 /** Bytes a report shows as [marker] instead of their hex. */
 internal class Hidden(val range: IntRange, val marker: String)
@@ -117,19 +117,23 @@ internal fun hexHiding(bytes: ByteArray, from: Int, to: Int, hidden: List<Hidden
 }
 
 /**
- * The ATS [historical] bytes as hex, with any run that matches the start of
- * [uid], in either byte order, hidden once it is longer than the UID line
- * shows. Some tags (EZ Sign) put most of their UID there.
+ * The ATS [historical] bytes as hex, with any run that matches a contiguous
+ * part of [uid], from anywhere in it and in either byte order, hidden once it
+ * is longer than the UID line shows. Some tags (EZ Sign) put most of their
+ * UID there.
  */
 internal fun historicalBytesText(historical: ByteArray, uid: ByteArray): String {
     val hidden = mutableListOf<Hidden>()
     val marker = uidMarker(uid)
+    val shown = uidShownBytes(uid)
     for (order in listOf(uid, uid.reversedArray())) {
         for (at in historical.indices) {
-            // The longest run from here that matches the start of the UID.
-            var length = 0
-            while (length < order.size && at + length < historical.size && historical[at + length] == order[length]) length++
-            if (length > uidShownBytes(uid)) hidden += Hidden(at until at + length, marker)
+            for (from in order.indices) {
+                // The longest run from here that matches the UID from its byte [from].
+                var length = 0
+                while (from + length < order.size && at + length < historical.size && historical[at + length] == order[from + length]) length++
+                if (length > shown) hidden += Hidden(at until at + length, marker)
+            }
         }
     }
     return hexHiding(historical, 0, historical.size, hidden)

@@ -21,7 +21,7 @@ import io.github.cacack.keginker.waveshare.toHex
 private const val MEMORY_ROW_BYTES = 16
 
 /** Shortest UID the report hides inside replies; ISO 14443 UIDs are 4, 7 or 10 bytes, ISO 15693 UIDs 8. */
-private const val MIN_HIDDEN_UID_BYTES = 4
+internal const val MIN_HIDDEN_UID_BYTES = 4
 
 /** Where an ISO/IEC 15693-3 Get System Information reply holds the 8-byte UID, after the flags and info flags. */
 private val SYSTEM_INFO_UID = 2..9

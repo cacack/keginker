@@ -120,6 +120,50 @@ class EzSignDeviceInfoTest {
     }
 
     @Test
+    fun aPanelWithNoPixelsIsNotDecoded() {
+        // Width 0.
+        assertEquals("its panel is 0 × 300, which has no pixels", reason(bytes(0xA0, 0x07, 0x00, 0x47, 0x20, 0x01, 0x2C, 0x00, 0x00) + OK))
+        // A raw height of 1 at 2 bits per pixel is 0 rows.
+        assertEquals("its panel is 400 × 0, which has no pixels", reason(bytes(0xA0, 0x07, 0x00, 0x07, 0x20, 0x00, 0x01, 0x01, 0x90) + OK))
+    }
+
+    @Test
+    fun aPanelLargerThanAnyEzSignPanelIsNotDecoded() {
+        // 65535 × 65535 overflows an Int.
+        assertEquals(
+            "its panel is 65535 × 65535, more than the $MAX_PANEL_PIXELS pixels KegInker accepts",
+            reason(bytes(0xA0, 0x07, 0x00, 0x47, 0x20, 0xFF, 0xFF, 0xFF, 0xFF) + OK),
+        )
+        // 2000 × 1001: just over the cap.
+        assertEquals(
+            "its panel is 2000 × 1001, more than the $MAX_PANEL_PIXELS pixels KegInker accepts",
+            reason(bytes(0xA0, 0x07, 0x00, 0x47, 0x20, 0x03, 0xE9, 0x07, 0xD0) + OK),
+        )
+        // 2000 × 1000: the cap itself.
+        assertEquals(2000 to 1000, decoded(bytes(0xA0, 0x07, 0x00, 0x47, 0x20, 0x03, 0xE8, 0x07, 0xD0) + OK).let { it.nativeWidth to it.nativeHeight })
+    }
+
+    @Test
+    fun randomA0sNeverThrowAndDecodeOnlyPanelsTheirPatternsFit() = forEachSeed { random ->
+        // Small sizes often, so some decode, and any 16-bit size sometimes.
+        fun size() = if (random.nextBoolean()) random.nextInt(0, 400) else random.nextInt(0x10000)
+        val mode = listOf(0x01, 0x07, 0x47).random(random)
+        val rawHeight = size()
+        val width = size()
+        val a0 = bytes(0xA0, 0x07, random.nextInt(256), mode, random.nextInt(256), rawHeight shr 8, rawHeight and 0xFF, width shr 8, width and 0xFF)
+
+        when (val parsed = parseEzSignDeviceInfo(a0 + OK)) {
+            is EzSignDeviceInfoParse.Decoded -> {
+                val info = parsed.info
+                assertTrue(info.nativeWidth > 0 && info.nativeHeight > 0)
+                assertTrue(info.nativeWidth.toLong() * info.nativeHeight <= MAX_PANEL_PIXELS)
+                ezSignTestPatterns(info).forEach { assertEquals(info.nativeWidth * info.nativeHeight, it.pixels.size) }
+            }
+            is EzSignDeviceInfoParse.NotDecoded -> assertTrue(parsed.reason.isNotEmpty())
+        }
+    }
+
+    @Test
     fun randomRepliesNeverThrowAndNeverKeepTheSerialOrId() = forEachSeed { random ->
         val serial = random.nextBytes(10)
         val id = random.nextBytes(4)

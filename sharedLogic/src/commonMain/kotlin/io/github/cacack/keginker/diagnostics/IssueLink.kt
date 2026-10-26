@@ -14,7 +14,7 @@ internal const val MAX_ISSUE_URL_LENGTH = 8_000
 class IssueLink(val url: String, val includesReport: Boolean) {
     /** What the link does, shown under its button on both platforms. */
     val caption: String = if (includesReport) {
-        "Opens the New display report form in your browser with this report filled in. Add a photo and the model printed on the display. $PUBLIC_NOTE"
+        "Opens the New display report form in your browser with this report filled in. Add a photo, the model printed on the display, and how many colours it shows. $PUBLIC_NOTE"
     } else {
         "Opens the New display report form in your browser and copies this report, which is too long to fill in, so you can paste it. $PUBLIC_NOTE"
     }

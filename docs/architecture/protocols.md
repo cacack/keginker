@@ -170,6 +170,12 @@ command the tag refuses (not `90 00`) ends its query.
 |---|---|---|---|---|
 | EZ Sign device information | ISO-DEP | SELECT `D2760000850101`, then `00 D1 00 00 00` | TLVs, then `90 00`: A0 panel geometry and colour mode, A1 panel flags, C0 a 10-character serial, C1 a 4-byte device ID. Reports shorten C0 and C1 as they do the UID. | [niw/EPaperNFCSwift](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/Command.swift#L117-L121), [alt-core/nfc-eink](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/protocol.py#L76-L82) |
 
+The report decodes an EZ Sign device-information reply per alt-core/nfc-eink
+`parse_device_info` into a section giving the panel's resolution, colours,
+rows per block and any other TLVs raw (never C0 or C1), and names the
+protocol `EZ Sign (ISO-DEP), no writer yet`; a reply it can't decode gets a
+note saying why.
+
 INS `D1` is WRITE BINARY in ISO/IEC 7816-4; only vendor behaviour makes this
 query a read. Waveshare's `F0 D8 … 0E`, found in magic-epaper-app, is a
 panel-type configuration write (alt-core/nfc-eink `build_panel_type_apdu`),

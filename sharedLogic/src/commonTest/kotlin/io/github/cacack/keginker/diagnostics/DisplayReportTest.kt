@@ -1,13 +1,20 @@
 package io.github.cacack.keginker.diagnostics
 
+import io.github.cacack.keginker.ezsign.nextDeviceInfoReply
+import io.github.cacack.keginker.image.forEachSeed
 import io.github.cacack.keginker.nfc.TagDetail
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.TagKind
+import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.nfc.classifyIsoDepTag
 import io.github.cacack.keginker.nfc.classifyNfcATag
 import io.github.cacack.keginker.nfc.classifyNfcVTag
 import io.github.cacack.keginker.probe.DEVICE_INFO
+import io.github.cacack.keginker.probe.EZ_SIGN_29_DEVICE_INFO
+import io.github.cacack.keginker.probe.EZ_SIGN_42_DEVICE_INFO
 import io.github.cacack.keginker.probe.EZ_SIGN_DEVICE_INFO
+import io.github.cacack.keginker.probe.MADE_UP_ID
+import io.github.cacack.keginker.probe.MADE_UP_SERIAL
 import io.github.cacack.keginker.probe.NFCV_UID
 import io.github.cacack.keginker.probe.NTAG213_VERSION
 import io.github.cacack.keginker.probe.NfcVTag
@@ -66,6 +73,25 @@ private fun deviceInfoResult(reply: ByteArray, vendorPassSkipped: String? = null
     vendorQueriesSent = 1,
     vendorPassSkipped = vendorPassSkipped,
 )
+
+private val OK = bytes(0x90, 0x00)
+
+/** A probe, with vendor queries on, of an unsupported ISO-DEP tag that answers [DEVICE_INFO] with [reply]. */
+private suspend fun probeEzSign(reply: ByteArray): ProbeResult {
+    val tag = Type4Tag(launcherRecord("x"))
+    val ezSign = object : Transport by tag {
+        override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray =
+            if (command.contentEquals(DEVICE_INFO)) reply else tag.transceive(command, timeoutMs)
+    }
+    return probeDisplay(classifyIsoDepTag(TagInfo(listOf("IsoDep", "NfcA"), UID)) { ezSign }, vendorQueries = true)
+}
+
+/** Fails if [text] holds all of [serial] or of [id]. */
+private fun assertNoDeviceId(text: String, serial: ByteArray, id: ByteArray) {
+    assertFalse(serial.toHex() in text, text)
+    assertFalse(serial.decodeToString() in text, text)
+    assertFalse(id.toHex() in text, text)
+}
 
 /** Fails unless [text] is free of [uid] in both byte orders. */
 private fun assertNoFullUid(text: String, uid: ByteArray) {
@@ -296,6 +322,65 @@ class DisplayReportTest {
         val text = formatDisplayReport(APP, DEVICE, deviceInfoResult(bytes(0xA0, 0x02, 0x01, 0x02, 0x90, 0x00)))
 
         assertTrue("< A0 02 01 02 90 00" in text, text)
+    }
+
+    @Test
+    fun anEzSignReportDecodesAPortraitPanel() = runTest {
+        val text = formatDisplayReport(APP, DEVICE, probeEzSign(EZ_SIGN_29_DEVICE_INFO + OK))
+
+        listOf(
+            "Detected protocol: EZ Sign (ISO-DEP), no writer yet",
+            "\nEZ Sign device information\n" +
+                "  Resolution: 296 × 128 (native 128 × 296)\n" +
+                "  Colours: 4 (black, white, yellow, red), mode 07\n" +
+                "  Rows per block: 32\n" +
+                "  A1: 01 12 00 30 FF FF FF\n" +
+                "  B1: 1A\n" +
+                "  B2: 14\n" +
+                "  B3: 00\n" +
+                "  D1: 01 20 00 00 00 00 00\n" +
+                "  Decoded from: alt-core/nfc-eink https://github.com/alt-core/nfc-eink/blob/" +
+                "682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/device.py\n",
+        ).forEach { assertTrue(it in text, "Missing \"$it\" in:\n$text") }
+        assertNoDeviceId(text, MADE_UP_SERIAL, MADE_UP_ID)
+    }
+
+    @Test
+    fun anEzSignReportDecodesALandscapePanel() = runTest {
+        val text = formatDisplayReport(APP, DEVICE, probeEzSign(EZ_SIGN_42_DEVICE_INFO + OK))
+
+        assertTrue("  Resolution: 400 × 300\n  Colours: 4 (black, white, yellow, red), mode 07\n" in text, text)
+        assertTrue("  B1: 08\n" in text, text)
+        assertNoDeviceId(text, MADE_UP_SERIAL, MADE_UP_ID)
+    }
+
+    @Test
+    fun aReplyThatDoesNotDecodeGetsANoteAndNoSection() = runTest {
+        val unknownMode = probeEzSign(bytes(0xA0, 0x07, 0xF0, 0x99, 0x20, 0x02, 0x58, 0x01, 0x90) + OK)
+        val refused = probeEzSign(bytes(0x6D, 0x00))
+
+        val unknownText = formatDisplayReport(APP, DEVICE, unknownMode)
+        val refusedText = formatDisplayReport(APP, DEVICE, refused)
+
+        assertTrue("Note: The EZ Sign device information didn't decode: colour mode 99 isn't one alt-core/nfc-eink knows." in unknownText, unknownText)
+        assertTrue("Note: The EZ Sign device information didn't decode: the tag refused the query (status 6D 00)." in refusedText, refusedText)
+        listOf(unknownText, refusedText).forEach {
+            assertTrue("Detected protocol: unsupported" in it, it)
+            assertFalse("EZ Sign device information\n" in it, it)
+        }
+    }
+
+    @Test
+    fun randomDeviceInformationRepliesNeverShowTheSerialOrId() = runTest {
+        forEachSeed { random ->
+            val serial = random.nextBytes(10)
+            val id = random.nextBytes(4)
+            val reply = random.nextDeviceInfoReply(serial, id)
+
+            val text = formatDisplayReport(APP, DEVICE, probeEzSign(reply))
+
+            assertNoDeviceId(text, serial, id)
+        }
     }
 
     @Test

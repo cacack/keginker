@@ -453,6 +453,38 @@ class DisplayProbeTest {
     }
 
     @Test
+    fun aDecodedDeviceInformationReplyNamesTheFamily() = runTest {
+        val result = probeDisplay(isoDep(Type4Tag(launcherRecord("x"), deviceInfo = EZ_SIGN_29_DEVICE_INFO)), vendorQueries = true)
+
+        val info = assertNotNull(result.deviceInfo)
+        assertEquals(296 to 128, info.viewWidth to info.viewHeight)
+        assertNull(result.deviceInfoNotDecoded)
+        assertEquals("EZ Sign (ISO-DEP), no writer yet", result.protocol)
+    }
+
+    @Test
+    fun aRefusedDeviceInformationQuerySaysWhyAndKeepsTheProtocol() = runTest {
+        val result = probeDisplay(isoDep(Type4Tag(launcherRecord("x"))), vendorQueries = true)
+
+        assertNull(result.deviceInfo)
+        assertEquals("the tag refused the query (status 6D 00)", result.deviceInfoNotDecoded)
+        assertEquals("unsupported", result.protocol)
+    }
+
+    @Test
+    fun deviceInformationIsOnlyDecodedWhenTheQueryWasSent() = runTest {
+        val off = probeDisplay(isoDep(Type4Tag(launcherRecord("x"), deviceInfo = EZ_SIGN_29_DEVICE_INFO)), vendorQueries = false)
+        // The SELECT is refused, so the query that relies on it isn't sent.
+        val unselected = probeDisplay(isoDep(Type4Tag(ByteArray(0), hasNdefApp = false, deviceInfo = EZ_SIGN_29_DEVICE_INFO)), vendorQueries = true)
+
+        listOf(off, unselected).forEach {
+            assertNull(it.deviceInfo)
+            assertNull(it.deviceInfoNotDecoded)
+            assertEquals("unsupported", it.protocol)
+        }
+    }
+
+    @Test
     fun theListedQueriesSendNothingToOtherKinds() = runTest {
         val nfcATag = Type2Tag(type2Memory(ndefTlv(launcherRecord("com.example.vendor"))))
         val nfcVTag = NfcVTag(type5Memory(ndefTlv(launcherRecord("com.example.vendor"))))

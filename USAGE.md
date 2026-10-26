@@ -69,7 +69,9 @@ says about itself helps add it.
 5. Tap **Open a GitHub issue** to open the **New display report** form in
    your browser with the report filled in. If it's too long to fill in, it's
    copied instead, ready to paste. Add the brand and model printed on the
-   display or box, a photo, and the vendor app's name. **Share** and **Copy**
+   display or box, a photo, the panel size, how many colours it shows, a
+   link to where you bought it, and the vendor app's name and what happened
+   when you used it. **Share** and **Copy**
    work too, if you'd rather send it another way; **Share** sends a long
    report as a `.txt` file.
 

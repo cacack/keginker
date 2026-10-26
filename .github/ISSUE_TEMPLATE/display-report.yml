@@ -33,6 +33,34 @@ body:
     validations:
       required: true
   - type: input
+    id: panel-size
+    attributes:
+      label: Panel size
+      description: The screen's diagonal, as the seller or box gives it, if you know it.
+      placeholder: 2.9"
+    validations:
+      required: false
+  - type: dropdown
+    id: colours
+    attributes:
+      label: Colours
+      description: How many colours the display can show.
+      options:
+        - 2 (black and white)
+        - "3"
+        - 4 (black, white, yellow, red)
+        - Other or not sure
+    validations:
+      required: true
+  - type: input
+    id: purchase-link
+    attributes:
+      label: Where you bought it
+      description: A link to the listing, if you have one.
+      placeholder: https://…
+    validations:
+      required: false
+  - type: input
     id: vendor-app
     attributes:
       label: Vendor app
@@ -44,6 +72,6 @@ body:
     id: notes
     attributes:
       label: Anything else
-      description: Panel size or colours, where you bought it, or what happened with the vendor app.
+      description: What happened when you used the vendor app with the display.
     validations:
       required: false

@@ -1,5 +1,9 @@
 package io.github.cacack.keginker.diagnostics
 
+import io.github.cacack.keginker.ezsign.DEVICE_ID_TLVS
+import io.github.cacack.keginker.ezsign.EZ_SIGN_DECODER_SOURCE
+import io.github.cacack.keginker.ezsign.EzSignDeviceInfo
+import io.github.cacack.keginker.ezsign.ezSignTlvs
 import io.github.cacack.keginker.nfc.TagKind
 import io.github.cacack.keginker.probe.DEVICE_INFO
 import io.github.cacack.keginker.probe.NfcVSystemInfo
@@ -20,9 +24,6 @@ private const val MIN_HIDDEN_UID_BYTES = 4
 /** Where an ISO/IEC 15693-3 Get System Information reply holds the 8-byte UID, after the flags and info flags. */
 private val SYSTEM_INFO_UID = 2..9
 
-/** The [DEVICE_INFO] reply TLVs that identify one device: C0 its serial, C1 its ID. */
-private val DEVICE_ID_TLVS = setOf(0xC0, 0xC1)
-
 /** The documented steps that read the tag's memory, whose data the report shows only under Memory. */
 private val DATA_READS = setOf(ProbeStep.READ_PAGES, ProbeStep.READ_BLOCKS)
 
@@ -33,6 +34,8 @@ private val DATA_READS = setOf(ProbeStep.READ_PAGES, ProbeStep.READ_BLOCKS)
  * only the start of the originality signature and of a device's serial and
  * ID in a vendor query's reply. Memory reads show their data only under
  * Memory, where a UID split across two replies is still found and hidden.
+ * A decoded EZ Sign device-information reply gets its own section, which
+ * leaves out the device's serial and ID.
  */
 fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult): String = buildString {
     reportHeader("KegInker display report", app, device, result.tag)
@@ -75,7 +78,9 @@ fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult): 
             appendLine("    $offset  ${hexHiding(memory, from, minOf(from + MEMORY_ROW_BYTES, memory.size), hidden)}")
         }
     }
-    field("Note", result.note)
+    val notDecoded = result.deviceInfoNotDecoded?.let { "The EZ Sign device information didn't decode: $it." }
+    field("Note", listOfNotNull(result.note, notDecoded).joinToString(" ").ifEmpty { null })
+    result.deviceInfo?.let { ezSignSection(it, ::hex) }
     appendLine()
     exchangeLines(
         result.exchanges.map {
@@ -88,6 +93,20 @@ fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult): 
         },
     )
 }
+
+/** What [info] says about the panel; [hex] shows a raw value with any UID hidden. */
+private fun StringBuilder.ezSignSection(info: EzSignDeviceInfo, hex: (ByteArray) -> String) {
+    appendLine()
+    appendLine("EZ Sign device information")
+    val native = if (info.nativeWidth != info.viewWidth) " (native ${info.nativeWidth} × ${info.nativeHeight})" else ""
+    field("Resolution", "${info.viewWidth} × ${info.viewHeight}$native")
+    field("Colours", "${info.colourNames.size} (${info.colourNames.joinToString(", ")}), mode ${byteHex(info.colourMode)}")
+    field("Rows per block", info.rowsPerBlock.toString())
+    info.otherTlvs.forEach { (tag, value) -> field(byteHex(tag), hex(value).ifEmpty { "(empty)" }) }
+    field("Decoded from", EZ_SIGN_DECODER_SOURCE)
+}
+
+private fun byteHex(value: Int) = byteArrayOf(value.toByte()).toHex()
 
 /** NXP GET_VERSION's fields (NTAG21x and MIFARE Ultralight EV1 datasheets). */
 private fun describeVersion(version: ByteArray): String {
@@ -157,20 +176,10 @@ private fun dataReadText(step: ProbeStep, reply: ByteArray): String? = when {
 private fun deviceIdHidden(reply: ByteArray): List<Hidden> {
     if (reply.size == 2) return emptyList()
     val end = if (isOk(reply)) reply.size - 2 else reply.size
-    val hidden = mutableListOf<Hidden>()
-    var at = 0
-    while (at < end) {
-        val valueStart = at + 2
-        val valueEnd = if (valueStart <= end) valueStart + (reply[at + 1].toInt() and 0xFF) else end + 1
-        if (valueEnd > end) return listOf(Hidden(0 until end, "[$end bytes hidden]"))
-        val tag = reply[at].toInt() and 0xFF
-        if (tag in DEVICE_ID_TLVS && valueEnd > valueStart) {
-            val value = reply.copyOfRange(valueStart, valueEnd)
-            hidden += Hidden(valueStart until valueEnd, "[${reply.copyOfRange(at, at + 1).toHex()} ${shortUid(value)}]")
-        }
-        at = valueEnd
+    val tlvs = ezSignTlvs(reply, end) ?: return listOf(Hidden(0 until end, "[$end bytes hidden]"))
+    return tlvs.filter { it.tag in DEVICE_ID_TLVS && it.valueEnd > it.valueStart }.map {
+        Hidden(it.valueStart until it.valueEnd, "[${byteHex(it.tag)} ${shortUid(reply.copyOfRange(it.valueStart, it.valueEnd))}]")
     }
-    return hidden
 }
 
 private fun isOk(reply: ByteArray) =

@@ -1,6 +1,9 @@
 package io.github.cacack.keginker.probe
 
 import io.github.cacack.keginker.diagnostics.describe
+import io.github.cacack.keginker.ezsign.EzSignDeviceInfo
+import io.github.cacack.keginker.ezsign.EzSignDeviceInfoParse
+import io.github.cacack.keginker.ezsign.parseEzSignDeviceInfo
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.TagKind
@@ -14,6 +17,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /** Most NDEF message bytes the probe reads; a launcher record is far smaller. */
 internal const val MAX_NDEF_BYTES = 1_024
+
+/** The protocol a report names for a tag whose [DEVICE_INFO] reply decoded. */
+internal const val EZ_SIGN_PROTOCOL = "EZ Sign (ISO-DEP), no writer yet"
 
 /** Most bytes one Type 4 READ BINARY asks for. */
 private const val TYPE4_CHUNK = 250
@@ -105,7 +111,7 @@ class NfcVSystemInfo(
 class ProbeResult(
     /** Null if the platform didn't capture it. */
     val tag: TagInfo?,
-    /** From [io.github.cacack.keginker.nfc.protocolName]. */
+    /** From [io.github.cacack.keginker.nfc.protocolName], or [EZ_SIGN_PROTOCOL] when [deviceInfo] decoded. */
     val protocol: String,
     val kind: TagKind,
     /** The [PROBE_AIDS] the tag accepted; always empty for a tag that isn't ISO-DEP. */
@@ -131,6 +137,10 @@ class ProbeResult(
     val vendorQueriesSent: Int = 0,
     /** Why the vendor pass didn't run though it was on and queries were listed; null if it ran. */
     val vendorPassSkipped: String? = null,
+    /** The vendor pass's [DEVICE_INFO] reply, decoded; null if the query wasn't sent or didn't decode. */
+    val deviceInfo: EzSignDeviceInfo? = null,
+    /** Why the [DEVICE_INFO] reply didn't decode; null if none came back, or it decoded. */
+    val deviceInfoNotDecoded: String? = null,
 )
 
 /**
@@ -183,9 +193,12 @@ internal suspend fun probeDisplay(
     } finally {
         transport?.close()
     }
+    val parsed = probe.deviceInfoReply?.let(::parseEzSignDeviceInfo)
+    val deviceInfo = (parsed as? EzSignDeviceInfoParse.Decoded)?.info
     return ProbeResult(
         tag = tag.info,
-        protocol = tag.protocolName,
+        // Only a tag no supported protocol recognised is named by its reply.
+        protocol = if (deviceInfo != null && tag is FoundTag.Unsupported) EZ_SIGN_PROTOCOL else tag.protocolName,
         kind = tag.kind,
         acceptedAids = probe.acceptedAids,
         capabilityContainer = probe.capabilityContainer,
@@ -200,6 +213,8 @@ internal suspend fun probeDisplay(
         vendorQueriesListed = if (vendorQueries) listed.size else null,
         vendorQueriesSent = probe.vendorQueriesSent,
         vendorPassSkipped = probe.vendorPassSkipped,
+        deviceInfo = deviceInfo,
+        deviceInfoNotDecoded = (parsed as? EzSignDeviceInfoParse.NotDecoded)?.reason,
     )
 }
 
@@ -220,6 +235,9 @@ private class Probe(private val transport: Transport?, timeSource: TimeSource) {
     var memoryAddress = 0
     var vendorQueriesSent = 0
     var vendorPassSkipped: String? = null
+
+    /** The vendor pass's reply to [DEVICE_INFO], if one came back. */
+    var deviceInfoReply: ByteArray? = null
     var note: String? = null
         private set
 
@@ -391,6 +409,7 @@ private class Probe(private val transport: Transport?, timeSource: TimeSource) {
                 for ((index, command) in query.commands.withIndex()) {
                     val step = if (isSelectAid(command)) ProbeStep.SELECT_AID else ProbeStep.VENDOR_QUERY
                     val reply = send(step, command)
+                    if (command.contentEquals(DEVICE_INFO)) deviceInfoReply = reply
                     if (query.kind == TagKind.ISO_DEP && index < query.commands.lastIndex && !isOk(reply)) break
                 }
             } finally {

@@ -13,6 +13,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TestTimeSource
 
 private fun bytes(vararg values: Int) = ByteArray(values.size) { values[it].toByte() }
 
@@ -38,8 +40,15 @@ private object NoTransport : Transport {
 private val OK = bytes(0x90, 0x00)
 private val BUSY = bytes(0x01, 0x90, 0x00)
 
-private fun exchange(atMs: Long, step: WriteStep, command: ByteArray, reply: ByteArray? = OK, imageBytes: Int = 0, error: String? = null) =
-    Exchange(atMs, step, command, imageBytes, if (error == null) reply else null, error)
+private fun exchange(
+    atMs: Long,
+    step: WriteStep,
+    command: ByteArray,
+    reply: ByteArray? = OK,
+    imageBytes: Int = 0,
+    error: String? = null,
+    durationMs: Long = 8,
+) = Exchange(atMs, step, command, imageBytes, if (error == null) reply else null, error, durationMs)
 
 private fun failedWrite(exchanges: List<Exchange>) = WriteReport(
     tag = TAG,
@@ -194,7 +203,7 @@ class DiagnosticReportTest {
                 listOf(
                     exchange(0, WriteStep.UNLOCK, bytes(0x74, 0xB1, 0x00, 0x00)),
                     exchange(1250, WriteStep.SEND_DATA, bytes(0x74, 0x9A, 0x00, 0x0E, 0xFA), imageBytes = 250),
-                    exchange(1300, WriteStep.SEND_DATA, bytes(0x74, 0x9A, 0x00, 0x0E, 0xFA), imageBytes = 250, error = "IllegalStateException: Tag was lost"),
+                    exchange(1300, WriteStep.SEND_DATA, bytes(0x74, 0x9A, 0x00, 0x0E, 0xFA), imageBytes = 250, error = "IllegalStateException: Tag was lost", durationMs = 19_850),
                 ),
             ),
         )
@@ -205,10 +214,42 @@ class DiagnosticReportTest {
                 "Exchanges (3)",
                 "     0 ms  UNLOCK     > 74 B1 00 00  < 90 00",
                 "  1250 ms  SEND_DATA  > 74 9A 00 0E FA … +250 bytes image data  < 90 00",
-                "  1300 ms  SEND_DATA  > 74 9A 00 0E FA … +250 bytes image data  ! IllegalStateException: Tag was lost",
+                "  1300 ms  SEND_DATA  > 74 9A 00 0E FA … +250 bytes image data  ! IllegalStateException: Tag was lost (after 19850 ms)",
             ),
             lines.filter { it.isNotEmpty() },
         )
+    }
+
+    @Test
+    fun aFailureOrASlowExchangeShowsHowLongItTookAndAQuickOneDoesNot() {
+        // A failure's time tells a tag that stopped at once from one a platform limit cut off (#138).
+        val text = formatDiagnosticReport(
+            APP, DEVICE,
+            failedWrite(
+                listOf(
+                    exchange(0, WriteStep.UNLOCK, bytes(0x74, 0xB1, 0x00, 0x00), durationMs = SLOW_EXCHANGE_MS - 1),
+                    exchange(10, WriteStep.REFRESH, bytes(0x74, 0x9A), durationMs = 24_173),
+                    exchange(24_200, WriteStep.WAIT_FOR_REFRESH, bytes(0x74, 0x9B), error = "IllegalStateException: no response", durationMs = 3),
+                ),
+            ),
+        )
+
+        assertTrue("> 74 B1 00 00  < 90 00\n" in text, text)
+        assertTrue("< 90 00 (after 24173 ms)\n" in text, text)
+        assertTrue("! IllegalStateException: no response (after 3 ms)\n" in text, text)
+    }
+
+    @Test
+    fun theLogTimesEachExchangeFromItsCommandToItsReply() {
+        val clock = TestTimeSource()
+        val log = ExchangeLog(clock)
+        clock += 100.milliseconds
+        val sentAt = log.elapsedMs()
+        clock += 24_173.milliseconds
+
+        log.record(sentAt, WriteStep.REFRESH, bytes(0xF0, 0xD4), imageBytes = 0, reply = null, error = IllegalStateException("no response"))
+
+        assertEquals(24_173, log.entries.single().durationMs)
     }
 
     @Test

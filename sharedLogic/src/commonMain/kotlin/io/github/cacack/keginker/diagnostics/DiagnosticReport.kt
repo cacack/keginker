@@ -146,8 +146,18 @@ internal fun reportLine(exchange: Exchange) = ReportLine(
     atMs = exchange.atMs,
     step = exchange.step.name,
     command = commandText(exchange),
-    outcome = outcomeText(exchange.reply, exchange.error),
+    outcome = outcomeText(exchange.reply, exchange.error) + durationText(exchange),
 )
+
+/** Exchanges that take at least this long show how long they took; failures always do. */
+internal const val SLOW_EXCHANGE_MS = 1_000L
+
+/**
+ * How long [exchange] took, for a failure or a slow exchange; empty otherwise,
+ * so the usual quick exchanges keep collapsing into one line.
+ */
+internal fun durationText(exchange: Exchange): String =
+    if (exchange.error != null || exchange.durationMs >= SLOW_EXCHANGE_MS) " (after ${exchange.durationMs} ms)" else ""
 
 /** What came back for one exchange: the reply, cut to [REPLY_SHOWN_BYTES], or the error. */
 internal fun outcomeText(reply: ByteArray?, error: String?): String =

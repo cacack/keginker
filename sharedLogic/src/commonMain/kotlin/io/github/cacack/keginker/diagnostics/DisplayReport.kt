@@ -131,9 +131,9 @@ private fun StringBuilder.testWritesSection(records: List<TestWriteRecord>, uid:
 
 /** What came back for one test-write exchange, as [outcomeText] shows it, with [uid] hidden. */
 private fun testWriteOutcomeText(exchange: Exchange, uid: ByteArray?): String {
-    exchange.error?.let { return "! ${textHidingUid(it, uid)}" }
+    exchange.error?.let { return "! ${textHidingUid(it, uid)}${durationText(exchange)}" }
     val reply = exchange.reply ?: ByteArray(0)
-    return "< ${shownHex(reply, uidHidden(reply, uid))}"
+    return "< ${shownHex(reply, uidHidden(reply, uid))}${durationText(exchange)}"
 }
 
 /** [text] with the hex of [uid], in either byte order, replaced by its marker, as in a failure's reason. */

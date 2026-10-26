@@ -34,16 +34,25 @@ fun gitHead(): String? = runCatching {
     }.standardOutput.asText.orNull?.trim()
 }.getOrNull()?.takeIf { it.isNotEmpty() }
 
+/** Whether tracked files differ from HEAD, so a build from them isn't exactly that commit. */
+fun gitDirty(): Boolean = runCatching {
+    providers.exec {
+        commandLine("git", "status", "--porcelain", "--untracked-files=no")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.orNull?.isNotBlank() == true
+}.getOrDefault(false)
+
 /**
  * The commit a build came from, for diagnostics reports. In order: KEGINKER_COMMIT
  * (CI sets it to a pull request's head commit, since GITHUB_SHA is then a temporary
- * merge commit), GITHUB_SHA, git, else "unknown".
+ * merge commit), GITHUB_SHA, git, else "unknown". A local build from uncommitted
+ * changes adds "-dirty", so its reports don't claim to be that commit.
  */
 val buildCommit: String by extra(
     listOf("KEGINKER_COMMIT", "GITHUB_SHA")
         .firstNotNullOfOrNull { name -> providers.environmentVariable(name).orNull?.takeIf { it.isNotEmpty() } }
         ?.take(7)
-        ?: gitHead()
+        ?: gitHead()?.let { if (gitDirty()) "$it-dirty" else it }
         ?: "unknown",
 )
 

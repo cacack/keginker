@@ -82,9 +82,9 @@ private class FakeFamily(private val failures: Int = 0) : TestWriteFamily {
         written += pattern.id
         onProgress(100)
         return if (written.size <= failures) {
-            TestWriteOutcome(log, null, null, WriteResult.Failure(WriteStep.SEND_DATA, FailureKind.LOST_CONTACT, "Tag was lost"))
+            TestWriteOutcome(log, null, WriteResult.Failure(WriteStep.SEND_DATA, FailureKind.LOST_CONTACT, "Tag was lost"))
         } else {
-            TestWriteOutcome(log, refreshMs = 1200, busyAtMs = null, failure = null)
+            TestWriteOutcome(log, refreshMs = 1200, failure = null)
         }
     }
 }
@@ -108,7 +108,7 @@ private class ScriptedFamily(
     }
 }
 
-private fun succeeded() = TestWriteOutcome(ExchangeLog(), refreshMs = 1200, busyAtMs = null, failure = null)
+private fun succeeded() = TestWriteOutcome(ExchangeLog(), refreshMs = 1200, failure = null)
 
 /** A probe of the EZ Sign display [PANEL_29] whose UID is [uid]. */
 private fun ezSignProbe(uid: ByteArray) = ProbeResult(

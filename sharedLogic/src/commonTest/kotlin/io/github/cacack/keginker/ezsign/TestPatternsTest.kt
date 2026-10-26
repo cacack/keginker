@@ -56,12 +56,16 @@ class TestPatternsTest {
     fun eachPatternAsksItsQuestionsHeldTheWayUpYouReadIt() {
         val (corner, colours) = ezSignTestPatterns(PANEL_42)
 
-        assertEquals(listOf("square", "line"), corner.questions.map { it.id })
+        assertEquals(listOf("hold", "square", "line"), corner.questions.map { it.id })
         assertEquals(
-            listOf("Top left", "Top right", "Bottom left", "Bottom right", "No square, or something else"),
+            listOf("Across: it's wider than it's tall", "Up and down: it's taller than it's wide"),
             corner.questions[0].options,
         )
-        assertEquals(listOf("Along the top or bottom edge", "Along a side edge", "No line"), corner.questions[1].options)
+        assertEquals(
+            listOf("Top left", "Top right", "Bottom left", "Bottom right", "No square, or something else"),
+            corner.questions[1].options,
+        )
+        assertEquals(listOf("Along the top or bottom edge", "Along a side edge", "No line"), corner.questions[2].options)
         assertEquals(listOf("band1", "band2", "band3", "band4"), colours.questions.map { it.id })
         assertTrue(colours.questions.all { it.options == listOf("Black", "White", "Yellow", "Red", "Other") })
         for (pattern in listOf(corner, colours)) {

@@ -110,8 +110,14 @@ final class DisplayTestWriter: NSObject, ObservableObject {
     }
 
     private func show(_ newState: TestWriteState) {
-        if let writing = newState as? TestWriteStateWriting, !(state is TestWriteStateWriting) {
-            session?.alertMessage = "Writing \(writing.pattern.title). Keep the iPhone still."
+        if let writing = newState as? TestWriteStateWriting {
+            let was = (state as? TestWriteStateWriting)?.percent ?? -1
+            if was < 0 {
+                session?.alertMessage = "Writing \(writing.pattern.title). Keep the iPhone still."
+            } else if was < WriteMessagesKt.IMAGE_SENT_PROGRESS, writing.percent >= WriteMessagesKt.IMAGE_SENT_PROGRESS {
+                // A 4-colour refresh takes over 20 s; say so, rather than sit at 90%.
+                session?.alertMessage = WriteMessagesKt.writeProgressMessage(percent: writing.percent, phone: "iPhone")
+            }
         }
         let newRecords = (newState as? TestWriteStateDone)?.records ?? []
         if newRecords != records { report = displayReport(result, testWrites: newRecords) }

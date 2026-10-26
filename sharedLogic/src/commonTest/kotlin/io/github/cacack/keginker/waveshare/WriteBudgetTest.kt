@@ -1,16 +1,10 @@
 package io.github.cacack.keginker.waveshare
 
-import io.github.cacack.keginker.diagnostics.ExchangeLog
-import io.github.cacack.keginker.ezsign.EzSignTestWriteFamily
-import io.github.cacack.keginker.ezsign.PANEL_42
-import io.github.cacack.keginker.ezsign.colourPattern
 import io.github.cacack.keginker.nfc.Transport
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TestTimeSource
@@ -81,29 +75,6 @@ class WriteBudgetTest {
             assertEquals(WriteStep.WAIT_FOR_REFRESH, assertIs<WriteResult.Failure>(result).step)
             assertFitsTheBudget(scheduledMs(tag, pauses), pollPauseMs = 200)
         }
-    }
-
-    @Test
-    fun ezSignTestWritePollsUntilTheBudgetRunsOutInRealTime() = runTest {
-        // Unlike the label writers, a test write stops by the clock, not by a
-        // poll count: it polls until another poll and its 500 ms pause would
-        // pass the budget, measured from its first command. The worst case is
-        // a 400 × 300 four-colour frame, 15 blocks of 9 fragments, at the
-        // 8 ms a command real tags take.
-        val clock = TestTimeSource()
-        val start = clock.markNow()
-        val tag = CountingTag(byteArrayOf(0x01, 0x90.toByte(), 0x00), clock, commandMs = 8)
-
-        val outcome = EzSignTestWriteFamily(PANEL_42, { clock += it.milliseconds }, clock)
-            .write(tag, colourPattern(PANEL_42), ExchangeLog(clock))
-
-        assertNull(outcome.failure)
-        assertNotNull(outcome.busyAtMs)
-        val polls = outcome.log.entries.count { it.step == WriteStep.WAIT_FOR_REFRESH }
-        assertEquals(2 + 15 * 9 + 1, tag.commands - polls)
-        val elapsedMs = start.elapsedNow().inWholeMilliseconds
-        assertTrue(elapsedMs <= WRITE_BUDGET_MS, "$elapsedMs ms exceeds the $WRITE_BUDGET_MS ms budget")
-        assertTrue(elapsedMs > WRITE_BUDGET_MS - (500 + 2 * COMMAND_ALLOWANCE_MS), "$elapsedMs ms leaves room for another poll")
     }
 
     @Test

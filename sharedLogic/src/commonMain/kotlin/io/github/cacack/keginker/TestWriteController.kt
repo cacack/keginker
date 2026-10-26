@@ -207,7 +207,7 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
                 outcome to null
             } else {
                 val failure = WriteResult.Failure(lastStep(), FailureKind.LOST_CONTACT, "didn't finish within ${family.deadlineMs / 1_000} s")
-                TestWriteOutcome(log, null, null, failure) to WRITE_TIMED_OUT_MESSAGE
+                TestWriteOutcome(log, null, failure) to WRITE_TIMED_OUT_MESSAGE
             }
         } catch (e: CancellationException) {
             throw e
@@ -215,7 +215,7 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
             // A bug in the writer, not the tag: kept, with its class and message, for the report.
             // UNEXPECTED_REPLY is the nearest kind; the message shown says what happened.
             val failure = WriteResult.Failure(lastStep(), FailureKind.UNEXPECTED_REPLY, "the writer stopped with an error", e)
-            TestWriteOutcome(log, null, null, failure) to TEST_WRITE_ERROR_MESSAGE
+            TestWriteOutcome(log, null, failure) to TEST_WRITE_ERROR_MESSAGE
         }
     }
 

@@ -4,8 +4,6 @@ import io.github.cacack.keginker.diagnostics.ExchangeLog
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.probe.ProbeResult
 import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
-import kotlin.time.TimeSource
-import kotlinx.coroutines.delay
 
 /**
  * A display family that Report a display can test-write to: generated
@@ -31,8 +29,7 @@ interface TestWriteFamily {
 
     /**
      * Writes [pattern] to the display over [transport], recording every
-     * exchange in [log]. A write the tag fails, and a refresh that runs past
-     * the budget, are in the outcome, not thrown. It throws
+     * exchange in [log]. A write the tag fails is in the outcome, not thrown. It throws
      * [kotlin.coroutines.cancellation.CancellationException] when cancelled,
      * and [IllegalArgumentException] when [pattern] wasn't generated for this
      * display (not one of [patterns]). Nothing else is expected;
@@ -52,12 +49,8 @@ interface TestWriteFamily {
 /** The family to test-write to for a probed tag; null unless its EZ Sign device information decoded. */
 fun testWriteFamilyFor(result: ProbeResult): TestWriteFamily? = result.deviceInfo?.let { EzSignTestWriteFamily(it) }
 
-/** EZ Sign, for the display [info] describes; [pause] and [timeSource] are the writer's. */
-internal class EzSignTestWriteFamily(
-    private val info: EzSignDeviceInfo,
-    private val pause: suspend (Long) -> Unit = { delay(it) },
-    private val timeSource: TimeSource = TimeSource.Monotonic,
-) : TestWriteFamily {
+/** EZ Sign, for the display [info] describes. */
+internal class EzSignTestWriteFamily(private val info: EzSignDeviceInfo) : TestWriteFamily {
     override val name = "EZ Sign"
 
     /** A label write's deadline, plus as long as the tag may hold its blocking refresh. */
@@ -72,7 +65,7 @@ internal class EzSignTestWriteFamily(
         pattern: TestWritePattern,
         log: ExchangeLog,
         onProgress: (Int) -> Unit,
-    ): TestWriteOutcome = EzSignTestWriter(transport, info, pause, timeSource).write(pattern, log, onProgress)
+    ): TestWriteOutcome = EzSignTestWriter(transport, info).write(pattern, log, onProgress)
 }
 
 /** The answer the user chose to one of a test write's questions. */

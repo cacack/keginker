@@ -121,7 +121,6 @@ private fun StringBuilder.testWritesSection(records: List<TestWriteRecord>, uid:
         }
         if (record.answers.isEmpty() && outcome.failure == null) appendLine("  Not answered")
         field("Refresh", outcome.refreshMs?.let { "$it ms" })
-        outcome.busyAtMs?.let { appendLine("  Still busy at $it ms (write budget reached)") }
         outcome.failure?.let {
             field("Failed", hidingUid("${it.step.name} (${it.step.activity}): ${it.reason}"))
             field("Cause", it.cause?.let { cause -> hidingUid(describe(cause)) })

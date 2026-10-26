@@ -389,7 +389,8 @@ private class Probe(private val transport: Transport?, timeSource: TimeSource) {
             val first = exchanges.size
             try {
                 for ((index, command) in query.commands.withIndex()) {
-                    val reply = send(ProbeStep.VENDOR_QUERY, command)
+                    val step = if (isSelectAid(command)) ProbeStep.SELECT_AID else ProbeStep.VENDOR_QUERY
+                    val reply = send(step, command)
                     if (query.kind == TagKind.ISO_DEP && index < query.commands.lastIndex && !isOk(reply)) break
                 }
             } finally {

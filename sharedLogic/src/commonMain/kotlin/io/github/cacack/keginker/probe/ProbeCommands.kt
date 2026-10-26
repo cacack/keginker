@@ -25,6 +25,10 @@ internal val CC_FILE_ID = bytes(0xE1, 0x03)
 /** ISO 7816-4 SELECT by DF name (AID), first or only occurrence, with Le. */
 internal fun selectAid(aid: ByteArray): ByteArray = bytes(0x00, 0xA4, 0x04, 0x00, aid.size) + aid + bytes(0x00)
 
+/** Whether [command] is a SELECT by AID, as [selectAid] builds. */
+internal fun isSelectAid(command: ByteArray): Boolean =
+    command.size >= 4 && command[0] == 0x00.toByte() && command[1] == 0xA4.toByte() && command[2] == 0x04.toByte()
+
 /** ISO 7816-4 SELECT of an elementary file by its 2-byte identifier, no data returned. */
 internal fun selectFile(fileId: ByteArray): ByteArray {
     require(fileId.size == 2) { "A file identifier is 2 bytes" }

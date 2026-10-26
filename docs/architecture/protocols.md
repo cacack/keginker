@@ -222,7 +222,16 @@ panel is left half drawn. P2 `00` holds the reply until the refresh is done,
 which niw/EPaperNFCSwift found keeps the session open
 ([`SendImageOperation.swift`](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/SendImageOperation.swift#L56-L60)).
 It does on an iPhone 15 Pro (iOS 27), where a 2.9" 4-colour refresh held the
-reply for about 24 s.
+reply for about 24 s and a 4.2" one for about 22 s.
+
+The 4.2" panel draws more power while it refreshes. With the phone in one
+position, its refresh lost contact after 3–13 s, a different time on each
+try, which points to the field rather than a time limit, and left the panel
+faint and half drawn. With the display turned 90° under the phone, both
+refreshes finished. So a contact lost during a refresh tells the user to
+turn the phone, not just to hold it still (`REPOSITION_ADVICE`). One write
+straight after an interrupted refresh was refused at authentication with
+`65 02`; the next one authenticated.
 
 alt-core polls `F0 DE 00 00 01` after the non-blocking refresh (`01 90 00`
 busy, `00 90 00` done). After a blocking refresh that had drawn the panel,

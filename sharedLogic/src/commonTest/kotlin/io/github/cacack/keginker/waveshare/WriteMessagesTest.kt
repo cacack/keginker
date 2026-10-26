@@ -22,6 +22,17 @@ class WriteMessagesTest {
     }
 
     @Test
+    fun contactLostWhileRedrawingSuggestsAnotherPosition() {
+        // On a 4.2" EZ Sign the refresh died after 3–13 s until the display was turned 90° (#138).
+        for (step in listOf(WriteStep.REFRESH, WriteStep.WAIT_FOR_REFRESH)) {
+            val message = WriteResult.Failure(step, FailureKind.LOST_CONTACT, "Tag communication failed").userMessage
+
+            assertEquals("Lost contact with the tag while the panel was refreshing. $REPOSITION_ADVICE", message, "$step")
+            assertTrue("quarter turn" in message, message)
+        }
+    }
+
+    @Test
     fun unexpectedReplyIsNotBlamedOnMovement() {
         val message = WriteResult.Failure(WriteStep.POWER_ON, FailureKind.UNEXPECTED_REPLY, "Unexpected reply 01 00").userMessage
 

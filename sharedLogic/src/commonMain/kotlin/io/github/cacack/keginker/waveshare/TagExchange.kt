@@ -68,14 +68,16 @@ internal inline fun runSteps(steps: () -> Unit): WriteResult =
  * Sends [command], which carries no image data, as part of [step]; a
  * communication error fails the step. Records the exchange, success or not,
  * in [log] in full. Image data goes through [exchangeImageOk] instead, so it
- * can never reach the log.
+ * can never reach the log. [timeoutMs] is [TRANSCEIVE_TIMEOUT_MS] unless the
+ * command is one the tag answers only when it's done, such as a blocking refresh.
  */
 internal suspend fun Transport.exchange(
     step: WriteStep,
     command: ByteArray,
     detail: String? = null,
     log: ExchangeLog? = null,
-): ByteArray = send(step, command, imageBytes = 0, detail, log)
+    timeoutMs: Long = TRANSCEIVE_TIMEOUT_MS,
+): ByteArray = send(step, command, imageBytes = 0, detail, log, timeoutMs)
 
 /** Like [exchange], and the step also fails unless [isOk] accepts the reply. */
 internal suspend fun Transport.exchangeOk(
@@ -84,7 +86,8 @@ internal suspend fun Transport.exchangeOk(
     isOk: (ByteArray) -> Boolean,
     detail: String? = null,
     log: ExchangeLog? = null,
-) = checkReply(step, exchange(step, command, detail, log), isOk, detail)
+    timeoutMs: Long = TRANSCEIVE_TIMEOUT_MS,
+) = checkReply(step, exchange(step, command, detail, log, timeoutMs), isOk, detail)
 
 /**
  * Sends [header] followed by [image] as one command, like [exchangeOk]. The
@@ -107,10 +110,11 @@ private suspend fun Transport.send(
     imageBytes: Int,
     detail: String?,
     log: ExchangeLog?,
+    timeoutMs: Long = TRANSCEIVE_TIMEOUT_MS,
 ): ByteArray {
     val atMs = log?.elapsedMs() ?: 0L
     val reply = try {
-        transceive(command, TRANSCEIVE_TIMEOUT_MS)
+        transceive(command, timeoutMs)
     } catch (e: Exception) {
         log?.record(atMs, step, command, imageBytes, reply = null, error = e)
         if (e is CancellationException) throw e

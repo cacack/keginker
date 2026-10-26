@@ -34,6 +34,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -89,7 +90,10 @@ private class FakeFamily(private val failures: Int = 0) : TestWriteFamily {
 }
 
 /** One pattern with a question; its write sends one command, then runs [write]. */
-private class ScriptedFamily(private val write: suspend () -> TestWriteOutcome) : TestWriteFamily {
+private class ScriptedFamily(
+    override val deadlineMs: Long = WRITE_DEADLINE_MS,
+    private val write: suspend () -> TestWriteOutcome,
+) : TestWriteFamily {
     override val name = "Scripted"
     override val patterns = listOf(pattern("one", SIDE))
 
@@ -304,6 +308,18 @@ class TestWriteControllerTest {
         val failure = assertNotNull(controller.records.single().outcome.failure)
         assertEquals("didn't finish within ${WRITE_DEADLINE_MS / 1_000} s", failure.reason)
         assertTrue(tag.closed)
+    }
+
+    @Test
+    fun aFamilyThatHoldsACommandOpenGetsItsOwnDeadline() = runTest {
+        // EZ Sign's blocking refresh can take over 20 s on its own (#138).
+        val controller = TestWriteController(ScriptedFamily(deadlineMs = 75_000) { delay(60_000); succeeded() }, UID)
+        controller.optIn()
+
+        controller.onTag(display(RecordingTag()))
+
+        assertIs<TestWriteState.Asking>(controller.state.value)
+        assertEquals(60_000, testScheduler.currentTime)
     }
 
     @Test

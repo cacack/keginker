@@ -7,7 +7,9 @@ import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.probe.ProbeResult
 import io.github.cacack.keginker.waveshare.COMMAND_ALLOWANCE_MS
 import io.github.cacack.keginker.waveshare.FailureKind
+import io.github.cacack.keginker.waveshare.TRANSCEIVE_TIMEOUT_MS
 import io.github.cacack.keginker.waveshare.WRITE_BUDGET_MS
+import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
 import io.github.cacack.keginker.waveshare.WriteStep
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
@@ -115,7 +117,7 @@ class EzSignTestWriterTest {
             val header = listOf(0xF0, 0xD3, 0x00, if (last) 0x01 else 0x00, if (last) 14 else 252, block, fragment)
             assertEquals(header.map { it.toByte() }, command.take(7), "command ${i + 2}")
         }
-        assertEquals(listOf("f0 d4 85 80 00", "f0 de 00 00 01", "f0 de 00 00 01", "f0 de 00 00 01"), sent.drop(2 + 135))
+        assertEquals(listOf("f0 d4 85 00 00", "f0 de 00 00 01", "f0 de 00 00 01", "f0 de 00 00 01"), sent.drop(2 + 135))
         // The log keeps each fragment's header, never its data.
         val images = log.entries.filter { it.step == WriteStep.SEND_DATA }
         assertEquals(135, images.size)
@@ -147,6 +149,62 @@ class EzSignTestWriterTest {
         assertNull(outcome.busyAtMs)
         val refreshMs = assertNotNull(outcome.refreshMs)
         assertTrue(refreshMs in 12_000..12_000 + 500 + 2 * 8, "refreshed at $refreshMs ms")
+    }
+
+    @Test
+    fun aRefreshLongerThanAnIosSessionIsTimedThroughTheBlockingReply() = runTest {
+        // niw: a 4-colour refresh takes over 20 s, and the tag holds its reply until it's done (#138).
+        val clock = TestTimeSource()
+        val tag = SimulatedEzSignTag(PANEL_29, clock = clock, commandMs = 8, busyMs = 25_000)
+
+        val outcome = family(PANEL_29, clock).write(tag, colourPattern(PANEL_29), ExchangeLog(clock))
+
+        assertNull(outcome.failure)
+        assertNull(outcome.busyAtMs)
+        val refreshMs = assertNotNull(outcome.refreshMs)
+        assertTrue(refreshMs in 25_000..25_000 + 2 * 8, "refreshed at $refreshMs ms")
+        // The poll after it finds the panel done at once.
+        assertEquals(1, tag.sent.count { it[1] == 0xDE.toByte() })
+    }
+
+    @Test
+    fun onlyTheRefreshWaitsLongerThanTheUsualTimeout() = runTest {
+        val timeouts = mutableListOf<Pair<Int, Long>>()
+        val tag = SimulatedEzSignTag(PANEL_42)
+        val recording = object : Transport {
+            override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+                timeouts += (command[1].toInt() and 0xFF) to timeoutMs
+                return tag.transceive(command, timeoutMs)
+            }
+        }
+
+        family(PANEL_42).write(recording, cornerPattern(PANEL_42), ExchangeLog())
+
+        val (refresh, others) = timeouts.partition { it.first == 0xD4 }
+        assertEquals(listOf(0xD4 to BLOCKING_REFRESH_TIMEOUT_MS), refresh)
+        assertTrue(others.all { it.second == TRANSCEIVE_TIMEOUT_MS }, "$others")
+        assertContentEquals(byteArrayOf(0xF0.toByte(), 0xD4.toByte(), 0x85.toByte(), 0x00, 0x00), tag.sent.single { it[1] == 0xD4.toByte() })
+    }
+
+    @Test
+    fun aRefreshThatOutlastsItsTimeoutFailsAtTheRefresh() = runTest {
+        val clock = TestTimeSource()
+        val tag = SimulatedEzSignTag(PANEL_29, clock = clock, busyMs = BLOCKING_REFRESH_TIMEOUT_MS + 1)
+
+        val outcome = family(PANEL_29, clock).write(tag, cornerPattern(PANEL_29), ExchangeLog(clock))
+
+        val failure = assertNotNull(outcome.failure)
+        assertEquals(WriteStep.REFRESH, failure.step)
+        assertEquals(FailureKind.LOST_CONTACT, failure.kind)
+        assertNull(outcome.refreshMs)
+        // The log still shows how long the refresh ran before the timeout.
+        val refresh = outcome.log.entries.single { it.step == WriteStep.REFRESH }
+        assertNotNull(refresh.error)
+    }
+
+    @Test
+    fun ezSignWritesHaveRoomForTheBlockingRefresh() {
+        assertEquals(WRITE_DEADLINE_MS + BLOCKING_REFRESH_TIMEOUT_MS, family(PANEL_29).deadlineMs)
     }
 
     @Test

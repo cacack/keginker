@@ -124,7 +124,9 @@ private fun reply(vararg values: Int) = ByteArray(values.size) { values[it].toBy
  * block and fragment numbering and the last-fragment flag, decompresses
  * each block, and writes it into the panel memory; `F0 D4` refreshes, and
  * `F0 DE` then answers busy [busyPolls] times, or, given [busyMs], until
- * [clock] has advanced that far since the refresh.
+ * [clock] has advanced that far since the refresh. The refresh is the
+ * blocking `F0 D4 85 00`: given [busyMs], its reply advances [clock] that far
+ * first, and throws [TagTimeout] if the command's timeout is shorter.
  *
  * Each command advances [clock], if given, by [commandMs].
  */
@@ -148,6 +150,10 @@ class SimulatedEzSignTag(
 
     /** Every command, in order. */
     val sent = mutableListOf<ByteArray>()
+
+    /** The timeout the last refresh was sent with; null before one. */
+    var refreshTimeoutMs: Long? = null
+        private set
 
     /** The panel memory at the last refresh; null before one. */
     var shown: ByteArray? = null
@@ -186,12 +192,22 @@ class SimulatedEzSignTag(
                 OK
             }
             c.take(2) == listOf(0xF0, 0xD3) -> imageData(c)
-            c == listOf(0xF0, 0xD4, 0x85, 0x80, 0x00) -> {
+            c == listOf(0xF0, 0xD4, 0x85, 0x00, 0x00) -> {
                 if (!authenticated) return error("refreshed before authenticating", NOT_AUTHENTICATED)
                 if (block != blockCount) return error("refreshed after $block of $blockCount blocks", WRONG_DATA)
                 shown = memory.copyOf()
                 busyLeft = busyPolls
                 refreshedAt = clock?.markNow()
+                // The blocking refresh: the reply comes only when the panel is done.
+                if (busyMs != null) {
+                    val clock = checkNotNull(clock) { "busyMs needs a clock" }
+                    if (busyMs > timeoutMs) {
+                        clock += timeoutMs.milliseconds
+                        throw TagTimeout("no reply to the refresh within $timeoutMs ms")
+                    }
+                    clock += busyMs.milliseconds
+                }
+                refreshTimeoutMs = timeoutMs
                 OK
             }
             c == listOf(0xF0, 0xDE, 0x00, 0x00, 0x01) -> if (isBusy()) reply(0x01, 0x90, 0x00) else reply(0x00, 0x90, 0x00)
@@ -251,3 +267,6 @@ class SimulatedEzSignTag(
         val INS_NOT_SUPPORTED = reply(0x6D, 0x00)
     }
 }
+
+/** What a platform transport throws when a command's timeout runs out before the tag answers. */
+class TagTimeout(message: String) : Exception(message)

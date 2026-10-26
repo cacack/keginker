@@ -5,9 +5,11 @@
  * MIT License.
  *
  * Modified: ported from Python to Kotlin; the NDEF application is selected
- * first; the busy poll stops at the write budget, in real time, instead of
- * 30 s, and is reported as a finding rather than raised; failures
- * are reported as a typed result naming the failing step.
+ * first; the refresh is the blocking form niw/EPaperNFCSwift sends
+ * (Sources/EPaperNFCSwift/SendImageOperation.swift, commit ee0440e, MIT
+ * License), confirmed by the busy poll, which stops at the write budget, in
+ * real time, instead of 30 s, and is reported as a finding rather than
+ * raised; failures are reported as a typed result naming the failing step.
  */
 package io.github.cacack.keginker.ezsign
 
@@ -35,7 +37,11 @@ import kotlinx.coroutines.delay
 class TestWriteOutcome internal constructor(
     /** Every exchange, image bytes counted but never kept. */
     val log: ExchangeLog,
-    /** From the refresh command to the poll that found the panel no longer busy; null if that never came. */
+    /**
+     * From sending the blocking refresh to the poll that found the panel no
+     * longer busy, which is nearly all the time the tag held its refresh
+     * reply; null if that never came.
+     */
     val refreshMs: Long?,
     /**
      * From the refresh command to the last poll, when the panel was still
@@ -50,9 +56,20 @@ class TestWriteOutcome internal constructor(
 /**
  * Writes test patterns to an EZ Sign tag (ISO-DEP) over [transport]: SELECT
  * the NDEF application, authenticate, send the frame as LZO1X blocks in
- * `F0 D3` fragments, refresh with `F0 D4`, then poll `F0 DE` every
- * [POLL_PAUSE_MS] until the panel isn't busy or another poll wouldn't fit in
- * [WRITE_BUDGET_MS] of real time, measured on [timeSource] from the first command.
+ * `F0 D3` fragments, refresh with the blocking `F0 D4 85 00`, then poll
+ * `F0 DE` every [POLL_PAUSE_MS] until the panel isn't busy or another poll
+ * wouldn't fit in [WRITE_BUDGET_MS] of real time, measured on [timeSource]
+ * from the first command.
+ *
+ * The tag answers the blocking refresh only once the panel has finished, so
+ * the NFC field stays up for the whole refresh. A 4-colour refresh takes over
+ * 20 s, longer than Core NFC keeps a connection open. niw/EPaperNFCSwift
+ * found that a command the tag is still answering holds the connection open,
+ * where polling the non-blocking `F0 D4 85 80` left the session to close
+ * mid-refresh and the panel half drawn (#138). The refresh gets its own
+ * [BLOCKING_REFRESH_TIMEOUT_MS] on Android; every other command keeps the
+ * usual one. After it, the panel should no longer be busy, so the poll
+ * normally answers at once.
  *
  * Label writers stop polling after a count worked out from
  * [COMMAND_ALLOWANCE_MS] per command, so their worst case is known before
@@ -62,6 +79,13 @@ class TestWriteOutcome internal constructor(
  * finishes. It watches the clock instead, keeping only one poll's allowance
  * in hand.
  */
+/**
+ * How long the tag may hold its reply to the blocking refresh. niw found 4-colour
+ * refreshes take over 20 s; this leaves room for a slow panel. Core NFC has no
+ * per-command timeout, so it applies only on Android.
+ */
+internal const val BLOCKING_REFRESH_TIMEOUT_MS = 45_000L
+
 internal class EzSignTestWriter(
     private val transport: Transport,
     private val info: EzSignDeviceInfo,
@@ -102,7 +126,7 @@ internal class EzSignTestWriter(
                 }
             }
             val refreshStart = log.elapsedMs()
-            sendOk(WriteStep.REFRESH, REFRESH, log)
+            transport.exchangeOk(WriteStep.REFRESH, REFRESH, ::isOk, log = log, timeoutMs = BLOCKING_REFRESH_TIMEOUT_MS)
             // A tag slow enough to use up the budget before now still gets one poll.
             val refreshedAtMs = sinceStartMs()
             val waitMs = (WRITE_BUDGET_MS - refreshedAtMs).coerceAtLeast(1)
@@ -146,7 +170,8 @@ internal class EzSignTestWriter(
 
         /** The fixed key alt-core authenticates with. */
         val AUTHENTICATE = bytes(0x00, 0x20, 0x00, 0x01, 0x04, 0x20, 0x09, 0x12, 0x10)
-        val REFRESH = bytes(0xF0, 0xD4, 0x85, 0x80, 0x00)
+        /** P2 `00`: answered only when the refresh is done. P2 `80` answers at once. */
+        val REFRESH = bytes(0xF0, 0xD4, 0x85, 0x00, 0x00)
 
         /** Answered `00 90 00` when the refresh is done and `01 90 00` while busy. */
         val POLL = bytes(0xF0, 0xDE, 0x00, 0x00, 0x01)

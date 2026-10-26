@@ -3,6 +3,7 @@ package io.github.cacack.keginker.ezsign
 import io.github.cacack.keginker.diagnostics.ExchangeLog
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.probe.ProbeResult
+import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
 import kotlin.time.TimeSource
 import kotlinx.coroutines.delay
 
@@ -20,6 +21,13 @@ interface TestWriteFamily {
      * once the user opts in, since a pattern holds a byte per pixel.
      */
     val patterns: List<TestWritePattern>
+
+    /**
+     * The real time one write may take before it's stopped as a failure:
+     * [WRITE_DEADLINE_MS], as for label writes, unless the family holds a
+     * command open for longer, as EZ Sign's blocking refresh does.
+     */
+    val deadlineMs: Long get() = WRITE_DEADLINE_MS
 
     /**
      * Writes [pattern] to the display over [transport], recording every
@@ -51,6 +59,9 @@ internal class EzSignTestWriteFamily(
     private val timeSource: TimeSource = TimeSource.Monotonic,
 ) : TestWriteFamily {
     override val name = "EZ Sign"
+
+    /** A label write's deadline, plus as long as the tag may hold its blocking refresh. */
+    override val deadlineMs = WRITE_DEADLINE_MS + BLOCKING_REFRESH_TIMEOUT_MS
 
     /** Built on first use, so offering test writes allocates no pixels. */
     override val patterns by lazy { ezSignTestPatterns(info) }

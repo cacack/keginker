@@ -14,7 +14,6 @@ import io.github.cacack.keginker.nfc.TagKind
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.probe.ProbeResult
 import io.github.cacack.keginker.waveshare.FailureKind
-import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
 import io.github.cacack.keginker.waveshare.WRITE_TIMED_OUT_MESSAGE
 import io.github.cacack.keginker.waveshare.WriteResult
 import io.github.cacack.keginker.waveshare.WriteStep
@@ -65,7 +64,7 @@ sealed interface TestWriteState {
  * [optIn], then for each of the [family]'s patterns, the next tag is written
  * if its UID is [probedUid], and the user answers what it showed. Nothing is
  * written before [optIn]. Both apps use it, like [WriteController].
- * A write still running after [WRITE_DEADLINE_MS] is stopped and fails.
+ * A write still running after its family's [TestWriteFamily.deadlineMs] is stopped and fails.
  */
 class TestWriteController(private val family: TestWriteFamily, probedUid: ByteArray) {
     private val uid = probedUid.copyOf()
@@ -124,7 +123,7 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
      * Ends with the records so far, including a write whose questions weren't
      * answered; from [TestWriteState.Offered] it ends with none. Ignored while
      * writing: the write can't be stopped safely, and it ends within
-     * [WRITE_DEADLINE_MS], moving on as usual.
+     * [TestWriteFamily.deadlineMs], moving on as usual.
      */
     fun cancel() {
         if (mutableState.value is TestWriteState.Writing) return
@@ -191,8 +190,8 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
     }
 
     /**
-     * The family's write of [pattern] over [transport], within
-     * [WRITE_DEADLINE_MS]. A write that runs past it, or throws, becomes a
+     * The family's write of [pattern] over [transport], within its
+     * [TestWriteFamily.deadlineMs]. A write that runs past it, or throws, becomes a
      * failed outcome, paired with the message to show instead of the
      * failure's own; cancellation propagates.
      */
@@ -201,13 +200,13 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
         // Where the write had got to, for a failure the family didn't report itself.
         fun lastStep() = log.entries.lastOrNull()?.step ?: WriteStep.INIT
         return try {
-            val outcome = withTimeoutOrNull(WRITE_DEADLINE_MS) {
+            val outcome = withTimeoutOrNull(family.deadlineMs) {
                 family.write(transport, pattern, log) { mutableState.value = TestWriteState.Writing(pattern, it) }
             }
             if (outcome != null) {
                 outcome to null
             } else {
-                val failure = WriteResult.Failure(lastStep(), FailureKind.LOST_CONTACT, "didn't finish within ${WRITE_DEADLINE_MS / 1_000} s")
+                val failure = WriteResult.Failure(lastStep(), FailureKind.LOST_CONTACT, "didn't finish within ${family.deadlineMs / 1_000} s")
                 TestWriteOutcome(log, null, null, failure) to WRITE_TIMED_OUT_MESSAGE
             }
         } catch (e: CancellationException) {

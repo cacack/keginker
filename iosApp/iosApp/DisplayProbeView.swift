@@ -19,8 +19,11 @@ struct DisplayProbeView: View {
 
     @ViewBuilder private var content: some View {
         if case let .done(result) = prober.state {
-            let text = DisplayReportKt.formatDisplayReport(app: Diagnostics.appInfo, device: Diagnostics.deviceInfo(), result: result)
-            ReportView(title: "Display report", text: text, issueLink: IssueLinkKt.displayReportIssueLink(report: text))
+            if let testWriter = prober.testWriter {
+                TestWriteReportView(result: result, writer: testWriter)
+            } else {
+                displayReport(result, testWrites: [])
+            }
         } else {
             Form {
                 Section {
@@ -49,4 +52,11 @@ struct DisplayProbeView: View {
             .navigationTitle("Report a display")
         }
     }
+}
+
+/// The display report of [result], with the records of any [testWrites].
+@MainActor
+func displayReport(_ result: ProbeResult, testWrites: [TestWriteRecord]) -> ReportView {
+    let text = DisplayReportKt.formatDisplayReport(app: Diagnostics.appInfo, device: Diagnostics.deviceInfo(), result: result, testWrites: testWrites)
+    return ReportView(title: "Display report", text: text, issueLink: IssueLinkKt.displayReportIssueLink(report: text))
 }

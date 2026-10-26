@@ -16,6 +16,8 @@ final class DisplayProber: NSObject, ObservableObject {
     @Published private(set) var state: State = .idle
     /// True while an NFC session is open.
     @Published private(set) var isBusy = false
+    /// The probed display's test writes, when its family can be test-written.
+    private(set) var testWriter: DisplayTestWriter?
     private var session: NFCTagReaderSession?
     private let crcMode: CrcMode
 
@@ -40,7 +42,8 @@ final class DisplayProber: NSObject, ObservableObject {
         session?.begin()
     }
 
-    /// Ends any open session, as when the screen closes.
+    /// Ends any open probe session, as when the screen closes. Test writes end
+    /// with their own screen.
     func cancel() {
         session?.invalidate()
     }
@@ -71,7 +74,11 @@ final class DisplayProber: NSObject, ObservableObject {
                 Task {
                     do {
                         let result = try await DisplayProbeKt.probeDisplay(tag: classified, vendorQueries: vendorQueries)
-                        if case .reading = self.state { self.state = .done(result) }
+                        if case .reading = self.state {
+                            self.testWriter = TestWriteControllerKt.testWriteControllerFor(result: result)
+                                .map { DisplayTestWriter(controller: $0, crcMode: self.crcMode) }
+                            self.state = .done(result)
+                        }
                         session.alertMessage = "Done."
                         session.invalidate()
                     } catch {

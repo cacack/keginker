@@ -1,5 +1,7 @@
 package io.github.cacack.keginker.nfc
 
+import io.github.cacack.keginker.TestWriteController
+import io.github.cacack.keginker.TestWriteState
 import io.github.cacack.keginker.WriteController
 import io.github.cacack.keginker.WriteState
 import kotlinx.cinterop.BetaInteropApi
@@ -39,6 +41,15 @@ fun nsData(bytes: ByteArray): NSData =
  * change, until the returned handle is closed. For Swift, which can't collect a Flow.
  */
 fun watch(controller: WriteController, onEach: (WriteState) -> Unit): AutoCloseable {
+    val job = MainScope().launch { controller.state.collect { onEach(it) } }
+    return AutoCloseable { job.cancel() }
+}
+
+/**
+ * As [watch], for the test writes of Report a display; named apart because
+ * Objective-C can't overload [watch] by its parameter's type.
+ */
+fun watchTestWrites(controller: TestWriteController, onEach: (TestWriteState) -> Unit): AutoCloseable {
     val job = MainScope().launch { controller.state.collect { onEach(it) } }
     return AutoCloseable { job.cancel() }
 }

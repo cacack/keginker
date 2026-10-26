@@ -11,6 +11,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -70,7 +71,8 @@ private val DEVICE = DeviceInfo(manufacturer = "Google", model = "Pixel 8", os =
 /**
  * The README screenshots (`docs/images/screenshots/android.*.png`): the
  * sample label in `fixtures/screenshots`, chosen through the photo picker,
- * then written. NFC is available (no [App] `nfcProblem`). Records or checks
+ * then written; and Report a display's test writes on a simulated EZ Sign
+ * display. NFC is available (no [App] `nfcProblem`). Records or checks
  * the images only when Roborazzi is asked to; see CONTRIBUTING.md.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -135,5 +137,37 @@ class ScreenshotTest {
         startWrite(SimulatedWaveshareTransport(commandDelayMs = 0))
         waitForText(DONE_MESSAGE)
         capture("android.3-done.png")
+    }
+
+    /** Report a display on an EZ Sign display with vendor commands on, then its test writes' confirmation. */
+    private fun offerTestWrites(display: EzSignTag) {
+        compose.setContent { App(tags, APP, DEVICE, nfcProblem = null) }
+        compose.onNodeWithText("Advanced").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Report a display").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNode(isToggleable()).performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+        tags.tryEmit(foundEzSign(display))
+        waitForText("Display report")
+        compose.onNodeWithText("Test writes").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun testWritesOffer() {
+        offerTestWrites(EzSignTag())
+        capture("android.test-writes-1-offer.png")
+    }
+
+    @Test
+    fun testWritesAsking() {
+        val display = EzSignTag()
+        offerTestWrites(display)
+        compose.onNodeWithText("Start test writes").performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+        tags.tryEmit(foundEzSign(display))
+        waitForText("Where is the black square?")
+        compose.onNodeWithText("Top left").performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+        capture("android.test-writes-2-asking.png")
     }
 }

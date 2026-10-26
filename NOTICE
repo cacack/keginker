@@ -5,3 +5,8 @@ This product includes software derived from Magic ePaper
 (https://github.com/fossasia/magic-epaper-app), Copyright FOSSASIA,
 licensed under the Apache License, Version 2.0. Derived files carry a
 header naming their source and the changes made.
+
+This product includes software derived from nfc-eink
+(https://github.com/alt-core/nfc-eink), Copyright its authors, licensed
+under the MIT License. Derived files carry a header naming their source and
+the changes made.

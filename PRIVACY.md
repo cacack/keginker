@@ -51,7 +51,10 @@ the start of its ID and of its originality signature, its NDEF records (such
 as the vendor app it names), and the read commands sent to it with its
 replies. With **Also try vendor commands** turned on, it also holds the
 vendor queries and their replies, which show only the start of a display's
-serial number and device ID. It's kept, shown and shared the same way.
+serial number and device ID. If you choose **Test writes** and start them,
+it also holds your answers about each test pattern, how long each refresh
+took, and the commands sent, with no image data. It's kept, shown and shared
+the same way.
 **Share** sends a long report as a `.txt` file, written to the app's
 temporary storage only when you share. There is only ever one such file:
 each share replaces it, and otherwise it stays in temporary storage until

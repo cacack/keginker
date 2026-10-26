@@ -138,7 +138,7 @@ internal fun historicalBytesText(historical: ByteArray, uid: ByteArray): String 
 /** One exchange as a report shows it. */
 internal data class ReportLine(val atMs: Long, val step: String, val command: String, val outcome: String)
 
-private fun reportLine(exchange: Exchange) = ReportLine(
+internal fun reportLine(exchange: Exchange) = ReportLine(
     atMs = exchange.atMs,
     step = exchange.step.name,
     command = commandText(exchange),

@@ -45,7 +45,14 @@ import kotlinx.coroutines.launch
  * the report is too long for the link, Share sends it as a `.txt` file.
  */
 @Composable
-fun ReportScreen(report: String, onBack: () -> Unit, title: String = "Diagnostics report", issueLink: IssueLink? = null) {
+fun ReportScreen(
+    report: String,
+    onBack: () -> Unit,
+    title: String = "Diagnostics report",
+    issueLink: IssueLink? = null,
+    /** Something more to do before sharing, shown above Share. */
+    extra: (@Composable () -> Unit)? = null,
+) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -65,6 +72,7 @@ fun ReportScreen(report: String, onBack: () -> Unit, title: String = "Diagnostic
         TextButton(onClick = onBack) { Text("Back") }
         Text(title, style = MaterialTheme.typography.headlineSmall)
         Text("This is everything the report contains. Nothing leaves your phone unless you share it.")
+        extra?.invoke()
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = {
                 val subject = "KegInker ${title.lowercase()}"

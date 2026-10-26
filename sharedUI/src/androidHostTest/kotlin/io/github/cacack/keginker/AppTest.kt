@@ -1,6 +1,8 @@
 package io.github.cacack.keginker
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.isToggleable
@@ -16,6 +18,7 @@ import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.Transport
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.Rule
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -189,5 +192,81 @@ class AppTest {
         failAWrite()
 
         compose.onNodeWithText("Share details").performScrollTo().assertIsDisplayed()
+    }
+
+    private fun waitForText(text: String) = compose.waitUntil(timeoutMillis = 30_000) {
+        compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
+    }
+
+    /** Reports [display] with vendor commands on, then opens the report's test writes. */
+    private fun offerTestWrites(display: EzSignTag) {
+        compose.setContent { App(tags, APP, DEVICE) }
+        compose.onNodeWithText("Advanced").performScrollTo().performClick()
+        compose.onNodeWithText("Report a display").performScrollTo().performClick()
+        compose.onNode(isToggleable()).performClick()
+        compose.waitForIdle()
+        tags.tryEmit(foundEzSign(display))
+        waitForText("Display report")
+        compose.onNodeWithText("Test writes").performScrollTo().performClick()
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun testWritesWriteNothingUntilConfirmed() {
+        val display = EzSignTag()
+        offerTestWrites(display)
+        val probed = display.sent.size
+
+        tags.tryEmit(foundEzSign(display))
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Start test writes").assertIsDisplayed()
+        assertEquals("Commands sent before the user confirmed", probed, display.sent.size)
+    }
+
+    @Test
+    fun testWritesEndInTheReportWithTheAnswers() {
+        val display = EzSignTag()
+        offerTestWrites(display)
+        compose.onNodeWithText("Start test writes").performClick()
+        compose.onNodeWithText("Hold the display to the phone", substring = true).assertIsDisplayed()
+
+        tags.tryEmit(foundEzSign(display))
+        waitForText("Where is the black square?")
+        compose.onNodeWithText("Next").assertIsNotEnabled()
+        compose.onNodeWithText("Top left").performScrollTo().performClick()
+        compose.onNodeWithText("Along the top or bottom edge").performScrollTo().performClick()
+        compose.onNodeWithText("Next").performScrollTo().assertIsEnabled().performClick()
+        waitForText("Display report")
+
+        compose.onNodeWithText("Test writes (1)", substring = true).assertExists()
+        compose.onNodeWithText("A: Top left", substring = true).assertExists()
+        compose.onNodeWithText("Start test writes").assertDoesNotExist()
+    }
+
+    @Test
+    fun backingOutOfTestWritesKeepsTheRecordsSoFar() {
+        val display = EzSignTag()
+        offerTestWrites(display)
+        compose.onNodeWithText("Start test writes").performClick()
+        tags.tryEmit(foundEzSign(display))
+        waitForText("Where is the black square?")
+
+        compose.onNodeWithText("Back").performClick()
+        waitForText("Display report")
+
+        compose.onNodeWithText("Test writes (1)", substring = true).assertExists()
+        compose.onNodeWithText("Not answered", substring = true).assertExists()
+    }
+
+    @Test
+    fun backingOutOfTheConfirmationOffersTestWritesAgain() {
+        offerTestWrites(EzSignTag())
+
+        compose.onNodeWithText("Back").performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Display report").assertIsDisplayed()
+        compose.onNodeWithText("Test writes").performScrollTo().assertIsDisplayed()
     }
 }

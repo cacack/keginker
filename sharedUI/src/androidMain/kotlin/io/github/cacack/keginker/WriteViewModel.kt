@@ -18,8 +18,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Holds the [WriteSession] and the [probe], and runs writes and reads in
- * [viewModelScope], so neither is cut short if the activity is recreated.
+ * Holds the [WriteSession], the [probe] and its [testWrites], and runs
+ * writes and reads in [viewModelScope], so none is cut short if the
+ * activity is recreated.
  */
 class WriteViewModel : ViewModel() {
     private val session = WriteSession(WavesharePanel.EPD_2IN7)
@@ -36,8 +37,45 @@ class WriteViewModel : ViewModel() {
     private val mutableLoadError = MutableStateFlow<String?>(null)
     val loadError: StateFlow<String?> = mutableLoadError
 
+    private val mutableTestWrites = MutableStateFlow<TestWriteController?>(null)
+
+    /**
+     * The reported display's test writes, once the user asks for them from
+     * its report; null before that. While it waits, found tags go to it first.
+     */
+    val testWrites: StateFlow<TestWriteController?> = mutableTestWrites
+
     fun onTag(tag: FoundTag) {
-        viewModelScope.launch { if (probe.isWaiting) probe.onTag(tag) else session.onTag(tag) }
+        viewModelScope.launch {
+            val testWrites = mutableTestWrites.value
+            when {
+                testWrites?.isWaiting == true -> testWrites.onTag(tag)
+                probe.isWaiting -> probe.onTag(tag)
+                else -> session.onTag(tag)
+            }
+        }
+    }
+
+    /** Offers [controller]'s test writes for the reported display; nothing is written until the user opts in. */
+    fun offerTestWrites(controller: TestWriteController) {
+        mutableTestWrites.value = controller
+    }
+
+    /**
+     * Backs out of the test writes: an offer not taken up is withdrawn, so the
+     * report offers it again; otherwise the run ends, keeping its records for
+     * the report. Ignored while a write runs; it ends within the write budget.
+     */
+    fun leaveTestWrites() {
+        val testWrites = mutableTestWrites.value ?: return
+        if (testWrites.state.value == TestWriteState.Offered) mutableTestWrites.value = null else testWrites.cancel()
+    }
+
+    /** Closes "Report a display", dropping its test writes. */
+    fun closeProbe() {
+        mutableTestWrites.value?.cancel()
+        mutableTestWrites.value = null
+        probe.cancel()
     }
 
     /**
@@ -48,6 +86,7 @@ class WriteViewModel : ViewModel() {
      */
     fun reportDisplay(vendorQueries: Boolean) {
         if (controller.state.value == WriteState.Waiting) controller.cancel()
+        mutableTestWrites.value = null
         probe.arm(vendorQueries)
     }
 

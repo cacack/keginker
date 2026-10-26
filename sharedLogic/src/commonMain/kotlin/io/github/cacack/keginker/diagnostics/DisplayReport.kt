@@ -3,6 +3,7 @@ package io.github.cacack.keginker.diagnostics
 import io.github.cacack.keginker.ezsign.DEVICE_ID_TLVS
 import io.github.cacack.keginker.ezsign.EZ_SIGN_DECODER_SOURCE
 import io.github.cacack.keginker.ezsign.EzSignDeviceInfo
+import io.github.cacack.keginker.ezsign.TestWriteRecord
 import io.github.cacack.keginker.ezsign.ezSignTlvs
 import io.github.cacack.keginker.nfc.TagKind
 import io.github.cacack.keginker.probe.DEVICE_INFO
@@ -13,6 +14,7 @@ import io.github.cacack.keginker.probe.ProbePass
 import io.github.cacack.keginker.probe.ProbeStep
 import io.github.cacack.keginker.probe.describeNdefRecord
 import io.github.cacack.keginker.waveshare.REPLY_SHOWN_BYTES
+import io.github.cacack.keginker.waveshare.activity
 import io.github.cacack.keginker.waveshare.toHex
 
 /** Bytes per row of memory a report shows. */
@@ -37,7 +39,15 @@ private val DATA_READS = setOf(ProbeStep.READ_PAGES, ProbeStep.READ_BLOCKS)
  * A decoded EZ Sign device-information reply gets its own section, which
  * leaves out the device's serial and ID.
  */
-fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult): String = buildString {
+fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult): String =
+    formatDisplayReport(app, device, result, emptyList())
+
+/**
+ * [formatDisplayReport], then a "Test writes" section for [testWrites], if
+ * there are any: each pattern's answers, refresh time and exchanges, with
+ * image data counted, not shown, and the UID hidden as above.
+ */
+fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult, testWrites: List<TestWriteRecord>): String = buildString {
     reportHeader("KegInker display report", app, device, result.tag)
     val uid = result.tag?.uid?.takeIf { it.size >= MIN_HIDDEN_UID_BYTES }
     fun hex(bytes: ByteArray) = hexHiding(bytes, 0, bytes.size, uidHidden(bytes, uid))
@@ -92,6 +102,51 @@ fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult): 
             )
         },
     )
+    testWritesSection(testWrites, uid)
+}
+
+/** Each of [records]: its pattern, answers, refresh time or failure, and exchanges, with [uid] hidden. */
+private fun StringBuilder.testWritesSection(records: List<TestWriteRecord>, uid: ByteArray?) {
+    if (records.isEmpty()) return
+    fun hidingUid(text: String) = textHidingUid(text, uid)
+    appendLine()
+    appendLine("Test writes (${records.size})")
+    records.forEachIndexed { index, record ->
+        val outcome = record.outcome
+        appendLine()
+        appendLine("${index + 1}. ${record.pattern}")
+        record.answers.forEach {
+            appendLine("  Q: ${it.question}")
+            appendLine("  A: ${it.answer}")
+        }
+        if (record.answers.isEmpty() && outcome.failure == null) appendLine("  Not answered")
+        field("Refresh", outcome.refreshMs?.let { "$it ms" })
+        outcome.busyAtMs?.let { appendLine("  Still busy at $it ms (write budget reached)") }
+        outcome.failure?.let {
+            field("Failed", hidingUid("${it.step.name} (${it.step.activity}): ${it.reason}"))
+            field("Cause", it.cause?.let { cause -> hidingUid(describe(cause)) })
+        }
+        exchangeLines(outcome.log.entries.map { reportLine(it).copy(outcome = testWriteOutcomeText(it, uid)) })
+    }
+}
+
+/** What came back for one test-write exchange, as [outcomeText] shows it, with [uid] hidden. */
+private fun testWriteOutcomeText(exchange: Exchange, uid: ByteArray?): String {
+    exchange.error?.let { return "! ${textHidingUid(it, uid)}" }
+    val reply = exchange.reply ?: ByteArray(0)
+    return "< ${shownHex(reply, uidHidden(reply, uid))}"
+}
+
+/** [text] with the hex of [uid], in either byte order, replaced by its marker, as in a failure's reason. */
+private fun textHidingUid(text: String, uid: ByteArray?): String {
+    if (uid == null) return text
+    return listOf(uid, uid.reversedArray()).fold(text) { shown, order -> shown.replace(order.toHex(), uidMarker(uid)) }
+}
+
+/** [reply] as hex, cut to [REPLY_SHOWN_BYTES], with [hidden] bytes shown as their markers. */
+private fun shownHex(reply: ByteArray, hidden: List<Hidden>): String {
+    val text = hexHiding(reply, 0, minOf(reply.size, REPLY_SHOWN_BYTES), hidden)
+    return if (reply.size > REPLY_SHOWN_BYTES) "$text … (${reply.size} bytes)" else text
 }
 
 /** What [info] says about the panel; [hex] shows a raw value with any UID hidden. */
@@ -148,8 +203,7 @@ private fun replyText(exchange: ProbeExchange, uid: ByteArray?): String {
         hidden += Hidden(SYSTEM_INFO_UID, uidMarker(shown))
     }
     if (exchange.pass == ProbePass.VENDOR && exchange.command.contentEquals(DEVICE_INFO)) hidden += deviceIdHidden(reply)
-    val text = hexHiding(reply, 0, minOf(reply.size, REPLY_SHOWN_BYTES), hidden)
-    return if (reply.size > REPLY_SHOWN_BYTES) "$text … (${reply.size} bytes)" else text
+    return shownHex(reply, hidden)
 }
 
 /**

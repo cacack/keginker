@@ -23,9 +23,6 @@ private val SYSTEM_INFO_UID = 2..9
 /** The [DEVICE_INFO] reply TLVs that identify one device: C0 its serial, C1 its ID. */
 private val DEVICE_ID_TLVS = setOf(0xC0, 0xC1)
 
-/** Bytes a report shows as [marker] instead of their hex. */
-private class Hidden(val range: IntRange, val marker: String)
-
 /** The documented steps that read the tag's memory, whose data the report shows only under Memory. */
 private val DATA_READS = setOf(ProbeStep.READ_PAGES, ProbeStep.READ_BLOCKS)
 
@@ -151,19 +148,6 @@ private fun dataReadText(step: ProbeStep, reply: ByteArray): String? = when {
     else -> null
 }
 
-private fun uidMarker(uid: ByteArray?) = "[UID ${uid?.let(::shortUid) ?: "hidden"}]"
-
-/** Where [uid] appears in [bytes], in either byte order. */
-private fun uidHidden(bytes: ByteArray, uid: ByteArray?): List<Hidden> {
-    if (uid == null) return emptyList()
-    val reversed = uid.reversedArray()
-    val marker = uidMarker(uid)
-    return (0..bytes.size - uid.size).filter { at ->
-        val window = bytes.copyOfRange(at, at + uid.size)
-        window.contentEquals(uid) || window.contentEquals(reversed)
-    }.map { Hidden(it until it + uid.size, marker) }
-}
-
 /**
  * The values of the [DEVICE_ID_TLVS] in a [DEVICE_INFO] reply: one-byte tag,
  * one-byte length and value, to the end of the data, then `90 00` if the tag
@@ -191,21 +175,3 @@ private fun deviceIdHidden(reply: ByteArray): List<Hidden> {
 
 private fun isOk(reply: ByteArray) =
     reply.size >= 2 && reply[reply.size - 2] == 0x90.toByte() && reply[reply.size - 1] == 0x00.toByte()
-
-/** Bytes [from] until [to] of [bytes] as hex, with each run of bytes inside a [hidden] range shown once, as the first one's marker. */
-private fun hexHiding(bytes: ByteArray, from: Int, to: Int, hidden: List<Hidden>): String {
-    val parts = mutableListOf<String>()
-    var at = from
-    while (at < to) {
-        val run = hidden.firstOrNull { at in it.range }
-        if (run != null) {
-            parts += run.marker
-            // Past this run, including any hidden range that overlaps it.
-            while (at < to && hidden.any { at in it.range }) at++
-        } else {
-            parts += bytes.copyOfRange(at, at + 1).toHex()
-            at++
-        }
-    }
-    return parts.joinToString(" ")
-}

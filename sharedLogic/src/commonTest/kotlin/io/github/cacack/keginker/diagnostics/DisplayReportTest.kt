@@ -201,6 +201,21 @@ class DisplayReportTest {
     }
 
     @Test
+    fun noLineShowsMoreOfTheUidThanTheUidLine() = runTest {
+        // Made-up UID, in historical bytes shaped like an EZ Sign tag's.
+        val uid = bytes(0x3C, 0x5D, 0x7E, 0x9F)
+        val info = TagInfo(listOf("IsoDep", "NfcA"), uid, bytes(0x44, 0x00), 0x20, bytes(0x90, 0x3C, 0x5D, 0x7E, 0x1D, 0x03))
+        val result = probeDisplay(classifyIsoDepTag(info) { Type4Tag(launcherRecord("x")) })
+
+        val text = formatDisplayReport(APP, DEVICE, result)
+
+        assertTrue("UID: 3C 5D … (4 bytes)" in text, text)
+        assertTrue("Historical bytes: 90 [UID 3C 5D … (4 bytes)] 1D 03" in text, text)
+        val threeBytes = listOf(uid.copyOfRange(0, 3), uid.reversedArray().copyOfRange(0, 3)).map { it.toHex() }
+        text.lines().forEach { line -> threeBytes.forEach { assertFalse(it in line, "\"$it\" in \"$line\" of:\n$text") } }
+    }
+
+    @Test
     fun type2ReportDecodesTheNxpIdentity() = runTest {
         val signature = ByteArray(32) { it.toByte() }
         val result = probeDisplay(classifyNfcATag(TagInfo(listOf("NfcA"), UID)) { Type2Tag(type2Memory(ndefTlv(launcherRecord("x"))), NTAG213_VERSION, signature) })

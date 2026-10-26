@@ -129,6 +129,22 @@ class DiagnosticReportTest {
     }
 
     @Test
+    fun hidesUidBytesInsideTheHistoricalBytes() {
+        // Made-up UID; EZ Sign tags put its first three bytes in their historical bytes.
+        val uid = bytes(0x3C, 0x5D, 0x7E, 0x9F)
+        fun historicalLine(historical: ByteArray) =
+            formatDiagnosticReport(APP, DEVICE, WriteReport(TagInfo(listOf("IsoDep"), uid, historicalBytes = historical), "unsupported", "EPD_2IN7", "x", Outcome.NOT_ATTEMPTED, testPattern = false))
+                .lines().single { it.trim().startsWith("Historical bytes:") }.trim()
+
+        assertEquals("Historical bytes: 90 [UID 3C 5D … (4 bytes)] 1D 03", historicalLine(bytes(0x90, 0x3C, 0x5D, 0x7E, 0x1D, 0x03)))
+        assertEquals("Historical bytes: [UID 3C 5D … (4 bytes)] 00", historicalLine(bytes(0x3C, 0x5D, 0x7E, 0x9F, 0x00)))
+        // Least significant byte first.
+        assertEquals("Historical bytes: 80 [UID 3C 5D … (4 bytes)]", historicalLine(bytes(0x80, 0x9F, 0x7E, 0x5D)))
+        // No more than the UID line shows.
+        assertEquals("Historical bytes: 3C 5D 01 7E 9F", historicalLine(bytes(0x3C, 0x5D, 0x01, 0x7E, 0x9F)))
+    }
+
+    @Test
     fun listsEachExchangeWithItsTimeStepAndOutcome() {
         val text = formatDiagnosticReport(
             APP, DEVICE,

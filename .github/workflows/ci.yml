@@ -73,12 +73,25 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # A cold simulator takes minutes to boot; let it boot while Gradle and Xcode build.
+      - name: Boot simulator
+        run: |
+          # Any available iPhone simulator; runner images change their names.
+          device=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; print(next(d["udid"] for r, ds in json.load(sys.stdin)["devices"].items() if "iOS" in r for d in ds if d["name"].startswith("iPhone")))')
+          echo "SIMULATOR=$device" >> "$GITHUB_ENV"
+          xcrun simctl boot "$device"
       # The Xcode build phase runs Gradle to compile the shared framework.
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: zulu
           java-version: 21
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      # The Kotlin/Native toolchain and LLVM, which setup-gradle doesn't cache.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-${{ runner.arch }}-
       - run: ./gradlew :sharedLogic:iosSimulatorArm64Test
       - name: Build app (simulator, unsigned)
         run: |
@@ -87,10 +100,9 @@ jobs:
             -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
       - name: Test app (simulator, unsigned)
         run: |
-          # Any available iPhone simulator; runner images change their names.
-          device=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; print(next(d["udid"] for r, ds in json.load(sys.stdin)["devices"].items() if "iOS" in r for d in ds if d["name"].startswith("iPhone")))')
+          xcrun simctl bootstatus "$SIMULATOR" -b
           xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
-            -configuration Debug -destination "platform=iOS Simulator,id=$device" \
+            -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR" \
             -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO test
       # CONSTITUTION.md C4; the release workflow runs the same check on the signed app.
       - name: Check permissions (C4)
@@ -120,19 +132,32 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - run: sudo xcode-select -s /Applications/Xcode_27.1.app
+      # A cold simulator takes minutes to boot; let it boot while Xcode builds.
+      - name: Boot simulator
+        run: |
+          device=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; print(next(d["udid"] for r, ds in json.load(sys.stdin)["devices"].items() if r.endswith("iOS-27-0") for d in ds if d["name"] == "iPhone 17e"))')
+          echo "SIMULATOR=$device" >> "$GITHUB_ENV"
+          xcrun simctl boot "$device"
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: zulu
           java-version: 21
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-      - run: sudo xcode-select -s /Applications/Xcode_27.1.app
+      # The Kotlin/Native toolchain and LLVM, which setup-gradle doesn't cache.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify screenshots
         env:
           TEST_RUNNER_KEGINKER_SCREENSHOTS: verify
           TEST_RUNNER_SNAPSHOT_ARTIFACTS: ${{ runner.temp }}/screenshot-diffs
         run: |
+          xcrun simctl bootstatus "$SIMULATOR" -b
           xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
-            -destination 'platform=iOS Simulator,name=iPhone 17e,OS=27.0' \
+            -destination "platform=iOS Simulator,id=$SIMULATOR" \
             -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO \
             -only-testing:iosAppTests/ScreenshotTests test
       - if: failure()

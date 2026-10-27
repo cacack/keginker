@@ -1,17 +1,33 @@
 package io.github.cacack.keginker
 
 import io.github.cacack.keginker.diagnostics.Outcome
+import io.github.cacack.keginker.ezsign.BLOCKING_REFRESH_TIMEOUT_MS
+import io.github.cacack.keginker.ezsign.EZ_SIGN_DISPLAYS
+import io.github.cacack.keginker.ezsign.EZ_SIGN_WRITE_DEADLINE_MS
+import io.github.cacack.keginker.ezsign.SimulatedEzSignTag
+import io.github.cacack.keginker.ezsign.TagTimeout
+import io.github.cacack.keginker.ezsign.deviceInfoData
+import io.github.cacack.keginker.ezsign.ezSignLabelPixels
+import io.github.cacack.keginker.ezsign.infoFrom
+import io.github.cacack.keginker.ezsign.simulatedEzSign
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
 import io.github.cacack.keginker.nfc.TagInfo
+import io.github.cacack.keginker.nfc.TagKind
 import io.github.cacack.keginker.nfc.Transport
+import io.github.cacack.keginker.probe.EZ_SIGN_29_DEVICE_INFO
+import io.github.cacack.keginker.probe.EZ_SIGN_42_DEVICE_INFO
+import io.github.cacack.keginker.waveshare.BLOCKING_REFRESH_UNCONFIRMED_MESSAGE
 import io.github.cacack.keginker.waveshare.DONE_MESSAGE
+import io.github.cacack.keginker.waveshare.EZ_SIGN_SIZE_UNSUPPORTED_MESSAGE
+import io.github.cacack.keginker.waveshare.UNSUPPORTED_TAG_MESSAGE
 import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
 import io.github.cacack.keginker.waveshare.WRITE_TIMED_OUT_MESSAGE
-import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteStep
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -19,11 +35,13 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 
-private val PANEL = WavesharePanel.EPD_2IN7
+private val DISPLAY = LabelDisplay.WAVESHARE_2IN7
+private val PANEL = DISPLAY.wavesharePanel!!
 
 /** A tag that accepts everything, or drops out after [failAfter] commands. */
 private class FakeTag(private val failAfter: Int = Int.MAX_VALUE) : Transport {
@@ -74,7 +92,7 @@ private class SlowTag : Transport {
 
 private fun testView() = BooleanArray(PANEL.viewWidth * PANEL.viewHeight) { true }
 
-private fun controller() = WriteController(PANEL, ImageWriter(pause = {}))
+private fun controller() = WriteController(DISPLAY, ImageWriter(pause = {}))
 
 class WriteControllerTest {
     @Test
@@ -175,7 +193,7 @@ class WriteControllerTest {
         val report = assertNotNull(assertIs<WriteState.Failed>(controller.state.value).report)
         assertEquals(WriteStep.SEND_DATA, report.step)
         assertEquals("Waveshare classic (NFC-A)", report.protocol)
-        assertEquals(PANEL.name, report.panel)
+        assertEquals(DISPLAY.name, report.panel)
         assertEquals("Tag was lost", report.cause?.message)
         assertEquals(21, report.exchanges.size)
         assertNotNull(report.exchanges.last().error)
@@ -351,7 +369,7 @@ class WriteControllerTest {
 
     @Test
     fun cancelledWriteIsReportedAsFailed() = runTest {
-        val controller = WriteController(PANEL, ImageWriter(pause = { kotlinx.coroutines.awaitCancellation() }))
+        val controller = WriteController(DISPLAY, ImageWriter(pause = { kotlinx.coroutines.awaitCancellation() }))
         controller.arm(testView())
         val tag = FakeTag()
 
@@ -362,5 +380,212 @@ class WriteControllerTest {
 
         assertIs<WriteState.Failed>(controller.state.value)
         assertTrue(tag.closed)
+    }
+}
+
+private val ISO_DEP_INFO = TagInfo(listOf("IsoDep"), byteArrayOf(4, 1, 2, 3, 4, 5, 6))
+
+/** [transport] as the phone finds an EZ Sign display: an unsupported ISO-DEP tag it can open. */
+private fun ezSignFound(transport: Transport) = FoundTag.Unsupported(ISO_DEP_INFO, TagKind.ISO_DEP) { transport }
+
+private fun viewOf(display: LabelDisplay) = BooleanArray(display.viewWidth * display.viewHeight) { it % 3 == 0 }
+
+private fun isRefresh(command: ByteArray) = command[0] == 0xF0.toByte() && command[1] == 0xD4.toByte()
+
+/**
+ * Answers like [tag], in virtual time: the blocking refresh's reply takes
+ * [refreshMs], or if that's longer than its timeout, the timeout runs out.
+ */
+private class EzSignTagInTime(private val tag: SimulatedEzSignTag, private val refreshMs: Long = 0) : Transport {
+    var closed = false
+
+    override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+        if (isRefresh(command)) {
+            if (refreshMs > timeoutMs) {
+                delay(timeoutMs)
+                throw TagTimeout("no reply to the refresh within $timeoutMs ms")
+            }
+            delay(refreshMs)
+        }
+        return tag.transceive(command, timeoutMs)
+    }
+
+    override fun close() {
+        closed = true
+    }
+}
+
+class EzSignWriteControllerTest {
+    @Test
+    fun aLabelIsWrittenToTheChosenEzSignDisplay() = runTest {
+        for (display in EZ_SIGN_DISPLAYS) {
+            val simulated = simulatedEzSign(deviceInfoData(display))
+            val tag = EzSignTagInTime(simulated)
+            val controller = WriteController(display)
+            val view = viewOf(display)
+            controller.arm(view, testPattern = true)
+
+            controller.onTag(ezSignFound(tag))
+
+            val report = assertIs<WriteState.Done>(controller.state.value, "${display.name}: ${simulated.lastError}").report
+            assertEquals("EZ Sign (ISO-DEP)", report.protocol)
+            assertEquals(display.name, report.panel)
+            assertTrue(report.testPattern)
+            assertContentEquals(ezSignLabelPixels(display, view), simulated.shownPixels(), display.name)
+            assertTrue(tag.closed)
+        }
+    }
+
+    @Test
+    fun anEzSignDisplayOfAnotherSizeNamesTheOneToChoose() = runTest {
+        val simulated = simulatedEzSign(EZ_SIGN_42_DEVICE_INFO)
+        val tag = EzSignTagInTime(simulated)
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+
+        controller.onTag(ezSignFound(tag))
+
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertEquals("This is the EZ Sign 4.2\" display. Choose EZ Sign 4.2\" and try again.", failed.message)
+        val report = assertNotNull(failed.report)
+        assertEquals(Outcome.FAILED, report.outcome)
+        assertEquals("EZ Sign (ISO-DEP)", report.protocol)
+        assertEquals(WriteStep.INIT, report.step)
+        // Only SELECT and the device-information query; nothing that writes.
+        assertEquals(2, report.exchanges.size)
+        assertEquals(2, simulated.sent.size)
+        assertTrue(tag.closed)
+    }
+
+    @Test
+    fun anEzSignDisplayOfASizeNoDisplayHasSaysSo() = runTest {
+        // 122 × 250: decodes, but no LabelDisplay is that size.
+        val data = byteArrayOf(0xA0.toByte(), 0x07, 0xF0.toByte(), 0x07, 0x20, 0x01, 0xF4.toByte(), 0x00, 0x7A)
+        val controller = WriteController(LabelDisplay.EZ_SIGN_4IN2)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_4IN2))
+
+        controller.onTag(ezSignFound(EzSignTagInTime(simulatedEzSign(data))))
+
+        assertEquals(EZ_SIGN_SIZE_UNSUPPORTED_MESSAGE, assertIs<WriteState.Failed>(controller.state.value).message)
+    }
+
+    @Test
+    fun anIsoDepTagWhoseDeviceInformationDoesNotDecodeIsUnsupported() = runTest {
+        val simulated = SimulatedEzSignTag(infoFrom(EZ_SIGN_29_DEVICE_INFO), deviceInfoReply = byteArrayOf(0x6D, 0x00))
+        val tag = EzSignTagInTime(simulated)
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+
+        controller.onTag(ezSignFound(tag))
+
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertEquals(UNSUPPORTED_TAG_MESSAGE, failed.message)
+        val report = assertNotNull(failed.report)
+        assertEquals("unsupported", report.protocol)
+        // The report keeps what the tag said.
+        assertEquals(2, report.exchanges.size)
+        assertTrue(tag.closed)
+    }
+
+    @Test
+    fun aWaveshareTagWhileAnEzSignDisplayIsChosenIsSentNothing() = runTest {
+        val tag = FakeTag()
+        val controller = WriteController(LabelDisplay.EZ_SIGN_4IN2)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_4IN2))
+
+        controller.onTag(FoundTag.Waveshare(tag))
+
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertEquals("This is the Waveshare 2.7\" display. Choose Waveshare 2.7\" and try again.", failed.message)
+        assertEquals(Outcome.NOT_ATTEMPTED, failed.report?.outcome)
+        assertEquals(0, tag.sent)
+        assertTrue(tag.closed)
+    }
+
+    @Test
+    fun anIsoDepTagWhileWaveshareIsChosenIsNeverOpened() = runTest {
+        var opened = false
+        val controller = WriteController(DISPLAY)
+        controller.arm(viewOf(DISPLAY))
+
+        controller.onTag(FoundTag.Unsupported(ISO_DEP_INFO, TagKind.ISO_DEP) { opened = true; FakeTag() })
+
+        assertEquals(UNSUPPORTED_TAG_MESSAGE, assertIs<WriteState.Failed>(controller.state.value).message)
+        assertFalse(opened)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.currentTime
+    @Test
+    fun aRefreshThatNeverAnswersIsUnconfirmedWithinTheDeadline() = runTest {
+        val tag = EzSignTagInTime(simulatedEzSign(EZ_SIGN_42_DEVICE_INFO), refreshMs = Long.MAX_VALUE)
+        val controller = WriteController(LabelDisplay.EZ_SIGN_4IN2)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_4IN2))
+
+        controller.onTag(ezSignFound(tag))
+
+        assertTrue(testScheduler.currentTime <= EZ_SIGN_WRITE_DEADLINE_MS, "Stopped at ${testScheduler.currentTime} ms")
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertEquals(BLOCKING_REFRESH_UNCONFIRMED_MESSAGE, failed.message)
+        assertEquals(WriteStep.REFRESH, failed.report?.step)
+        assertTrue(tag.closed)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.currentTime
+    @Test
+    fun aLongRefreshFinishesPastTheWaveshareDeadline() = runTest {
+        val tag = EzSignTagInTime(simulatedEzSign(EZ_SIGN_29_DEVICE_INFO), refreshMs = BLOCKING_REFRESH_TIMEOUT_MS - 1)
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+
+        controller.onTag(ezSignFound(tag))
+
+        assertTrue(testScheduler.currentTime > WRITE_DEADLINE_MS, "Took ${testScheduler.currentTime} ms")
+        assertIs<WriteState.Done>(controller.state.value)
+    }
+
+    @Test
+    fun aTagThatCannotBeOpenedFailsWithoutSendingAnything() = runTest {
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+
+        controller.onTag(FoundTag.Unsupported(ISO_DEP_INFO, TagKind.ISO_DEP) { throw IllegalStateException("Tag was lost") })
+
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertTrue("Couldn't connect" in failed.message, failed.message)
+        assertEquals("Tag was lost", failed.report?.cause?.message)
+        assertEquals(emptyList(), failed.report?.exchanges)
+
+        // A retry works.
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+        controller.onTag(ezSignFound(EzSignTagInTime(simulatedEzSign(EZ_SIGN_29_DEVICE_INFO))))
+        assertIs<WriteState.Done>(controller.state.value)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.runCurrent
+    @Test
+    fun cancellingAnEzSignWritePropagatesAndClosesTheTag() = runTest {
+        val simulated = simulatedEzSign(EZ_SIGN_29_DEVICE_INFO)
+        var closed = false
+        val holding = object : Transport {
+            override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+                if (isRefresh(command)) awaitCancellation()
+                return simulated.transceive(command, timeoutMs)
+            }
+
+            override fun close() {
+                closed = true
+            }
+        }
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+
+        val job = launch { controller.onTag(ezSignFound(holding)) }
+        testScheduler.runCurrent()
+        job.cancel()
+        job.join()
+
+        assertTrue(job.isCancelled)
+        assertIs<WriteState.Failed>(controller.state.value)
+        assertTrue(closed)
     }
 }

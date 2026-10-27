@@ -26,7 +26,7 @@ final class TagWriter: NSObject, ObservableObject {
     private static let crcModeKey = "crcMode"
 
     let panel = WavesharePanel.epd2in7
-    private lazy var controller = WriteController(panel: panel, imageWriter: ImageWriter())
+    private lazy var controller = WriteController(display: LabelDisplay.waveshare2in7, imageWriter: ImageWriter())
     private var watching: (any KotlinAutoCloseable)?
     private var session: NFCTagReaderSession?
     private var isRunning = false

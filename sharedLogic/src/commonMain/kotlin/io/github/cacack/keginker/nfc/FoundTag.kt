@@ -74,6 +74,9 @@ val FoundTag.protocolName: String get() = when (this) {
     is FoundTag.Unsupported -> "unsupported"
 }
 
+/** The protocol a report names for an ISO-DEP tag once its EZ Sign device information decoded. */
+internal const val EZ_SIGN_PROTOCOL_NAME = "EZ Sign (ISO-DEP)"
+
 /**
  * Classifies an NFC-A tag that isn't ISO-DEP by its UID, without sending it
  * any command; the result carries [info] for reports. [openTransport] is

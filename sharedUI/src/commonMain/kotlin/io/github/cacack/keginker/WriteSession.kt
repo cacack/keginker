@@ -22,7 +22,7 @@ class WriteSession(
     val panel: WavesharePanel,
     imageWriter: ImageWriter = ImageWriter(),
 ) {
-    val controller = WriteController(panel, imageWriter)
+    val controller = WriteController(LabelDisplay.entries.single { it.wavesharePanel == panel }, imageWriter)
 
     /** The chosen image. */
     private var source = testPattern(panel.viewWidth, panel.viewHeight)

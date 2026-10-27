@@ -1,11 +1,11 @@
 package io.github.cacack.keginker.diagnostics
 
+import io.github.cacack.keginker.LabelDisplay
 import io.github.cacack.keginker.image.forEachSeed
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.waveshare.REPLY_SHOWN_BYTES
-import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteStep
 import io.github.cacack.keginker.waveshare.toHex
 import kotlin.test.Test
@@ -115,11 +115,11 @@ class DiagnosticReportTest {
     fun writeReportTakesTheTagsInfoAndProtocol() {
         val tag = FoundTag.WaveshareIsoDep(NoTransport, TAG)
 
-        val report = writeReport(tag, WavesharePanel.EPD_2IN7, "Done.", Outcome.SUCCEEDED, testPattern = true, log = null)
+        val report = writeReport(tag, LabelDisplay.WAVESHARE_2IN7, "Done.", Outcome.SUCCEEDED, testPattern = true, log = null)
 
         assertSame(TAG, report.tag)
         assertEquals("Waveshare Rev2.2 (ISO-DEP)", report.protocol)
-        assertEquals("EPD_2IN7", report.panel)
+        assertEquals("WAVESHARE_2IN7", report.panel)
         assertEquals(Outcome.SUCCEEDED, report.outcome)
         assertTrue(report.testPattern)
         assertTrue(report.exchanges.isEmpty())

@@ -65,7 +65,7 @@ private fun session() = WriteSession(PANEL, imageWriter)
 /** The commands a tag of [isoDep]'s kind receives when [view] is written to it. */
 private suspend fun commandsFor(view: BooleanArray, isoDep: Boolean): List<List<Byte>> {
     val tag = ScriptedTag(isoDep, instant = true)
-    imageWriter.write(tag.found() as FoundTag.Writable, PANEL, view) {}
+    imageWriter.write(tag.found() as FoundTag.Writable, LabelDisplay.WAVESHARE_2IN7, view) {}
     return tag.sent
 }
 

@@ -8,7 +8,6 @@ import io.github.cacack.keginker.waveshare.Fault
 import io.github.cacack.keginker.waveshare.Protocol
 import io.github.cacack.keginker.waveshare.REFRESH_UNCONFIRMED_MESSAGE
 import io.github.cacack.keginker.waveshare.ScriptedTag
-import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteResult
 import io.github.cacack.keginker.waveshare.activity
 import io.github.cacack.keginker.waveshare.faultyTag
@@ -19,13 +18,13 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
-private val PANEL = WavesharePanel.EPD_2IN7
+private val DISPLAY = LabelDisplay.WAVESHARE_2IN7
 
 /** Wraps [transport] as the kind of tag that speaks [protocol]. */
 private fun found(protocol: Protocol, transport: Transport): FoundTag.Writable =
     if (protocol == Protocol.CLASSIC) FoundTag.Waveshare(transport) else FoundTag.WaveshareIsoDep(transport)
 
-private fun testView() = BooleanArray(PANEL.viewWidth * PANEL.viewHeight) { true }
+private fun testView() = BooleanArray(DISPLAY.viewWidth * DISPLAY.viewHeight) { true }
 
 private val imageWriter = ImageWriter(pause = {})
 
@@ -42,9 +41,9 @@ class WriteControllerFaultTest {
             for (failAt in 0 until commands) {
                 for (fault in Fault.entries) {
                     val case = "$protocol, command ${failAt + 1}/$commands, $fault"
-                    val expected = imageWriter.write(found(protocol, faultyTag(protocol, failAt, fault)), PANEL, testView()) {}
+                    val expected = imageWriter.write(found(protocol, faultyTag(protocol, failAt, fault)), DISPLAY, testView()) {}
                     assertIs<WriteResult.Failure>(expected, case)
-                    val controller = WriteController(PANEL, imageWriter)
+                    val controller = WriteController(DISPLAY, imageWriter)
                     val tag = faultyTag(protocol, failAt, fault)
 
                     controller.arm(testView())

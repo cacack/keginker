@@ -37,16 +37,6 @@ private fun probeResult(info: EzSignDeviceInfo?) = ProbeResult(
     deviceInfo = info,
 )
 
-/** Answers like [tag], except that [failing] commands get [instead]. */
-private class Interfering(
-    private val tag: Transport,
-    private val failing: (ByteArray) -> Boolean,
-    private val instead: suspend () -> ByteArray,
-) : Transport {
-    override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray =
-        if (failing(command)) instead() else tag.transceive(command, timeoutMs)
-}
-
 class EzSignTestWriterTest {
     @Test
     fun everyPatternLandsInPanelMemoryBitForBit() = runTest {

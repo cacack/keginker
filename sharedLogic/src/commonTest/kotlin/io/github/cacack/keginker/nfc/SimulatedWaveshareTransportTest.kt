@@ -1,5 +1,6 @@
 package io.github.cacack.keginker.nfc
 
+import io.github.cacack.keginker.LabelDisplay
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteResult
 import io.github.cacack.keginker.waveshare.WriteStep
@@ -26,7 +27,7 @@ class SimulatedWaveshareTransportTest {
         val transport = SimulatedWaveshareTransport(0, SimulatedWaveshareTransport.FAIL_WHILE_SENDING_IMAGE)
         val view = BooleanArray(panel.viewWidth * panel.viewHeight) { true }
 
-        val result = ImageWriter(pause = {}).write(FoundTag.Waveshare(transport), panel, view) {}
+        val result = ImageWriter(pause = {}).write(FoundTag.Waveshare(transport), LabelDisplay.WAVESHARE_2IN7, view) {}
 
         assertEquals(WriteStep.SEND_DATA, assertIs<WriteResult.Failure>(result).step)
     }

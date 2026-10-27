@@ -20,7 +20,7 @@ internal const val BLOCK_BYTES = 2_000
 internal const val FRAGMENT_BYTES = 250
 
 /**
- * Packs [pixels] (colour indices, row-major in the native layout of [info],
+ * Packs [pixels] (color indices, row-major in the native layout of [info],
  * [EzSignDeviceInfo.nativeWidth] wide) at [EzSignDeviceInfo.bitsPerPixel].
  *
  * Within a row the bytes run from the right-hand end: the row's first byte
@@ -52,7 +52,7 @@ internal fun packFrame(pixels: ByteArray, info: EzSignDeviceInfo): ByteArray {
 
 /**
  * Turns a view of an EZ Sign [display] (row-major [LabelDisplay.palette]
- * indices, [LabelDisplay.viewWidth] wide) into native row-major colour
+ * indices, [LabelDisplay.viewWidth] wide) into native row-major color
  * indices, ready for [packFrame]. The palette's indices are the panel's.
  */
 internal fun ezSignLabelPixels(display: LabelDisplay, view: ByteArray): ByteArray {

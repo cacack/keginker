@@ -1,6 +1,6 @@
 package io.github.cacack.keginker
 
-import io.github.cacack.keginker.image.ColourImage
+import io.github.cacack.keginker.image.ColorImage
 import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.image.fill
 import io.github.cacack.keginker.image.testPattern
@@ -43,13 +43,13 @@ class WriteSession(
     private val mutableDither = MutableStateFlow<Dither>(Dither.FloydSteinberg)
     val dither: StateFlow<Dither> = mutableDither
 
-    private val mutableColour = MutableStateFlow(true)
+    private val mutableColor = MutableStateFlow(true)
 
-    /** Whether labels are in colour on displays that show it; otherwise black and white. */
-    val colour: StateFlow<Boolean> = mutableColour
+    /** Whether labels are in color on displays that show it; otherwise black and white. */
+    val color: StateFlow<Boolean> = mutableColor
 
     /** The image exactly as the display will show it: indices into its palette. */
-    private val mutableView = MutableStateFlow(renderView(display, fitted, mutableDither.value, mutableColour.value))
+    private val mutableView = MutableStateFlow(renderView(display, fitted, mutableDither.value, mutableColor.value))
     val view: StateFlow<ByteArray> = mutableView
 
     /** Threshold level used whenever dithering is off; kept while dithering is on. */
@@ -94,14 +94,14 @@ class WriteSession(
         rerender()
     }
 
-    /** Switches between colour and black and white. Ignored while a write is running. */
-    fun toggleColour() {
+    /** Switches between color and black and white. Ignored while a write is running. */
+    fun toggleColor() {
         if (writing) return
-        mutableColour.value = !mutableColour.value
+        mutableColor.value = !mutableColor.value
         rerender()
     }
 
-    /** Sets where grey becomes black (0–255) when dithering is off. Ignored while a write is running. */
+    /** Sets where gray becomes black (0–255) when dithering is off. Ignored while a write is running. */
     fun setThreshold(level: Int) {
         if (writing) return
         thresholdLevel = level.coerceIn(0, 255)
@@ -133,7 +133,7 @@ class WriteSession(
      */
     private fun rerender(keepFailure: Boolean = false) {
         if (!(keepFailure && controller.state.value is WriteState.Failed)) controller.cancel()
-        mutableView.value = renderView(mutableDisplay.value, fitted, mutableDither.value, mutableColour.value)
+        mutableView.value = renderView(mutableDisplay.value, fitted, mutableDither.value, mutableColor.value)
     }
 }
 
@@ -142,13 +142,13 @@ class WriteSession(
  * display or re-rendering needs no scaling. Scaling a photo takes a while:
  * make this off the main thread, then hand it to [WriteSession.imageLoaded].
  */
-class FittedImage(image: ColourImage) {
+class FittedImage(image: ColorImage) {
     private val views = LabelDisplay.entries.associateWith { fitView(it, image) }
 
     /** The image cropped and scaled to [display]'s view. */
-    internal fun forDisplay(display: LabelDisplay): ColourImage = views.getValue(display)
+    internal fun forDisplay(display: LabelDisplay): ColorImage = views.getValue(display)
 }
 
 /** [image] for [display], or the test pattern at its size if null. */
-private fun fit(image: FittedImage?, display: LabelDisplay): ColourImage =
-    image?.forDisplay(display) ?: ColourImage.fromGray(testPattern(display.viewWidth, display.viewHeight))
+private fun fit(image: FittedImage?, display: LabelDisplay): ColorImage =
+    image?.forDisplay(display) ?: ColorImage.fromGray(testPattern(display.viewWidth, display.viewHeight))

@@ -29,7 +29,7 @@ class TestPatternTest {
 
     // At 176 × 264 (see testPattern): border = 176 / 40 = 4 px, the marker
     // where x + y < 176 / 3 = 58, the ramp on rows 264·2/5 = 105 to
-    // 264·3/5 - 1 = 157 with grey x · 255 / 175 (145 at x = 100, 5 at x = 4,
+    // 264·3/5 - 1 = 157 with gray x · 255 / 175 (145 at x = 100, 5 at x = 4,
     // 249 at x = 171), and 176 / 16 = 11 px checker cells from row 264·4/5 = 211.
 
     @Test

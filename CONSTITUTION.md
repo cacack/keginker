@@ -10,7 +10,7 @@ inspection.
 
 ## Audience
 
-Homebrewers labelling keg tap handles, who rewrite a tag every time a keg
+Homebrewers labeling keg tap handles, who rewrite a tag every time a keg
 changes. Taprooms, restaurants and breweries rotating many taps are just as
 welcome, and the app should grow with them. Anyone using these tags another
 way can still write any image to them.
@@ -76,7 +76,7 @@ Retry button; on iOS, `TagWriterTests` (iOS app tests, also run by CI)
 checks the write screen shows the failure with its report, then a
 successful retry.
 
-**C3 — Re-labelling a tap from a saved preset takes no more than a few taps
+**C3 — Re-labeling a tap from a saved preset takes no more than a few taps
 plus the write itself.**
 Check: judgement call — count the taps from opening the app to the write on
 a device; a tap count is a UX walkthrough, not something a test can settle.

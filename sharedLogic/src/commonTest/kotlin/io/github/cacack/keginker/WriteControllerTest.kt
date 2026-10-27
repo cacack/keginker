@@ -390,9 +390,9 @@ private val ISO_DEP_INFO = TagInfo(listOf("IsoDep"), byteArrayOf(4, 1, 2, 3, 4, 
 /** [transport] as the phone finds an EZ Sign display: an unsupported ISO-DEP tag it can open. */
 private fun ezSignFound(transport: Transport) = FoundTag.Unsupported(ISO_DEP_INFO, TagKind.ISO_DEP) { transport }
 
-/** A view cycling through every colour of [display]'s palette. */
+/** A view cycling through every color of [display]'s palette. */
 private fun viewOf(display: LabelDisplay) =
-    ByteArray(display.viewWidth * display.viewHeight) { (it % display.palette.colours.size).toByte() }
+    ByteArray(display.viewWidth * display.viewHeight) { (it % display.palette.colors.size).toByte() }
 
 private fun isRefresh(command: ByteArray) = command[0] == 0xF0.toByte() && command[1] == 0xD4.toByte()
 

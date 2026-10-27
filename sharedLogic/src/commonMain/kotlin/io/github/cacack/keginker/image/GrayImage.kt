@@ -1,7 +1,7 @@
 package io.github.cacack.keginker.image
 
 /**
- * An 8-bit greyscale image, row-major; 0 is black and 255 is white.
+ * An 8-bit grayscale image, row-major; 0 is black and 255 is white.
  *
  * [pixels] holds unsigned values in a signed [ByteArray]; read them through
  * [get] or [gray]. The array is not copied, so don't modify it afterwards.

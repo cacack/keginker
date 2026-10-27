@@ -7,15 +7,15 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var writer = TagWriter()
     /// The chosen image as loaded; nil for the built-in test pattern.
-    @State private var source: ColourImage?
+    @State private var source: ColorImage?
     /// [source], or the test pattern, cropped and scaled to a display, so re-rendering it is cheap.
     @State private var fitted: Fitted?
     @State private var fitting: Task<Void, Never>?
     @State private var dither = true
-    /// Where grey becomes black when dithering is off (0–255).
+    /// Where gray becomes black when dithering is off (0–255).
     @State private var threshold = Double(DitherThreshold.companion.DEFAULT_LEVEL)
-    /// Whether labels are in colour on displays that show it; otherwise black and white.
-    @State private var colour = true
+    /// Whether labels are in color on displays that show it; otherwise black and white.
+    @State private var color = true
     /// The image as `fitted.display` will show it; Write waits until that's the chosen display.
     @State private var view: KotlinByteArray?
     /// The preview, built once per render; body re-evaluates on every progress tick.
@@ -26,7 +26,7 @@ struct ContentView: View {
     @AppStorage(offerReportsKey) private var offerReports = false
 
     /// Tests (the README screenshots) supply [writer] and [source]; the app uses the defaults.
-    init(writer: TagWriter? = nil, source: ColourImage? = nil) {
+    init(writer: TagWriter? = nil, source: ColorImage? = nil) {
         _writer = StateObject(wrappedValue: writer ?? TagWriter())
         _source = State(initialValue: source)
     }
@@ -47,7 +47,7 @@ struct ContentView: View {
         .onChange(of: writer.display) { fitInBackground() }
         .onChange(of: dither) { render() }
         .onChange(of: threshold) { render() }
-        .onChange(of: colour) { render() }
+        .onChange(of: color) { render() }
         .onChange(of: pickerItem) { load(pickerItem) }
     }
 
@@ -60,14 +60,14 @@ struct ContentView: View {
                     PhotosPicker("Choose image", selection: $pickerItem, matching: .images)
                         .buttonStyle(.bordered)
                     Toggle("Dither", isOn: $dither).toggleStyle(.button)
-                    if display.palette.hasColour {
-                        Toggle("Colour", isOn: $colour).toggleStyle(.button)
+                    if display.palette.hasColor {
+                        Toggle("Color", isOn: $color).toggleStyle(.button)
                     }
                 }
                 .disabled(writer.isBusy)
                 if !dither {
                     VStack(spacing: 4) {
-                        Text("Black below grey level \(Int(threshold))").font(.footnote)
+                        Text("Black below gray level \(Int(threshold))").font(.footnote)
                         Slider(value: $threshold, in: 0...255, step: 1)
                             .frame(width: 260)
                     }
@@ -188,7 +188,7 @@ struct ContentView: View {
     private func render() {
         guard let fitted else { return }
         let method: Dither = dither ? DitherFloydSteinberg.shared : DitherThreshold(level: Int32(threshold))
-        let rendered = LabelDisplayKt.renderView(display: fitted.display, image: fitted.image, dither: method, colour: colour)
+        let rendered = LabelDisplayKt.renderView(display: fitted.display, image: fitted.image, dither: method, color: color)
         view = rendered
         previewCGImage = previewImage(rendered, display: fitted.display)
     }
@@ -215,12 +215,12 @@ struct ContentView: View {
 /// An image cropped and scaled to [display]'s view.
 private struct Fitted {
     let display: LabelDisplay
-    let image: ColourImage
+    let image: ColorImage
 }
 
 /// Crops and scales [source], or makes the test pattern, for [display]. Scaling
 /// a photo takes a while, so it runs off the main actor once the screen is up.
-private func fit(_ source: ColourImage?, to display: LabelDisplay) -> ColourImage {
+private func fit(_ source: ColorImage?, to display: LabelDisplay) -> ColorImage {
     source.map { LabelDisplayKt.fitView(display: display, image: $0) }
-        ?? ColourImage.companion.fromGray(image: TestPatternKt.testPattern(width: display.viewWidth, height: display.viewHeight))
+        ?? ColorImage.companion.fromGray(image: TestPatternKt.testPattern(width: display.viewWidth, height: display.viewHeight))
 }

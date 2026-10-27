@@ -28,7 +28,7 @@ The options compared:
 
 ## Consequences
 
-- Native controls and behaviour on both platforms.
+- Native controls and behavior on both platforms.
 - The core is unit-testable on the JVM.
 - More to learn: Kotlin, Swift, Gradle and two UI toolkits.
 - Kotlin↔Swift interop goes through an Objective-C header today; Swift

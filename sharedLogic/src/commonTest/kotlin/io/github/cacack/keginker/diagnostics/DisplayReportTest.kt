@@ -342,7 +342,7 @@ class DisplayReportTest {
             "Detected protocol: $EZ_SIGN_PROTOCOL_NAME",
             "\nEZ Sign device information\n" +
                 "  Resolution: 296 × 128 (native 128 × 296)\n" +
-                "  Colours: 4 (black, white, yellow, red), mode 07\n" +
+                "  Colors: 4 (black, white, yellow, red), mode 07\n" +
                 "  Rows per block: 32\n" +
                 "  A1: 01 12 00 30 FF FF FF\n" +
                 "  B1: 1A\n" +
@@ -359,7 +359,7 @@ class DisplayReportTest {
     fun anEzSignReportDecodesALandscapePanel() = runTest {
         val text = formatDisplayReport(APP, DEVICE, probeEzSign(EZ_SIGN_42_DEVICE_INFO + OK))
 
-        assertTrue("  Resolution: 400 × 300\n  Colours: 4 (black, white, yellow, red), mode 07\n" in text, text)
+        assertTrue("  Resolution: 400 × 300\n  Colors: 4 (black, white, yellow, red), mode 07\n" in text, text)
         assertTrue("  B1: 08\n" in text, text)
         assertNoDeviceId(text, MADE_UP_SERIAL, MADE_UP_ID)
     }
@@ -372,7 +372,7 @@ class DisplayReportTest {
         val unknownText = formatDisplayReport(APP, DEVICE, unknownMode)
         val refusedText = formatDisplayReport(APP, DEVICE, refused)
 
-        assertTrue("Note: The EZ Sign device information didn't decode: colour mode 99 isn't one alt-core/nfc-eink knows." in unknownText, unknownText)
+        assertTrue("Note: The EZ Sign device information didn't decode: color mode 99 isn't one alt-core/nfc-eink knows." in unknownText, unknownText)
         // Any Type 4 tag that isn't EZ Sign may refuse the query.
         assertFalse("Note:" in refusedText, refusedText)
         listOf(unknownText, refusedText).forEach {
@@ -416,12 +416,12 @@ class DisplayReportTest {
             written,
             corner.questions.map { TestAnswer(it.id, it.text, it.options.first()) },
         )
-        val unanswered = TestWriteRecord("Colour bands", TestWriteOutcome(ExchangeLog(), refreshMs = 24_173, failure = null), emptyList())
+        val unanswered = TestWriteRecord("Color bands", TestWriteOutcome(ExchangeLog(), refreshMs = 24_173, failure = null), emptyList())
         val failure = WriteResult.Failure(WriteStep.SEND_DATA, FailureKind.LOST_CONTACT, "Tag was lost")
-        val failed = TestWriteRecord("Colour bands", TestWriteOutcome(ExchangeLog(), null, failure), emptyList())
-        val retriedUnasked = TestWriteRecord("Colour bands", TestWriteOutcome(ExchangeLog(), null, failure), emptyList(), retry = true)
+        val failed = TestWriteRecord("Color bands", TestWriteOutcome(ExchangeLog(), null, failure), emptyList())
+        val retriedUnasked = TestWriteRecord("Color bands", TestWriteOutcome(ExchangeLog(), null, failure), emptyList(), retry = true)
         val retried = TestWriteRecord(
-            "Colour bands",
+            "Color bands",
             TestWriteOutcome(ExchangeLog(), refreshMs = 24_173, failure = null),
             emptyList(),
             retry = true,
@@ -437,10 +437,10 @@ class DisplayReportTest {
             "  Q: Which way does the line from it run?\n  A: Along the top or bottom edge\n",
             "  Refresh: ${written.refreshMs} ms\n",
             "bytes image data",
-            "\n2. Colour bands\n  Not answered\n  Refresh: 24173 ms\nExchanges: none\n",
-            "\n3. Colour bands\n  Failed: SEND_DATA (sending the image): Tag was lost\nExchanges: none\n",
-            "\n4. Colour bands\n  Position changed: not answered\n  Failed:",
-            "\n5. Colour bands\n  Position changed: not sure\n  Not answered\n",
+            "\n2. Color bands\n  Not answered\n  Refresh: 24173 ms\nExchanges: none\n",
+            "\n3. Color bands\n  Failed: SEND_DATA (sending the image): Tag was lost\nExchanges: none\n",
+            "\n4. Color bands\n  Position changed: not answered\n  Failed:",
+            "\n5. Color bands\n  Position changed: not sure\n  Not answered\n",
         ).forEach { assertTrue(it in text, "Missing \"$it\" in:\n$text") }
         assertTrue("Exchanges (${written.log.entries.size})" in text, text)
     }

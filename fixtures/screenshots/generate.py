@@ -19,7 +19,7 @@ def font(size):
     return ImageFont.load_default(size)
 
 
-def centred(draw, y, text, size, fill=BLACK, bold=False):
+def centered(draw, y, text, size, fill=BLACK, bold=False):
     stroke = 1 if bold else 0
     left, _, right, _ = draw.textbbox((0, 0), text, font=font(size), stroke_width=stroke)
     draw.text(((WIDTH - (right - left)) // 2 - left, y), text, font=font(size), fill=fill,
@@ -42,14 +42,14 @@ def sample_label():
     draw.rectangle((2, 2, WIDTH - 3, HEIGHT - 3), outline=BLACK, width=4)
     draw.rectangle((9, 9, WIDTH - 10, HEIGHT - 10), outline=BLACK, width=1)
     draw.rectangle((9, 9, WIDTH - 10, 34), fill=BLACK)
-    centred(draw, 13, "TAP 3", 16, fill=WHITE, bold=True)
+    centered(draw, 13, "TAP 3", 16, fill=WHITE, bold=True)
     hop(draw, WIDTH // 2, 50)
-    centred(draw, 94, "HOP", 30, bold=True)
-    centred(draw, 128, "LANTERN", 25, bold=True)
+    centered(draw, 94, "HOP", 30, bold=True)
+    centered(draw, 128, "LANTERN", 25, bold=True)
     draw.line((28, 166, WIDTH - 29, 166), fill=BLACK, width=2)
-    centred(draw, 176, "Hazy IPA", 18)
-    centred(draw, 204, "6.4% ABV  ·  45 IBU", 13)
-    centred(draw, 226, "Citra · Mosaic", 12)
+    centered(draw, 176, "Hazy IPA", 18)
+    centered(draw, 204, "6.4% ABV  ·  45 IBU", 13)
+    centered(draw, 226, "Citra · Mosaic", 12)
     # Bold text is antialiased; snap it to black and white.
     image.point(lambda v: WHITE if v >= 128 else BLACK).save(HERE / "sample-label.png")
 

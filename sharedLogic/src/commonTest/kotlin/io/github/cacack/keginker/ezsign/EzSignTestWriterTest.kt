@@ -100,12 +100,12 @@ class EzSignTestWriterTest {
     @Test
     fun theRefreshTimeIsHowLongTheTagHeldItsReply() = runTest {
         forEachSeed { random ->
-            // From instant to beyond an iOS session: a 4-colour refresh took about 24 s (#138).
+            // From instant to beyond an iOS session: a 4-color refresh took about 24 s (#138).
             val busyMs = random.nextLong(0, BLOCKING_REFRESH_TIMEOUT_MS + 1)
             val clock = TestTimeSource()
             val tag = SimulatedEzSignTag(PANEL_29, clock = clock, commandMs = 8, busyMs = busyMs)
 
-            val outcome = family(PANEL_29).write(tag, colourPattern(PANEL_29), ExchangeLog(clock))
+            val outcome = family(PANEL_29).write(tag, colorPattern(PANEL_29), ExchangeLog(clock))
 
             assertNull(outcome.failure, "refresh of $busyMs ms")
             assertEquals(busyMs + 8, outcome.refreshMs)
@@ -209,7 +209,7 @@ class EzSignTestWriterTest {
         assertNull(testWriteFamilyFor(probeResult(null)))
         val family = assertIs<EzSignTestWriteFamily>(testWriteFamilyFor(probeResult(PANEL_29)))
         assertEquals("EZ Sign", family.name)
-        assertEquals(listOf("corner", "colours"), family.patterns.map { it.id })
+        assertEquals(listOf("corner", "colors"), family.patterns.map { it.id })
     }
 
     @Test

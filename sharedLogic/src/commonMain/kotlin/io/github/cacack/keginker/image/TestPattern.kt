@@ -2,7 +2,7 @@ package io.github.cacack.keginker.image
 
 /**
  * A pattern for checking a panel by eye: a black border, a solid triangle in
- * the top-left corner to show orientation, a left-to-right grey ramp to show
+ * the top-left corner to show orientation, a left-to-right gray ramp to show
  * dithering, and a checkerboard along the bottom to show sharpness.
  */
 fun testPattern(width: Int, height: Int): GrayImage {

@@ -10,13 +10,13 @@ private let maxSide = 1024
 /// a PNG or GIF in full before downsampling it. Android has the same limit.
 private let maxPixels = 120_000_000
 
-/// Decodes image data in colour, upright and downsampled while
+/// Decodes image data in color, upright and downsampled while
 /// decoding; rendering crops and scales it to the chosen display, so it can
 /// be rendered again for another. Like Android, it hands non-premultiplied
-/// ARGB to `ColourImage.fromArgb`, which composites transparency over
+/// ARGB to `ColorImage.fromArgb`, which composites transparency over
 /// white, so a photo makes the same label on both.
 /// Images over `maxPixels` fail.
-func loadImage(_ data: Data) -> ColourImage? {
+func loadImage(_ data: Data) -> ColorImage? {
     let options = [
         kCGImageSourceCreateThumbnailFromImageAlways: true,
         kCGImageSourceCreateThumbnailWithTransform: true,
@@ -47,7 +47,7 @@ func loadImage(_ data: Data) -> ColourImage? {
         argbPixel(r: rgba[i * 4], g: rgba[i * 4 + 1], b: rgba[i * 4 + 2], a: rgba[i * 4 + 3])
     }
     let pixels = argb.withUnsafeBytes { SwiftInteropKt.kotlinInts(data: Data($0)) }
-    return ColourImage.companion.fromArgb(width: Int32(width), height: Int32(height), argb: pixels)
+    return ColorImage.companion.fromArgb(width: Int32(width), height: Int32(height), argb: pixels)
 }
 
 /// A premultiplied RGBA pixel as non-premultiplied `0xAARRGGBB`, rounding
@@ -58,7 +58,7 @@ private func argbPixel(r: UInt8, g: UInt8, b: UInt8, a: UInt8) -> UInt32 {
     return alpha << 24 | unpremultiply(r) << 16 | unpremultiply(g) << 8 | unpremultiply(b)
 }
 
-/// A view of [display] (from `renderView`) as a CGImage for previewing, in its palette's colours.
+/// A view of [display] (from `renderView`) as a CGImage for previewing, in its palette's colors.
 func previewImage(_ view: KotlinByteArray, display: LabelDisplay) -> CGImage? {
     let argb = display.palette.argb(view: view)
     let count = Int(argb.size)

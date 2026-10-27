@@ -10,7 +10,7 @@ class TestQuestion internal constructor(
 
 /**
  * An image a test write sends, and what to ask about it afterwards.
- * [pixels] are colour indices, row-major in the panel's native layout,
+ * [pixels] are color indices, row-major in the panel's native layout,
  * [width] wide, so the write makes no assumption about orientation.
  */
 class TestWritePattern internal constructor(
@@ -32,9 +32,9 @@ internal const val CORNER_LINE_ROWS = 4
 
 private const val HOLD_IT = "Hold the display the way up you'd read it."
 
-/** The patterns for a panel: the corner, then the colour bands when it has 4 colours. */
+/** The patterns for a panel: the corner, then the color bands when it has 4 colors. */
 internal fun ezSignTestPatterns(info: EzSignDeviceInfo): List<TestWritePattern> =
-    listOfNotNull(cornerPattern(info), if (info.bitsPerPixel == 2) colourPattern(info) else null)
+    listOfNotNull(cornerPattern(info), if (info.bitsPerPixel == 2) colorPattern(info) else null)
 
 /**
  * White, with a black square at native (0, 0) a quarter of the short side
@@ -80,22 +80,22 @@ internal fun cornerPattern(info: EzSignDeviceInfo): TestWritePattern {
     )
 }
 
-/** Names of the colour bands' positions, from the edge the corner pattern's line ran along. */
+/** Names of the color bands' positions, from the edge the corner pattern's line ran along. */
 private val BAND_ORDINALS = listOf("first", "second", "third", "fourth")
 
 /**
- * Four equal bands along native rows, band k in colour index k, band 0
+ * Four equal bands along native rows, band k in color index k, band 0
  * starting at native row 0: the edge the corner pattern's square and line
- * were on. Only for 4-colour (2 bits per pixel) panels.
+ * were on. Only for 4-color (2 bits per pixel) panels.
  */
-internal fun colourPattern(info: EzSignDeviceInfo): TestWritePattern {
-    require(info.bitsPerPixel == 2) { "Colour bands need 4 colours; the panel has ${1 shl info.bitsPerPixel}" }
+internal fun colorPattern(info: EzSignDeviceInfo): TestWritePattern {
+    require(info.bitsPerPixel == 2) { "Color bands need 4 colors; the panel has ${1 shl info.bitsPerPixel}" }
     val width = info.nativeWidth
     val height = info.nativeHeight
     val pixels = ByteArray(width * height) { i -> (i / width * 4 / height).toByte() }
     return TestWritePattern(
-        id = "colours",
-        title = "Colour bands",
+        id = "colors",
+        title = "Color bands",
         width = width,
         height = height,
         pixels = pixels,
@@ -104,7 +104,7 @@ internal fun colourPattern(info: EzSignDeviceInfo): TestWritePattern {
                 id = "band${band + 1}",
                 text = listOfNotNull(
                     if (band == 0) HOLD_IT else null,
-                    "Starting from the edge where the square and line were, what colour is the $ordinal band?",
+                    "Starting from the edge where the square and line were, what color is the $ordinal band?",
                 ).joinToString(" "),
                 options = listOf("Black", "White", "Yellow", "Red", "Other"),
             )

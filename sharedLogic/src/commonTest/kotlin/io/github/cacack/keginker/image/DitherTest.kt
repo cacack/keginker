@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 /** 4×4 gradient, 0 at top-left rising by 17 per pixel to 255. */
 private val GRADIENT = GrayImage(4, 4, ByteArray(16) { (it * 17).toByte() })
 
-/** Largest gap allowed between Floyd–Steinberg's white share and grey ÷ 255. */
+/** Largest gap allowed between Floyd–Steinberg's white share and gray ÷ 255. */
 private const val FLOYD_STEINBERG_TOLERANCE = 0.005
 
 private fun BooleanArray.rows(width: Int) =
@@ -25,7 +25,7 @@ class DitherTest {
     }
 
     @Test
-    fun higherThresholdKeepsLightGreyBlack() {
+    fun higherThresholdKeepsLightGrayBlack() {
         // A four-level label (0, 85, 170, 255): at 200 only true white stays white.
         val levels = GrayImage(4, 1, byteArrayOf(0, 85, 170.toByte(), 255.toByte()))
 
@@ -34,7 +34,7 @@ class DitherTest {
     }
 
     @Test
-    fun defaultThresholdIsMidGrey() {
+    fun defaultThresholdIsMidGray() {
         assertEquals(128, Dither.Threshold().level)
         assertEquals(Dither.Threshold.DEFAULT_LEVEL, Dither.Threshold().level)
     }
@@ -43,7 +43,7 @@ class DitherTest {
     fun floydSteinbergDiffusesAGradient() {
         // Expected output derived by a separate script applying the same integer
         // rules (7/3/5 sixteenths, truncating division, the remainder to the last
-        // neighbour, values clamped to 0–255).
+        // neighbor, values clamped to 0–255).
         assertEquals(
             listOf("BBBB", "BWBW", "WBWW", "WWWW"),
             GRADIENT.toBlackWhite(Dither.FloydSteinberg).rows(4),
@@ -51,10 +51,10 @@ class DitherTest {
     }
 
     @Test
-    fun floydSteinbergRendersMidGreyAsHalfWhite() {
-        val grey = GrayImage(16, 16, ByteArray(256) { 127 })
+    fun floydSteinbergRendersMidGrayAsHalfWhite() {
+        val gray = GrayImage(16, 16, ByteArray(256) { 127 })
 
-        assertEquals(128, grey.toBlackWhite(Dither.FloydSteinberg).count { it })
+        assertEquals(128, gray.toBlackWhite(Dither.FloydSteinberg).count { it })
     }
 
     @Test
@@ -65,7 +65,7 @@ class DitherTest {
     }
 
     @Test
-    fun thresholdRejectsLevelsOutsideTheGreyRange() {
+    fun thresholdRejectsLevelsOutsideTheGrayRange() {
         assertFailsWith<IllegalArgumentException> { Dither.Threshold(256) }
         assertFailsWith<IllegalArgumentException> { Dither.Threshold(-1) }
     }
@@ -80,7 +80,7 @@ class DitherTest {
         val atHigher = image.toBlackWhite(Dither.Threshold(higher))
 
         for (i in atLower.indices) {
-            assertTrue(atLower[i] || !atHigher[i], "Pixel $i (grey ${image.gray(i)}) turned white from $lower to $higher")
+            assertTrue(atLower[i] || !atHigher[i], "Pixel $i (gray ${image.gray(i)}) turned white from $lower to $higher")
         }
     }
 
@@ -97,22 +97,22 @@ class DitherTest {
     }
 
     @Test
-    fun floydSteinbergRendersEachGreyAsThatShareOfWhite() {
+    fun floydSteinbergRendersEachGrayAsThatShareOfWhite() {
         val panel = WavesharePanel.EPD_2IN7
-        forEachCase(0..255, "grey") { grey ->
-            val image = GrayImage(panel.viewWidth, panel.viewHeight, ByteArray(panel.viewWidth * panel.viewHeight) { grey.toByte() })
+        forEachCase(0..255, "gray") { gray ->
+            val image = GrayImage(panel.viewWidth, panel.viewHeight, ByteArray(panel.viewWidth * panel.viewHeight) { gray.toByte() })
 
             val whiteShare = image.toBlackWhite(Dither.FloydSteinberg).count { it }.toDouble() / image.pixels.size
 
-            assertTrue(abs(whiteShare - grey / 255.0) <= FLOYD_STEINBERG_TOLERANCE, "White share was $whiteShare")
+            assertTrue(abs(whiteShare - gray / 255.0) <= FLOYD_STEINBERG_TOLERANCE, "White share was $whiteShare")
         }
     }
 
     @Test
-    fun saturatedColoursTakeTheNearestPaletteColour() {
-        // Red, orange, yellow, blue, and a pale pink that counts as grey.
+    fun saturatedColorsTakeTheNearestPaletteColor() {
+        // Red, orange, yellow, blue, and a pale pink that counts as gray.
         val argb = intArrayOf(0xFF0000, 0xFF9000, 0xFFFF00, 0x0000FF, 0xFFC0C0).map { it or (0xFF shl 24) }.toIntArray()
-        val image = ColourImage.fromArgb(argb.size, 1, argb)
+        val image = ColorImage.fromArgb(argb.size, 1, argb)
 
         val indices = image.toPalette(Palette.BLACK_WHITE_YELLOW_RED, Dither.Threshold()).toList()
 
@@ -120,17 +120,17 @@ class DitherTest {
     }
 
     @Test
-    fun paletteFloydSteinbergRendersMidGreyAsHalfWhiteWithNoColour() {
-        val grey = ColourImage.fromGray(GrayImage(16, 16, ByteArray(256) { 127 }))
+    fun paletteFloydSteinbergRendersMidGrayAsHalfWhiteWithNoColor() {
+        val gray = ColorImage.fromGray(GrayImage(16, 16, ByteArray(256) { 127 }))
 
-        val indices = grey.toPalette(Palette.BLACK_WHITE_YELLOW_RED, Dither.FloydSteinberg)
+        val indices = gray.toPalette(Palette.BLACK_WHITE_YELLOW_RED, Dither.FloydSteinberg)
 
         assertEquals(128, indices.count { it == WHITE })
         assertTrue(indices.all { it == BLACK || it == WHITE })
     }
 
     @Test
-    fun previewsShowThePaletteColours() {
+    fun previewsShowThePaletteColors() {
         val view = byteArrayOf(0, 1, 2, 3)
 
         assertEquals(

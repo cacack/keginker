@@ -5,7 +5,7 @@ native UI on each platform.
 
 ```
 ┌────────────── sharedLogic ──────────────┐
-│ panel definitions (size, colours, type) │
+│ panel definitions (size, colors, type) │
 │ image pipeline: fill (crop + scale) →   │
 │   dither → rotate + bit-pack            │
 │ protocol state machines → byte commands │
@@ -67,12 +67,12 @@ own threading rules, against a fake of its NFC API (`androidApp/src/test`,
   the panel is done.
 - **Image pipeline.** Platforms decode images natively, upright, from the
   file's bytes, downsampled to about 1,024 px on the long side. Both hand
-  the core non-premultiplied `0xAARRGGBB` pixels (`ColourImage.fromArgb`), so
-  both convert them the same way. The core centre-crops and scales to the
+  the core non-premultiplied `0xAARRGGBB` pixels (`ColorImage.fromArgb`), so
+  both convert them the same way. The core center-crops and scales to the
   panel's view, with no letterboxing, so UIs should preview the crop. It then
   reduces to the display's palette (threshold or Floyd–Steinberg): black and
-  white, or on a 4-colour display with Colour on, also yellow and red, with
-  greys kept black and white (`renderView`). Views are palette indices; each
+  white, or on a 4-color display with Color on, also yellow and red, with
+  grays kept black and white (`renderView`). Views are palette indices; each
   writer rotates and packs them into its panel's memory layout. Each platform's loader test
   turns the fixture photos in `fixtures/photos` into the same golden views.
   Larger photos can still differ slightly: Android decodes at an integer

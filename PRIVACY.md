@@ -31,7 +31,7 @@ your phone, and nowhere else.
 
 ## Diagnostics reports
 
-When a write fails or a tag isn't recognised, **Share details**
+When a write fails or a tag isn't recognized, **Share details**
 builds a plain-text report of what happened: the app and phone versions,
 what the tag reported about itself, which step failed, and the commands
 exchanged with the tag, with the tag's replies as it sent them. With

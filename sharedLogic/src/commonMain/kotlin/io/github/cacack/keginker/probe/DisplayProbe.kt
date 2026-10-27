@@ -199,7 +199,7 @@ internal suspend fun probeDisplay(
     val deviceInfo = (parsed as? EzSignDeviceInfoParse.Decoded)?.info
     return ProbeResult(
         tag = tag.info,
-        // Only a tag no supported protocol recognised is named by its reply.
+        // Only a tag no supported protocol recognized is named by its reply.
         protocol = if (deviceInfo != null && tag is FoundTag.Unsupported) EZ_SIGN_PROTOCOL_NAME else tag.protocolName,
         kind = tag.kind,
         acceptedAids = probe.acceptedAids,

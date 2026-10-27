@@ -29,7 +29,7 @@ sealed interface FoundTag {
     }
 
     /**
-     * A tag no supported protocol recognises; [info] always has at least its
+     * A tag no supported protocol recognizes; [info] always has at least its
      * UID. [openTransport] is null for a [kind] nothing can talk to.
      * Whoever calls it owns and closes what it returns: the display probe,
      * test writes, and EZ Sign label writes.

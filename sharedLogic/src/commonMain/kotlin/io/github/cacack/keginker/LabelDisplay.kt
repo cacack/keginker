@@ -1,7 +1,7 @@
 package io.github.cacack.keginker
 
 import io.github.cacack.keginker.image.BLACK
-import io.github.cacack.keginker.image.ColourImage
+import io.github.cacack.keginker.image.ColorImage
 import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.image.Palette
 import io.github.cacack.keginker.image.WHITE
@@ -42,7 +42,7 @@ enum class LabelDisplay(
     val wavesharePanel: WavesharePanel?,
     /** How an EZ Sign panel's memory holds the view; null on Waveshare displays, whose panel says. */
     internal val ezSignTurn: ViewTurn?,
-    /** The colours it shows. */
+    /** The colors it shows. */
     val palette: Palette,
 ) {
     WAVESHARE_2IN7(
@@ -97,29 +97,29 @@ enum class LabelDisplay(
 }
 
 /**
- * [image] centre-cropped and scaled to [display]'s view, ready for
- * [renderView]: in colour where the display shows it, otherwise just the grey.
+ * [image] center-cropped and scaled to [display]'s view, ready for
+ * [renderView]: in color where the display shows it, otherwise just the gray.
  */
-fun fitView(display: LabelDisplay, image: ColourImage): ColourImage =
-    if (display.palette.hasColour) {
+fun fitView(display: LabelDisplay, image: ColorImage): ColorImage =
+    if (display.palette.hasColor) {
         image.fill(display.viewWidth, display.viewHeight)
     } else {
-        ColourImage.fromGray(image.gray.fill(display.viewWidth, display.viewHeight))
+        ColorImage.fromGray(image.gray.fill(display.viewWidth, display.viewHeight))
     }
 
 /**
  * The image exactly as [display] will show it: row-major indices into its
  * [LabelDisplay.palette], [LabelDisplay.viewWidth] wide. The image is
- * centre-cropped to the view shape and scaled, as for a Waveshare panel.
- * In [colour] where the display shows it; otherwise black and white.
+ * center-cropped to the view shape and scaled, as for a Waveshare panel.
+ * In [color] where the display shows it; otherwise black and white.
  */
 fun renderView(
     display: LabelDisplay,
-    image: ColourImage,
+    image: ColorImage,
     dither: Dither = Dither.FloydSteinberg,
-    colour: Boolean = true,
+    color: Boolean = true,
 ): ByteArray {
-    if (colour && display.palette.hasColour) {
+    if (color && display.palette.hasColor) {
         return image.fill(display.viewWidth, display.viewHeight).toPalette(display.palette, dither)
     }
     val white = image.gray.fill(display.viewWidth, display.viewHeight).toBlackWhite(dither)

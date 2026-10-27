@@ -24,7 +24,7 @@ import io.github.cacack.keginker.waveshare.exchangeImageOk
 import io.github.cacack.keginker.waveshare.exchangeOk
 
 /**
- * How long the tag may hold its reply to the blocking refresh. niw found 4-colour
+ * How long the tag may hold its reply to the blocking refresh. niw found 4-color
  * refreshes take over 20 s; this leaves room for a slow panel. Core NFC has no
  * per-command timeout, so it applies only on Android.
  */
@@ -44,7 +44,7 @@ internal const val EZ_SIGN_WRITE_DEADLINE_MS = WRITE_DEADLINE_MS + BLOCKING_REFR
  *
  * The tag answers the blocking refresh only once the panel has finished, so
  * the NFC field stays up for the whole refresh, and the `90 00` is the sign
- * it's done. A 4-colour refresh takes over 20 s, longer than Core NFC keeps
+ * it's done. A 4-color refresh takes over 20 s, longer than Core NFC keeps
  * a connection open; a command the tag is still answering holds the
  * connection open, as niw/EPaperNFCSwift found and a 2.9" panel confirmed
  * (about 24 s). Polling after the non-blocking `F0 D4 85 80` left the

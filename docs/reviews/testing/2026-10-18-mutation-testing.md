@@ -73,7 +73,7 @@ Left alone, each judged harmless:
 
 | Mutant | Why it's harmless |
 |---|---|
-| `GrayImage.fromArgb` size checks (4 mutants) | The constructor repeats the same checks and throws the same exception, so these mutants can't change behaviour |
+| `GrayImage.fromArgb` size checks (4 mutants) | The constructor repeats the same checks and throws the same exception, so these mutants can't change behavior |
 | `GrayImage` constructor size message (no coverage) | It changes only the number in an error message |
 | `WaveshareIsoDepWriter` chunk count, `size + CHUNK_SIZE - 1` → `+ 1` | It's the same result unless the frame size mod 250 is 0 or 249. The only panel's controller frame is 6512 bytes (mod 250 = 12). Revisit when adding a panel |
 | `testPattern` checker `x / cell + y / cell` → `-` | The sum and the difference have the same parity, and only parity is used |

@@ -1,6 +1,6 @@
 package io.github.cacack.keginker
 
-import io.github.cacack.keginker.image.ColourImage
+import io.github.cacack.keginker.image.ColorImage
 import io.github.cacack.keginker.image.GrayImage
 import io.github.cacack.keginker.image.WHITE
 import java.io.IOException
@@ -24,8 +24,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
 
-/** A uniform image of one grey. */
-private fun plain(gray: Int) = ColourImage.fromGray(GrayImage(1, 1, byteArrayOf(gray.toByte())))
+/** A uniform image of one gray. */
+private fun plain(gray: Int) = ColorImage.fromGray(GrayImage(1, 1, byteArrayOf(gray.toByte())))
 
 /** Loading a picked image on Android: the latest pick wins, and a failed load says so. Routing found tags to test writes. */
 @OptIn(ExperimentalCoroutinesApi::class)

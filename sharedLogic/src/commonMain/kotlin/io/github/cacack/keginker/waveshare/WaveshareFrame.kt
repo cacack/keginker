@@ -8,7 +8,7 @@ import io.github.cacack.keginker.image.toBlackWhite
 /**
  * Converts an image of any size into the frame [WaveshareWriter] sends.
  *
- * The image is centre-cropped to the panel's view shape (176 × 264 portrait
+ * The image is center-cropped to the panel's view shape (176 × 264 portrait
  * for the 2.7") and scaled; it is never letterboxed or rotated to fit, so
  * platform UIs should preview the crop. UIs that preview should render with
  * the [io.github.cacack.keginker.LabelDisplay] `renderView` and write that

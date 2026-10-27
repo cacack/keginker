@@ -57,14 +57,14 @@ final class ScreenshotTests: XCTestCase {
         try capture(writer, "3-done")
     }
 
-    private func sampleLabel() throws -> ColourImage {
+    private func sampleLabel() throws -> ColorImage {
         let data = try Data(contentsOf: root.appendingPathComponent("fixtures/screenshots/sample-label.png"))
         return try XCTUnwrap(loadImage(data))
     }
 
     /// The sample label as ContentView renders it, with its default dither.
     private func sampleView() throws -> KotlinByteArray {
-        LabelDisplayKt.renderView(display: .waveshare2in7, image: try sampleLabel(), dither: DitherFloydSteinberg.shared, colour: true)
+        LabelDisplayKt.renderView(display: .waveshare2in7, image: try sampleLabel(), dither: DitherFloydSteinberg.shared, color: true)
     }
 
     private func capture(_ writer: TagWriter, _ name: String, file: StaticString = #filePath, line: UInt = #line) throws {

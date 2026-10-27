@@ -6,7 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
-import io.github.cacack.keginker.image.ColourImage
+import io.github.cacack.keginker.image.ColorImage
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
@@ -27,14 +27,14 @@ internal const val MAX_FILE_BYTES = 64 * 1024 * 1024
 internal const val MAX_PIXELS = 120_000_000L
 
 /**
- * Decodes a picked image, downsampled, in colour. Upright on Android 9+;
+ * Decodes a picked image, downsampled, in color. Upright on Android 9+;
  * older versions ignore EXIF rotation, so some camera photos come in sideways.
  * Files over [MAX_FILE_BYTES] and images over [MAX_PIXELS] fail.
  *
  * The file is read whole and decoded from memory, as on iOS. That also lets
  * the host test run it: Robolectric can't decode from a file descriptor.
  */
-suspend fun loadImage(context: Context, uri: Uri): ColourImage = withContext(Dispatchers.IO) {
+suspend fun loadImage(context: Context, uri: Uri): ColorImage = withContext(Dispatchers.IO) {
     val bytes = context.contentResolver.openInputStream(uri)?.use { it.readAtMost(MAX_FILE_BYTES) }
         ?: throw IOException("Couldn't open $uri")
     val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -50,7 +50,7 @@ suspend fun loadImage(context: Context, uri: Uri): ColourImage = withContext(Dis
     }
     val pixels = IntArray(bitmap.width * bitmap.height)
     bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-    ColourImage.fromArgb(bitmap.width, bitmap.height, pixels)
+    ColorImage.fromArgb(bitmap.width, bitmap.height, pixels)
 }
 
 private fun decodeWithBitmapFactory(bytes: ByteArray): Bitmap {
@@ -80,6 +80,6 @@ private fun checkPixels(width: Int, height: Int) {
     if (width.toLong() * height > MAX_PIXELS) throw IOException("Image is over $MAX_PIXELS pixels")
 }
 
-/** A view of [display] (from `renderView`) as a bitmap for previewing, in its palette's colours. */
+/** A view of [display] (from `renderView`) as a bitmap for previewing, in its palette's colors. */
 fun previewBitmap(display: LabelDisplay, view: ByteArray): Bitmap =
     Bitmap.createBitmap(display.palette.argb(view), display.viewWidth, display.viewHeight, Bitmap.Config.ARGB_8888)

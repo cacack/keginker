@@ -8,8 +8,8 @@ KegInker is in early development.
 |---|---|---|
 | Waveshare | 2.7" NFC e-Paper, Rev2.2 board (black/white) | Works on iPhone; Android untested |
 | Waveshare | 2.7" NFC e-Paper, earlier boards (black/white) | Implemented, not yet tested on hardware |
-| EZ Sign | 2.9" NFC e-paper, 4-colour | Works on iPhone; Android untested |
-| EZ Sign | 4.2" NFC e-paper, 4-colour | Works on iPhone; Android untested |
+| EZ Sign | 2.9" NFC e-paper, 4-color | Works on iPhone; Android untested |
+| EZ Sign | 4.2" NFC e-paper, 4-color | Works on iPhone; Android untested |
 
 The board revision is printed on the back of the driver board.
 
@@ -24,18 +24,18 @@ families involved.
    that display's size; it starts with a test pattern whose solid corner
    marks the top-left. If you hold a different display to the phone,
    nothing is written and KegInker tells you which display to choose.
-2. Optionally tap **Choose image**. Photos are centre-cropped to the panel.
+2. Optionally tap **Choose image**. Photos are center-cropped to the panel.
    Images up to 120 megapixels open (on Android, files up to 64 MB).
    Turn **Dither** off for text and logos; the slider that appears sets which
-   greys become black. Raise it if light text in your image breaks up.
-   On a 4-colour display, **Colour** keeps the image's reds and yellows;
-   greys stay black and white. Turn it off for a black-and-white label.
+   grays become black. Raise it if light text in your image breaks up.
+   On a 4-color display, **Color** keeps the image's reds and yellows;
+   grays stay black and white. Turn it off for a black-and-white label.
 3. Tap **Write to tag**, then hold the phone against the tag and keep it
    still until it says **Done**: on Android, the back of the phone; on
    iPhone, the top edge, while the NFC sheet is showing.
 4. If the write fails, tap **Retry**, lift the phone away, and hold it to the
    tag again. Phones only notice a tag as it arrives.
-5. If it keeps failing, or the tag isn't recognised, tap **Share details**
+5. If it keeps failing, or the tag isn't recognized, tap **Share details**
    next to **Retry**. It shows a plain-text diagnostics report: the app and
    phone versions, what the tag reported about itself, which step failed,
    whether the image was the test pattern, and the commands exchanged with
@@ -62,7 +62,7 @@ says about itself helps add it.
    display** too.
 2. Optionally turn on **Also try vendor commands**. It's off by default.
    After the standard reads, KegInker also sends the info queries that
-   vendors' own apps use, which often name the panel's size and colours.
+   vendors' own apps use, which often name the panel's size and colors.
    No standard defines these as reads, so they could change what the
    display shows. Leave it off for a display you want to keep as it is.
 3. Hold the phone against the display and keep it still. With the switch
@@ -74,7 +74,7 @@ says about itself helps add it.
    app), its memory and version where it offers them, and every command
    sent with the reply.
 5. Optionally tap **Test writes**. They're offered only for a display
-   KegInker recognises from its vendor commands, so far the EZ Sign family,
+   KegInker recognizes from its vendor commands, so far the EZ Sign family,
    which means **Also try vendor commands** must be on. With it off, a
    report on a display that might offer them suggests **Read again with
    vendor commands**, which turns the switch on so you can read the display
@@ -83,7 +83,7 @@ says about itself helps add it.
    a screen that explains them; nothing is written until you tap **Start test
    writes**. Each test pattern replaces what the display shows, and the
    display keeps the last one afterwards. For each pattern, hold the display
-   to the phone once and keep it still: a colour display can take half a
+   to the phone once and keep it still: a color display can take half a
    minute to redraw. If it stops while updating, turn the phone a quarter
    turn over the display and try again: a larger display needs a good
    position to draw enough power. Before **Retry**, you can say whether
@@ -94,7 +94,7 @@ says about itself helps add it.
 6. Tap **Open a GitHub issue** to open the **New display report** form in
    your browser with the report filled in. If it's too long to fill in, it's
    copied instead, ready to paste. Add the brand and model printed on the
-   display or box, a photo, the panel size, how many colours it shows, a
+   display or box, a photo, the panel size, how many colors it shows, a
    link to where you bought it, and the vendor app's name and what happened
    when you used it. **Share** and **Copy**
    work too, if you'd rather send it another way; **Share** sends a long

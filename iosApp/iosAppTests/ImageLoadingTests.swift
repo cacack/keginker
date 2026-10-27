@@ -16,11 +16,11 @@ final class ImageLoadingTests: XCTestCase {
 
     func testTransparencyIsWhite() throws { try checkGolden("transparent.png") }
 
-    func testColoursBecomeRec601Greys() throws { try checkGolden("saturated.png") }
+    func testColorsBecomeRec601Grays() throws { try checkGolden("saturated.png") }
 
-    func testWideImageIsCentreCropped() throws { try checkGolden("wide.png") }
+    func testWideImageIsCenterCropped() throws { try checkGolden("wide.png") }
 
-    func testTallImageIsCentreCropped() throws { try checkGolden("tall.png") }
+    func testTallImageIsCenterCropped() throws { try checkGolden("tall.png") }
 
     func testTinyImageIsScaledUp() throws { try checkGolden("tiny.png") }
 
@@ -42,7 +42,7 @@ final class ImageLoadingTests: XCTestCase {
     private func checkGolden(_ name: String, file: StaticString = #filePath, line: UInt = #line) throws {
         let photo = fixtures.appendingPathComponent(name)
         let image = try XCTUnwrap(loadImage(try Data(contentsOf: photo)), file: file, line: line)
-        let view = LabelDisplayKt.renderView(display: display, image: image, dither: DitherFloydSteinberg.shared, colour: true)
+        let view = LabelDisplayKt.renderView(display: display, image: image, dither: DitherFloydSteinberg.shared, color: true)
         let golden = photo.deletingPathExtension().appendingPathExtension("pbm")
         let expected = try readPbm(golden)
 

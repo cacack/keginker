@@ -59,7 +59,7 @@ adding another panel.
 
 ## Waveshare Rev2.2 (ISO-DEP)
 
-Boards labelled "Rev2.2" (seen on the 2.7" NFC e-Paper Driver Board) use a
+Boards labeled "Rev2.2" (seen on the 2.7" NFC e-Paper Driver Board) use a
 different chip and protocol from classic boards. Verified on a 2.7" board with
 an iPhone.
 
@@ -138,7 +138,7 @@ the 4.2": 2,300 ms and 6,950 ms of scheduled time. On an iPhone 15 Pro a
 command took about 31 ms, and test writes, which send uncompressed literal
 streams, took 1.4 s (2.9", 44 fragments) and 4.2 s (4.2", 137) to send.
 
-The refresh doesn't fit. A 4-colour EZ Sign refresh takes 21–24 s, longer
+The refresh doesn't fit. A 4-color EZ Sign refresh takes 21–24 s, longer
 than the budget and longer than an iOS session usually lasts (#138). So EZ
 Sign writes send the blocking refresh, which the tag doesn't answer until
 the panel is done. The command is still running while the tag holds its
@@ -206,16 +206,16 @@ command the tag refuses (not `90 00`) ends its query.
 
 | Query | Family | Bytes | Expected reply | Source |
 |---|---|---|---|---|
-| EZ Sign device information | ISO-DEP | SELECT `D2760000850101`, then `00 D1 00 00 00` | TLVs, then `90 00`: A0 panel geometry and colour mode, A1 panel flags, C0 a 10-character serial, C1 a 4-byte device ID. Reports shorten C0 and C1 as they do the UID. | [niw/EPaperNFCSwift](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/Command.swift#L117-L121), [alt-core/nfc-eink](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/protocol.py#L76-L82) |
+| EZ Sign device information | ISO-DEP | SELECT `D2760000850101`, then `00 D1 00 00 00` | TLVs, then `90 00`: A0 panel geometry and color mode, A1 panel flags, C0 a 10-character serial, C1 a 4-byte device ID. Reports shorten C0 and C1 as they do the UID. | [niw/EPaperNFCSwift](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/Command.swift#L117-L121), [alt-core/nfc-eink](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/protocol.py#L76-L82) |
 
 The report decodes an EZ Sign device-information reply per alt-core/nfc-eink
-`parse_device_info` into a section giving the panel's resolution, colours,
+`parse_device_info` into a section giving the panel's resolution, colors,
 rows per block and any other TLVs raw (never C0 or C1), and names the
 protocol `EZ Sign (ISO-DEP)`; a reply that has data but
 doesn't decode gets a note saying why. A bare refusal (a status word alone),
 which other Type 4 tags give, gets no note.
 
-INS `D1` is WRITE BINARY in ISO/IEC 7816-4; only vendor behaviour makes this
+INS `D1` is WRITE BINARY in ISO/IEC 7816-4; only vendor behavior makes this
 query a read. Waveshare's `F0 D8 … 0E`, found in magic-epaper-app, is a
 panel-type configuration write (alt-core/nfc-eink `build_panel_type_apdu`),
 so the probe never sends it, in either pass.
@@ -245,10 +245,10 @@ literal run and the end marker (`lzoLiteralStream`), the stream first
 verified on hardware, rather than compressed. Any conforming LZO1X
 decompressor turns it back into the block, so the panel gets the same
 pixels; the only cost is more fragments, about 138 commands for a
-400 × 300 4-colour panel.
+400 × 300 4-color panel.
 
 The patterns (`TestPatterns.kt`) are generated from the decoded resolution
-and colours, in native coordinates, so the write assumes nothing about how
+and colors, in native coordinates, so the write assumes nothing about how
 the panel is turned:
 
 - **Corner and line:** white, with a black square at native (0, 0) a quarter
@@ -257,13 +257,13 @@ the panel is turned:
   display, long edge across or up and down, so their "top left" can be
   placed. Where the square lands then shows how native (0, 0) is turned; the
   line's edge shows which way native rows run.
-- **Colour bands** (4-colour panels only): four equal bands along native
-  rows, band k in colour index k, from native row 0. The answers map each
-  index to a colour.
+- **Color bands** (4-color panels only): four equal bands along native
+  rows, band k in color index k, from native row 0. The answers map each
+  index to a color.
 
 A fixed image would fit one panel size and would need a known orientation to
 be read; generated patterns fit any decoded panel and turn the user's answers
-into its orientation and colour order. The orientation found is how the
+into its orientation and color order. The orientation found is how the
 panel's memory maps onto the glass, a fixed fact about the hardware; a label
 writer can rotate a label into it whichever way the display is mounted.
 
@@ -287,7 +287,7 @@ See [Write time budget](#write-time-budget).
 - **Transport:** ISO-DEP, with the same AID.
 - **Commands:** ISO 7816-4 APDUs, some proprietary (`F0 xx`). A successful
   reply ends in `90 00`.
-- **Image data:** packed at the panel's bits per pixel (2- or 4-colour
+- **Image data:** packed at the panel's bits per pixel (2- or 4-color
   panels), in 2,000-byte blocks, each an LZO1X stream sent in fragments of
   at most 250 bytes.
 - **Coverage:** some newer tags from other vendors may use this protocol too.
@@ -303,8 +303,8 @@ See [Write time budget](#write-time-budget).
 | EZ Sign 2.9" | 128 × 296 | 128 × 296, portrait | turned 180° |
 | EZ Sign 4.2" | 400 × 300 | 400 × 300, landscape, its wider border along the bottom | as it is |
 
-Both panels show 4 colours at 2 bits per pixel: index 0 black, 1 white,
-2 yellow, 3 red. Labels are written in these colours, the view's palette
+Both panels show 4 colors at 2 bits per pixel: index 0 black, 1 white,
+2 yellow, 3 red. Labels are written in these colors, the view's palette
 indices unchanged (`Palette.BLACK_WHITE_YELLOW_RED`, `ezSignLabelPixels`). The native size is what the device information's A0
 TLV reports. Each display's turn is set in one place (`LabelDisplay`). The
 test-write reports found them: held portrait, the 2.9" showed native (0, 0)
@@ -357,7 +357,7 @@ NFC ends the session about 20 s in, the field drops mid-refresh, and the
 panel is left half drawn. P2 `00` holds the reply until the refresh is done,
 which niw/EPaperNFCSwift found keeps the session open
 ([`SendImageOperation.swift`](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/SendImageOperation.swift#L56-L60)).
-It does on an iPhone 15 Pro (iOS 27), where a 2.9" 4-colour refresh held the
+It does on an iPhone 15 Pro (iOS 27), where a 2.9" 4-color refresh held the
 reply for about 24 s and a 4.2" one for about 22 s. The
 [Write time budget](#write-time-budget) covers what that means for timing.
 

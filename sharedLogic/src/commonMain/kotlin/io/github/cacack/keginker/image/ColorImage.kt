@@ -42,10 +42,16 @@ class ColorImage(val gray: GrayImage, val red: GrayImage, val green: GrayImage, 
     }
 }
 
-/** Every channel [fill]ed to exactly [width] × [height]; a gray image's one channel, once. */
-fun ColorImage.fill(width: Int, height: Int): ColorImage =
+/** Every channel [fill]ed to exactly [width] × [height]. */
+fun ColorImage.fill(width: Int, height: Int): ColorImage = mapChannels { it.fill(width, height) }
+
+/** Every channel [letterbox]ed into [width] × [height], on white. */
+fun ColorImage.letterbox(width: Int, height: Int): ColorImage = mapChannels { it.letterbox(width, height) }
+
+/** [transform] applied to every channel; a gray image's one channel, once. */
+private fun ColorImage.mapChannels(transform: (GrayImage) -> GrayImage): ColorImage =
     if (red === gray && green === gray && blue === gray) {
-        ColorImage.fromGray(gray.fill(width, height))
+        ColorImage.fromGray(transform(gray))
     } else {
-        ColorImage(gray.fill(width, height), red.fill(width, height), green.fill(width, height), blue.fill(width, height))
+        ColorImage(transform(gray), transform(red), transform(green), transform(blue))
     }

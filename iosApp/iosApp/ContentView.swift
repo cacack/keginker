@@ -16,6 +16,8 @@ struct ContentView: View {
     @State private var threshold = Double(DitherThreshold.companion.DEFAULT_LEVEL)
     /// Whether labels are in color on displays that show it; otherwise black and white.
     @State private var color = true
+    /// Whether the whole image shows, on white; otherwise it's cropped to fill the view.
+    @State private var letterbox = false
     /// The image as `fitted.display` will show it; Write waits until that's the chosen display.
     @State private var view: KotlinByteArray?
     /// The preview, built once per render; body re-evaluates on every progress tick.
@@ -48,6 +50,7 @@ struct ContentView: View {
         .onChange(of: dither) { render() }
         .onChange(of: threshold) { render() }
         .onChange(of: color) { render() }
+        .onChange(of: letterbox) { fitInBackground() }
         .onChange(of: pickerItem) { load(pickerItem) }
     }
 
@@ -60,6 +63,7 @@ struct ContentView: View {
                     PhotosPicker("Choose image", selection: $pickerItem, matching: .images)
                         .buttonStyle(.bordered)
                     Toggle("Dither", isOn: $dither).toggleStyle(.button)
+                    Toggle("Fit", isOn: $letterbox).toggleStyle(.button)
                     if display.palette.hasColor {
                         Toggle("Color", isOn: $color).toggleStyle(.button)
                     }
@@ -167,7 +171,7 @@ struct ContentView: View {
     /// Fits and renders the first preview at once, so the screen opens with
     /// it; the app opens on the test pattern, which is quick to make.
     private func fitNow() {
-        fitted = Fitted(display: display, image: fit(source, to: display))
+        fitted = Fitted(display: display, image: fit(source, to: display, letterbox: letterbox))
         render()
     }
 
@@ -176,9 +180,10 @@ struct ContentView: View {
     private func fitInBackground() {
         let source = self.source
         let display = self.display
+        let letterbox = self.letterbox
         fitting?.cancel()
         fitting = Task {
-            let image = await Task.detached { fit(source, to: display) }.value
+            let image = await Task.detached { fit(source, to: display, letterbox: letterbox) }.value
             guard !Task.isCancelled else { return }
             fitted = Fitted(display: display, image: image)
             render()
@@ -212,15 +217,15 @@ struct ContentView: View {
     }
 }
 
-/// An image cropped and scaled to [display]'s view.
+/// An image scaled to [display]'s view.
 private struct Fitted {
     let display: LabelDisplay
     let image: ColorImage
 }
 
-/// Crops and scales [source], or makes the test pattern, for [display]. Scaling
+/// Scales [source], cropped or [letterbox]ed, or makes the test pattern, for [display]. Scaling
 /// a photo takes a while, so it runs off the main actor once the screen is up.
-private func fit(_ source: ColorImage?, to display: LabelDisplay) -> ColorImage {
-    source.map { LabelDisplayKt.fitView(display: display, image: $0) }
+private func fit(_ source: ColorImage?, to display: LabelDisplay, letterbox: Bool) -> ColorImage {
+    source.map { LabelDisplayKt.fitView(display: display, image: $0, letterbox: letterbox) }
         ?? ColorImage.companion.fromGray(image: TestPatternKt.testPattern(width: display.viewWidth, height: display.viewHeight))
 }

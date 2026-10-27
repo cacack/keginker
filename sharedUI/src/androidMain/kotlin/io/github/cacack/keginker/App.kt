@@ -87,6 +87,7 @@ fun App(
     val state by model.controller.state.collectAsState()
     val dither by model.dither.collectAsState()
     val color by model.color.collectAsState()
+    val letterbox by model.letterbox.collectAsState()
     val view by model.view.collectAsState()
     val loadError by model.loadError.collectAsState()
     val display by model.display.collectAsState()
@@ -201,6 +202,12 @@ fun App(
                         enabled = !busy,
                         onClick = model::toggleDither,
                         label = { Text("Dither") },
+                    )
+                    FilterChip(
+                        selected = letterbox,
+                        enabled = !busy,
+                        onClick = model::toggleLetterbox,
+                        label = { Text("Fit") },
                     )
                     if (display.palette.hasColor) {
                         FilterChip(

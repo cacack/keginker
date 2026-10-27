@@ -41,6 +41,28 @@ fun GrayImage.fill(width: Int, height: Int): GrayImage {
     return GrayImage(width, height, out)
 }
 
+/**
+ * Scales to fit inside [width] × [height], keeping the aspect ratio, and
+ * centers the result on white: the whole image shows, with white bars on
+ * the sides its shape leaves empty.
+ */
+fun GrayImage.letterbox(width: Int, height: Int): GrayImage {
+    require(width > 0 && height > 0) { "Target must be at least 1×1, was ${width}×$height" }
+    val wide = this.width.toLong() * height >= this.height.toLong() * width
+    val innerWidth = if (wide) width else roundedScale(this.width, height, this.height).coerceIn(1, width)
+    val innerHeight = if (wide) roundedScale(this.height, width, this.width).coerceIn(1, height) else height
+    val inner = fill(innerWidth, innerHeight)
+    val left = (width - innerWidth) / 2
+    val top = (height - innerHeight) / 2
+
+    val out = ByteArray(width * height) { 255.toByte() }
+    for (y in 0 until innerHeight) inner.pixels.copyInto(out, (top + y) * width + left, y * innerWidth, (y + 1) * innerWidth)
+    return GrayImage(width, height, out)
+}
+
+/** [length] × [to] / [from], rounded to the nearest whole pixel. */
+private fun roundedScale(length: Int, to: Int, from: Int) = ((2L * length * to + from) / (2L * from)).toInt()
+
 /** The source pixels from [first] on that one output cell overlaps along an axis, and by how many units each. */
 private class Coverage(val first: Int, val weights: LongArray)
 

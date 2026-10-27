@@ -57,8 +57,12 @@ class AppTest {
 
     private val tags = MutableSharedFlow<FoundTag>(extraBufferCapacity = 1)
 
+    /** The title and text of each report [App] saves, as a Debug build does. */
+    private val saved = mutableListOf<Pair<String, String>>()
+    private val saveReport = { title: String, report: String -> saved += title to report }
+
     private fun failAWrite() {
-        compose.setContent { App(tags, APP, DEVICE) }
+        compose.setContent { App(tags, APP, DEVICE, saveReport = saveReport) }
         compose.onNodeWithText("Write to tag").performScrollTo().performClick()
         compose.waitForIdle()
         tags.tryEmit(FoundTag.Waveshare(LiftedTag()))
@@ -83,6 +87,20 @@ class AppTest {
         compose.onNodeWithText("Diagnostics report").assertIsDisplayed()
         compose.onNodeWithText("Commit: abc1234", substring = true).assertExists()
         compose.onNodeWithText("Step: INIT", substring = true).assertExists()
+    }
+
+    @Test
+    fun aDebugBuildSavesTheDiagnosticsReportItShows() {
+        failAWrite()
+        assertTrue("Saved before it was shown", saved.isEmpty())
+
+        compose.onNodeWithText("Share details").performScrollTo().performClick()
+        compose.waitForIdle()
+
+        val (title, report) = saved.single()
+        assertEquals("Diagnostics report", title)
+        compose.onNodeWithText(report.lines().first { "Step:" in it }.trim(), substring = true).assertExists()
+        assertTrue(report.startsWith("KegInker diagnostics report"))
     }
 
     private fun succeedAWrite() {
@@ -200,7 +218,7 @@ class AppTest {
 
     /** Reports [display] with vendor commands on, then opens the report's test writes. */
     private fun offerTestWrites(display: EzSignTag) {
-        compose.setContent { App(tags, APP, DEVICE) }
+        compose.setContent { App(tags, APP, DEVICE, saveReport = saveReport) }
         compose.onNodeWithText("Advanced").performScrollTo().performClick()
         compose.onNodeWithText("Report a display").performScrollTo().performClick()
         compose.onNode(isToggleable()).performClick()
@@ -270,4 +288,36 @@ class AppTest {
         compose.onNodeWithText("Display report").assertIsDisplayed()
         compose.onNodeWithText("Test writes").performScrollTo().assertIsDisplayed()
     }
+
+    /** Issue #140: a saved report is the shared text, so it hides the UID, serial and image as that does. */
+    @Test
+    fun aSavedDisplayReportHidesTheUidSerialAndImage() {
+        val display = EzSignTag(serial = EZ_SIGN_SERIAL)
+        offerTestWrites(display)
+        compose.onNodeWithText("Start test writes").performClick()
+        tags.tryEmit(foundEzSign(display))
+        waitForText("Where is the black square?")
+        compose.onNodeWithText("Back").performClick()
+        waitForText("Display report")
+        compose.waitForIdle()
+
+        // Once after the probe, then again with the test write's record.
+        assertEquals(listOf("Display report", "Display report"), saved.map { it.first })
+        val report = saved.last().second
+        assertTrue("Test write missing", "Test writes (1)" in report)
+        // The UID and serial reached the report, shortened, so the checks below can fail.
+        assertTrue("UID start missing", "UID: ${hex(EZ_SIGN_UID.copyOfRange(0, 3))} …" in report)
+        assertTrue("Serial marker missing", "[C0 ${hex(EZ_SIGN_SERIAL.copyOfRange(0, 3))} …" in report)
+        val image = display.sent.maxBy { it.size }
+        val hidden = mapOf(
+            "UID" to hex(EZ_SIGN_UID),
+            "reversed UID" to hex(EZ_SIGN_UID.reversedArray()),
+            "serial" to hex(EZ_SIGN_SERIAL),
+            "serial text" to EZ_SIGN_SERIAL.decodeToString(),
+            "image data" to hex(image),
+        )
+        for ((what, shown) in hidden) assertTrue("Saved report shows the $what", shown !in report)
+    }
+
+    private fun hex(bytes: ByteArray) = bytes.joinToString(" ") { "%02X".format(it) }
 }

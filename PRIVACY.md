@@ -39,7 +39,9 @@ exchanged with the tag, with the tag's replies as it sent them. With
 details** also appears after a successful write. A report contains no image
 data, shows only the start of the tag's ID, and shows only the first 256
 bytes of a very long reply. The app keeps the report in memory, shows it to
-you in full, and doesn't save it. It leaves your phone only when you share
+you in full, and doesn't save it. (Debug builds, made for developing the
+app, also keep a copy on the phone, out of backups, for a developer to copy
+off over USB.) It leaves your phone only when you share
 it, or copy it and paste it somewhere; KegInker never sends it. Copying puts
 it on your clipboard, where other apps, and your other devices if you've set
 up clipboard sharing, can read it.

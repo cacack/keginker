@@ -83,6 +83,32 @@ within 2% (`perceptualPrecision` 0.98): the toolbar's glass can shift by
 one shade between simulator boots. Otherwise the screenshot tests run the
 flow without capturing (Android) or skip (iOS).
 
+### Pulling reports off a phone
+
+A Debug build also saves each diagnostics and display report it shows, as
+text in a `reports` folder in the app's container, named after the report and
+the UTC time it was shown (`display-report-2026-10-26T14-22-33.123Z.txt`). It
+is the text Share sends, with the same parts hidden, kept out of backups.
+A report shown again (after test writes, say) is saved again, so take the
+latest; nothing prunes the folder until the app's data is cleared. Release
+builds save nothing. With the phone connected by USB:
+
+- iOS (find the device's name or identifier with `xcrun devicectl list devices`):
+
+  ```sh
+  xcrun devicectl device info files --device <device> --domain-type appDataContainer \
+    --domain-identifier io.github.cacack.keginker --subdirectory Documents/reports
+  xcrun devicectl device copy from --device <device> --domain-type appDataContainer \
+    --domain-identifier io.github.cacack.keginker --source Documents/reports/<file> --destination <file>
+  ```
+
+- Android:
+
+  ```sh
+  adb shell run-as io.github.cacack.keginker ls no_backup/reports
+  adb exec-out run-as io.github.cacack.keginker cat no_backup/reports/<file> > <file>
+  ```
+
 ## Commits
 
 Conventional commits (`feat:`, `fix:`, `docs:`, `ci:` …).

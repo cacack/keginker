@@ -2,42 +2,49 @@ package io.github.cacack.keginker
 
 import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.image.GrayImage
+import io.github.cacack.keginker.image.fill
 import io.github.cacack.keginker.image.testPattern
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
-import io.github.cacack.keginker.waveshare.WavesharePanel
-import io.github.cacack.keginker.waveshare.renderView
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The write screen's state: the chosen image, how it's rendered, and the
- * [controller] that writes it. Keeps one promise: when a write says Done,
- * the tag got exactly the image in [view].
+ * The write screen's state: the chosen display and image, how it's
+ * rendered, and the [controller] that writes it. Keeps one promise: when a
+ * write says Done, the tag got exactly the image in [view].
  *
  * So the preview never changes while a write runs: an image that finishes
- * loading then is held until the write ends, and rendering changes are ignored.
+ * loading then is held until the write ends, and display and rendering
+ * changes are ignored.
  */
 class WriteSession(
-    val panel: WavesharePanel,
+    display: LabelDisplay,
     imageWriter: ImageWriter = ImageWriter(),
 ) {
-    val controller = WriteController(panel, imageWriter)
+    val controller = WriteController(display, imageWriter)
 
-    /** The chosen image. */
-    private var source = testPattern(panel.viewWidth, panel.viewHeight)
+    private val mutableDisplay = MutableStateFlow(display)
 
-    /** Whether [source] is still the built-in test pattern. */
-    private var sourceIsTestPattern = true
+    /** The display the preview is rendered for and the next write goes to. */
+    val display: StateFlow<LabelDisplay> = mutableDisplay
+
+    /** The chosen image; null for the built-in test pattern. */
+    private var source: FittedImage? = null
+
+    /** [source], or the test pattern, cropped and scaled to the display's view. */
+    private var fitted = fit(null, display)
+
+    private val sourceIsTestPattern get() = source == null
 
     /** An image that finished loading during a write, shown once it ends. */
-    private var pendingSource: GrayImage? = null
+    private var pendingSource: FittedImage? = null
 
     private val mutableDither = MutableStateFlow<Dither>(Dither.FloydSteinberg)
     val dither: StateFlow<Dither> = mutableDither
 
-    /** The image exactly as the panel will show it; `true` is white. */
-    private val mutableView = MutableStateFlow(renderView(panel, source, mutableDither.value))
+    /** The image exactly as the display will show it; `true` is white. */
+    private val mutableView = MutableStateFlow(renderView(display, fitted, mutableDither.value))
     val view: StateFlow<BooleanArray> = mutableView
 
     /** Threshold level used whenever dithering is off; kept while dithering is on. */
@@ -61,6 +68,19 @@ class WriteSession(
 
     fun write() = controller.arm(view.value, sourceIsTestPattern)
 
+    /**
+     * Renders the preview for [display] from the same image, keeping the
+     * dither choice, and readies the controller to write to it. Ignored while
+     * a write is running.
+     */
+    fun choose(display: LabelDisplay) {
+        if (writing || display == mutableDisplay.value) return
+        mutableDisplay.value = display
+        controller.choose(display)
+        fitted = fit(source, display)
+        rerender()
+    }
+
     /** Switches between dithering and a threshold. Ignored while a write is running. */
     fun toggleDither() {
         if (writing) return
@@ -80,7 +100,7 @@ class WriteSession(
     }
 
     /** Shows a newly loaded [image], or holds it until a running write ends. */
-    fun imageLoaded(image: GrayImage) {
+    fun imageLoaded(image: FittedImage) {
         if (writing) {
             pendingSource = image
             return
@@ -88,10 +108,10 @@ class WriteSession(
         show(image)
     }
 
-    private fun show(image: GrayImage, keepFailure: Boolean = false) {
+    private fun show(image: FittedImage, keepFailure: Boolean = false) {
         pendingSource = null
         source = image
-        sourceIsTestPattern = false
+        fitted = fit(image, mutableDisplay.value)
         rerender(keepFailure)
     }
 
@@ -101,6 +121,22 @@ class WriteSession(
      */
     private fun rerender(keepFailure: Boolean = false) {
         if (!(keepFailure && controller.state.value is WriteState.Failed)) controller.cancel()
-        mutableView.value = renderView(panel, source, mutableDither.value)
+        mutableView.value = renderView(mutableDisplay.value, fitted, mutableDither.value)
     }
 }
+
+/**
+ * A loaded [image] cropped and scaled to every display's view, so choosing a
+ * display or re-rendering needs no scaling. Scaling a photo takes a while:
+ * make this off the main thread, then hand it to [WriteSession.imageLoaded].
+ */
+class FittedImage(image: GrayImage) {
+    private val views = LabelDisplay.entries.associateWith { image.fill(it.viewWidth, it.viewHeight) }
+
+    /** The image cropped and scaled to [display]'s view. */
+    internal fun forDisplay(display: LabelDisplay): GrayImage = views.getValue(display)
+}
+
+/** [image] for [display], or the test pattern at its size if null. */
+private fun fit(image: FittedImage?, display: LabelDisplay): GrayImage =
+    image?.forDisplay(display) ?: testPattern(display.viewWidth, display.viewHeight)

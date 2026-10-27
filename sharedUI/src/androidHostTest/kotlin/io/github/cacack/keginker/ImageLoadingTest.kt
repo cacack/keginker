@@ -3,8 +3,6 @@ package io.github.cacack.keginker
 import android.content.Context
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
-import io.github.cacack.keginker.waveshare.WavesharePanel
-import io.github.cacack.keginker.waveshare.renderView
 import java.io.File
 import java.io.IOException
 import kotlin.test.Test
@@ -31,7 +29,7 @@ import org.robolectric.annotation.GraphicsMode
 class ImageLoadingTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val fixtures = File(System.getProperty("keginker.photoFixtures") ?: error("keginker.photoFixtures isn't set"))
-    private val panel = WavesharePanel.EPD_2IN7
+    private val display = LabelDisplay.WAVESHARE_2IN7
 
     @Test
     fun exifRotatedPhotoComesInUpright() = checkGolden("exif-rotated.jpg")
@@ -85,10 +83,10 @@ class ImageLoadingTest {
     }
 
     private fun checkGolden(name: String) {
-        val view = renderView(panel, runBlocking { loadGrayImage(context, Uri.fromFile(File(fixtures, name))) })
+        val view = renderView(display, runBlocking { loadGrayImage(context, Uri.fromFile(File(fixtures, name))) })
         val golden = File(fixtures, name.substringBeforeLast('.') + ".pbm")
         if (!golden.exists()) {
-            golden.writeText(toPbm(view, panel.viewWidth))
+            golden.writeText(toPbm(view, display.viewWidth))
             fail("Wrote missing golden $golden; check it by eye and commit it")
         }
         val expected = fromPbm(golden.readText())

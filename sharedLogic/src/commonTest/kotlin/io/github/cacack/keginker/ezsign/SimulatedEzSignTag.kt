@@ -124,6 +124,8 @@ private fun reply(vararg values: Int) = ByteArray(values.size) { values[it].toBy
  * each block, and writes it into the panel memory; the blocking
  * `F0 D4 85 00` refreshes, and given [busyMs], its reply advances [clock]
  * that far first, and throws [TagTimeout] if the command's timeout is shorter.
+ * Once selected, it answers the device-information query `00 D1` with
+ * [deviceInfoReply], or refuses it when that's null.
  *
  * Each command advances [clock], if given, by [commandMs].
  */
@@ -132,6 +134,7 @@ class SimulatedEzSignTag(
     private val clock: TestTimeSource? = null,
     private val commandMs: Long = 0,
     private val busyMs: Long? = null,
+    private val deviceInfoReply: ByteArray? = null,
 ) : Transport {
     private val pixelsPerByte = 8 / info.bitsPerPixel
     private val rowBytes = (info.nativeWidth + pixelsPerByte - 1) / pixelsPerByte
@@ -184,6 +187,10 @@ class SimulatedEzSignTag(
                 if (!selected) return error("authenticated before SELECT", FILE_NOT_FOUND)
                 authenticated = true
                 OK
+            }
+            c == listOf(0x00, 0xD1, 0x00, 0x00, 0x00) -> {
+                if (!selected) return error("device information before SELECT", FILE_NOT_FOUND)
+                deviceInfoReply?.copyOf() ?: error("no device information", INS_NOT_SUPPORTED)
             }
             c.take(2) == listOf(0xF0, 0xD3) -> imageData(c)
             c == listOf(0xF0, 0xD4, 0x85, 0x00, 0x00) -> {
@@ -246,6 +253,16 @@ class SimulatedEzSignTag(
         val WRONG_DATA = reply(0x6A, 0x80)
         val INS_NOT_SUPPORTED = reply(0x6D, 0x00)
     }
+}
+
+/** Answers like [tag], except that [failing] commands get [instead]. */
+internal class Interfering(
+    private val tag: Transport,
+    private val failing: (ByteArray) -> Boolean,
+    private val instead: suspend () -> ByteArray,
+) : Transport {
+    override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray =
+        if (failing(command)) instead() else tag.transceive(command, timeoutMs)
 }
 
 /** What a platform transport throws when a command's timeout runs out before the tag answers. */

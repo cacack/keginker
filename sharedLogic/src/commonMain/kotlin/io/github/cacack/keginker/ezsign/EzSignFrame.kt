@@ -5,10 +5,13 @@
  * MIT License.
  *
  * Modified: ported from Python to Kotlin; frames are packed in the panel's
- * native layout, with no rotation or flips; each block is stored as one LZO1X
- * literal run instead of being compressed with LZO1X-1.
+ * native layout, with no rotation or flips; a test write stores each block as
+ * one LZO1X literal run, the hardware-verified stream, while a label write
+ * compresses it with [lzo1xCompress].
  */
 package io.github.cacack.keginker.ezsign
+
+import io.github.cacack.keginker.LabelDisplay
 
 /** The most packed bytes in one image block. */
 internal const val BLOCK_BYTES = 2_000
@@ -47,6 +50,31 @@ internal fun packFrame(pixels: ByteArray, info: EzSignDeviceInfo): ByteArray {
     return packed
 }
 
+/** Colour index 0, black on every EZ Sign panel (#130, #131). */
+private const val BLACK: Byte = 0
+
+/** Colour index 1, white on every EZ Sign panel (#130, #131). */
+private const val WHITE: Byte = 1
+
+/**
+ * Turns a black/white view of an EZ Sign [display] (row-major,
+ * [LabelDisplay.viewWidth] wide, `true` is white) into native row-major
+ * colour indices, white 1 and black 0, ready for [packFrame].
+ */
+internal fun ezSignLabelPixels(display: LabelDisplay, white: BooleanArray): ByteArray {
+    val turn = requireNotNull(display.ezSignTurn) { "${display.name} isn't an EZ Sign display" }
+    val width = display.viewWidth
+    val height = display.viewHeight
+    require(white.size == width * height) { "Expected $width×$height pixels, got ${white.size}" }
+    val pixels = ByteArray(width * height)
+    for (y in 0 until height) {
+        for (x in 0 until width) {
+            pixels[turn.nativeIndex(x, y, width, height)] = if (white[y * width + x]) WHITE else BLACK
+        }
+    }
+    return pixels
+}
+
 /** [frame] in blocks of [BLOCK_BYTES]; the last may be shorter. */
 internal fun frameBlocks(frame: ByteArray): List<ByteArray> =
     (frame.indices step BLOCK_BYTES).map { frame.copyOfRange(it, minOf(it + BLOCK_BYTES, frame.size)) }
@@ -74,7 +102,7 @@ internal fun lzoLiteralStream(block: ByteArray): ByteArray {
 }
 
 /** The LZO1X end-of-stream marker: a distance-0 long match. */
-private val END_OF_STREAM = byteArrayOf(0x11, 0x00, 0x00)
+internal val END_OF_STREAM = byteArrayOf(0x11, 0x00, 0x00)
 
 /** [stream] in pieces of at most [FRAGMENT_BYTES]. */
 internal fun fragments(stream: ByteArray): List<ByteArray> =

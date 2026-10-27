@@ -1,6 +1,22 @@
 package io.github.cacack.keginker.waveshare
 
+import io.github.cacack.keginker.diagnostics.ExchangeLog
+import io.github.cacack.keginker.ezsign.EZ_SIGN_DISPLAYS
+import io.github.cacack.keginker.ezsign.EZ_SIGN_WRITE_DEADLINE_MS
+import io.github.cacack.keginker.ezsign.EzSignIdentity
+import io.github.cacack.keginker.ezsign.EzSignLabelWriter
+import io.github.cacack.keginker.ezsign.TagTimeout
+import io.github.cacack.keginker.ezsign.deviceInfoData
+import io.github.cacack.keginker.ezsign.fragments
+import io.github.cacack.keginker.ezsign.frameBlocks
+import io.github.cacack.keginker.ezsign.identifyEzSign
+import io.github.cacack.keginker.ezsign.infoFrom
+import io.github.cacack.keginker.ezsign.lzo1xCompress
+import io.github.cacack.keginker.ezsign.lzoLiteralStream
+import io.github.cacack.keginker.ezsign.packFrame
+import io.github.cacack.keginker.ezsign.simulatedEzSign
 import io.github.cacack.keginker.nfc.Transport
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -8,6 +24,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TestTimeSource
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 
 /** Answers every command with [reply] and counts them, advancing [clock], if given, by [commandMs] for each. */
@@ -74,6 +92,56 @@ class WriteBudgetTest {
 
             assertEquals(WriteStep.WAIT_FOR_REFRESH, assertIs<WriteResult.Failure>(result).step)
             assertFitsTheBudget(scheduledMs(tag, pauses), pollPauseMs = 200)
+        }
+    }
+
+    @Test
+    fun ezSignWorstCaseBeforeTheRefreshFitsTheBudget() = runTest {
+        for (display in EZ_SIGN_DISPLAYS) {
+            val info = infoFrom(deviceInfoData(display))
+            // The commands a real label write sends before its image: identifying the display, then starting the write.
+            val tag = simulatedEzSign(deviceInfoData(display))
+            val log = ExchangeLog()
+            assertIs<EzSignIdentity.Identified>(identifyEzSign(tag, log))
+            EzSignLabelWriter(tag, info).write(display, BooleanArray(display.viewWidth * display.viewHeight), log)
+            val setup = tag.sent.indexOfFirst { it[1] == 0xD4.toByte() } - tag.sent.count { it[1] == 0xD3.toByte() }
+            // Random bytes hold almost nothing to match, so they compress no better than a literal run.
+            val frame = Random(0).nextBytes(packFrame(ByteArray(info.nativeWidth * info.nativeHeight), info).size)
+            val fragments = frameBlocks(frame).sumOf { maxOf(fragments(lzo1xCompress(it)).size, fragments(lzoLiteralStream(it)).size) }
+
+            val scheduled = (setup + fragments) * COMMAND_ALLOWANCE_MS
+
+            assertTrue(scheduled <= WRITE_BUDGET_MS, "${display.name}: $scheduled ms exceeds the $WRITE_BUDGET_MS ms budget")
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.currentTime
+    @Test
+    fun ezSignRefreshThatNeverAnswersFailsUnconfirmedWithinTheDeadline() = runTest {
+        for (display in EZ_SIGN_DISPLAYS) {
+            val start = testScheduler.currentTime
+            val tag = simulatedEzSign(deviceInfoData(display))
+            // Every command takes its allowance; the refresh never answers, so its timeout runs out.
+            val slow = object : Transport {
+                override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+                    delay(COMMAND_ALLOWANCE_MS)
+                    if (command[1] == 0xD4.toByte()) {
+                        delay(timeoutMs)
+                        throw TagTimeout("no reply to the refresh within $timeoutMs ms")
+                    }
+                    return tag.transceive(command, timeoutMs)
+                }
+            }
+            val log = ExchangeLog()
+            val info = assertIs<EzSignIdentity.Identified>(identifyEzSign(slow, log)).info
+
+            val result = EzSignLabelWriter(slow, info).write(display, BooleanArray(display.viewWidth * display.viewHeight), log)
+
+            val failure = assertIs<WriteResult.Failure>(result, display.name)
+            assertEquals(FailureKind.REFRESH_UNCONFIRMED, failure.kind, display.name)
+            assertEquals(BLOCKING_REFRESH_UNCONFIRMED_MESSAGE, failure.userMessage, display.name)
+            val tookMs = testScheduler.currentTime - start
+            assertTrue(tookMs <= EZ_SIGN_WRITE_DEADLINE_MS, "${display.name}: took $tookMs ms")
         }
     }
 

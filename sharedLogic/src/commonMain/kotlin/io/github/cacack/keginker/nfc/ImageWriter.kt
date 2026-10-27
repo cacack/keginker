@@ -10,9 +10,11 @@ import io.github.cacack.keginker.waveshare.packFrame
 import kotlinx.coroutines.delay
 
 /**
- * Writes an image to whichever kind of tag was found, packing it in the layout
- * that tag's protocol needs. Platform UIs only deal in views (from
- * `renderView`); they don't need to know which board revision they're talking to.
+ * Writes an image to whichever kind of Waveshare tag was found, packing it in
+ * the layout that tag's protocol needs. Platform UIs only deal in views (from
+ * `renderView`); they don't need to know which board revision they're talking
+ * to. EZ Sign tags are found unclassified; [io.github.cacack.keginker.WriteController]
+ * identifies and writes them.
  */
 class ImageWriter(private val pause: suspend (Long) -> Unit) {
     /** For Swift, which can't supply the suspending [pause]. */

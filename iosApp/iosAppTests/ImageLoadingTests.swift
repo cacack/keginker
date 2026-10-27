@@ -10,7 +10,7 @@ final class ImageLoadingTests: XCTestCase {
     private let fixtures = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         .appendingPathComponent("fixtures/photos")
-    private let panel = WavesharePanel.epd2in7
+    private let display = LabelDisplay.waveshare2in7
 
     func testExifRotatedPhotoComesInUpright() throws { try checkGolden("exif-rotated.jpg") }
 
@@ -26,23 +26,23 @@ final class ImageLoadingTests: XCTestCase {
 
     func testUnreadableImageFails() {
         // ContentView shows "Couldn't open that image." when this is nil.
-        XCTAssertNil(loadGrayImage(Data("not an image".utf8), panel: panel))
+        XCTAssertNil(loadGrayImage(Data("not an image".utf8)))
     }
 
     func testPhoto48MpStillLoads() throws {
         let photo = try Data(contentsOf: fixtures.appendingPathComponent("48mp.png"))
-        XCTAssertNotNil(loadGrayImage(photo, panel: panel))
+        XCTAssertNotNil(loadGrayImage(photo))
     }
 
     func testImageOverPixelLimitFails() throws {
         let photo = try Data(contentsOf: fixtures.appendingPathComponent("over-pixel-limit.png"))
-        XCTAssertNil(loadGrayImage(photo, panel: panel))
+        XCTAssertNil(loadGrayImage(photo))
     }
 
     private func checkGolden(_ name: String, file: StaticString = #filePath, line: UInt = #line) throws {
         let photo = fixtures.appendingPathComponent(name)
-        let image = try XCTUnwrap(loadGrayImage(try Data(contentsOf: photo), panel: panel), file: file, line: line)
-        let view = WaveshareFrameKt.renderView(panel: panel, image: image, dither: DitherFloydSteinberg.shared)
+        let image = try XCTUnwrap(loadGrayImage(try Data(contentsOf: photo)), file: file, line: line)
+        let view = LabelDisplayKt.renderView(display: display, image: image, dither: DitherFloydSteinberg.shared)
         let golden = photo.deletingPathExtension().appendingPathExtension("pbm")
         let expected = try readPbm(golden)
 

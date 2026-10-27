@@ -1,7 +1,8 @@
 # Tag protocols
 
 NFC e-paper tags fall into several protocol families that are not compatible
-with each other. KegInker supports Waveshare classic and Waveshare Rev2.2.
+with each other. KegInker supports Waveshare classic, Waveshare Rev2.2 and
+the [EZ Sign family](#ez-sign-family).
 
 ## Waveshare classic
 
@@ -128,22 +129,45 @@ and fails if it exceeds the budget, or leaves room for another poll. A
 recorded real write would show how close typical commands are to the
 allowance.
 
-EZ Sign [test writes](#test-writes-opt-in) work differently. A 4-colour EZ
-Sign refresh takes more than 20 s, longer than an iOS session (#138), so they
-send the blocking refresh, which the tag doesn't answer until the panel is
-done. That keeps the NFC field up for the whole refresh. The refresh alone
-may take up to 45 s (`BLOCKING_REFRESH_TIMEOUT_MS`, its Android timeout), so
-a test write's deadline is that plus `WRITE_DEADLINE_MS`
-(`TestWriteFamily.deadlineMs`). The tag's reply ends the write; they don't
-poll. On a 2.9" 4-colour panel the reply came after about 24 s, and the
-iPhone session stayed open. `EzSignTestWriterTest` checks that the refresh
-time is how long the tag held its reply, that only the refresh gets the
-longer timeout, and that a refresh past it fails at the refresh step.
+EZ Sign writes, [labels](#ez-sign-label-writes) and
+[test writes](#test-writes-opt-in) alike, fit the budget up to the refresh.
+Before it, a label write sends 4 setup commands (SELECT, device information,
+SELECT, authenticate), then its image fragments. In the worst case, an
+image with nothing to compress, that's 42 fragments on the 2.9" and 135 on
+the 4.2": 2,300 ms and 6,950 ms of scheduled time. On an iPhone 15 Pro a
+command took about 31 ms, and test writes, which send uncompressed literal
+streams, took 1.4 s (2.9", 44 fragments) and 4.2 s (4.2", 137) to send.
+
+The refresh doesn't fit. A 4-colour EZ Sign refresh takes 21–24 s, longer
+than the budget and longer than an iOS session usually lasts (#138). So EZ
+Sign writes send the blocking refresh, which the tag doesn't answer until
+the panel is done. The command is still running while the tag holds its
+reply, so the NFC field stays up and Core NFC keeps the session open: whole
+writes ran about 26 s on an iPhone 15 Pro. The tag's reply ends the write;
+there's no poll.
+
+The refresh alone may take up to 45 s (`BLOCKING_REFRESH_TIMEOUT_MS`, its
+Android timeout). So an EZ Sign write's deadline is that plus
+`WRITE_DEADLINE_MS`, 75 s in all (`EZ_SIGN_WRITE_DEADLINE_MS`), shared by
+label and test writes. A label write whose refresh never answers, because
+the timeout ran out, contact was lost, or the write was stopped, cancelled
+or its iOS session ended while the refresh was pending, fails with the "not
+confirmed" message (`BLOCKING_REFRESH_UNCONFIRMED_MESSAGE`), which also
+suggests turning the phone. A test write records it as a failure at the refresh step.
+
+`WriteBudgetTest.ezSignWorstCaseBeforeTheRefreshFitsTheBudget` checks the
+worst case before the refresh against the budget for each EZ Sign display.
+`ezSignRefreshThatNeverAnswersFailsUnconfirmedWithinTheDeadline` checks
+that a refresh that never answers ends in the "not confirmed" failure
+within the deadline. `EzSignTestWriterTest` checks that the refresh time is
+how long the tag held its reply, that only the refresh gets the longer
+timeout, and that a refresh past it fails at the refresh step.
 
 Scheduled time assumes each command is quick, but on Android a tag can take
 up to 3 s over every command. So `WriteController` also stops any write
 still running after 30 s of real time (`WRITE_DEADLINE_MS`, twice the
-budget) and shows it as a failed write with a report and a retry. A write
+budget; 75 s for an EZ Sign display) and shows it as a failed write with a
+report and a retry. A write
 that uses the whole budget still has another 15 s for slow commands. On iOS
 the session limit comes first.
 
@@ -187,7 +211,7 @@ command the tag refuses (not `90 00`) ends its query.
 The report decodes an EZ Sign device-information reply per alt-core/nfc-eink
 `parse_device_info` into a section giving the panel's resolution, colours,
 rows per block and any other TLVs raw (never C0 or C1), and names the
-protocol `EZ Sign (ISO-DEP), no label writer yet`; a reply that has data but
+protocol `EZ Sign (ISO-DEP)`; a reply that has data but
 doesn't decode gets a note saying why. A bare refusal (a status word alone),
 which other Type 4 tags give, gets no note.
 
@@ -214,45 +238,14 @@ A report read with vendor queries off, of an ISO-DEP tag that accepted the
 NDEF application (`suggestsVendorQueries`), instead suggests reading again
 with them on: that's the application the device information query selects.
 
-An EZ Sign test write (`EzSignTestWriter`) sends:
-
-| Step | Bytes | Expected reply |
-|---|---|---|
-| SELECT the NDEF application | `00 A4 04 00 07 D2760000850101` | `90 00` |
-| Authenticate | `00 20 00 01 04 20 09 12 10` | `90 00` |
-| Image fragment | `F0 D3 00 <last> <Lc> <block> <fragment> <data>`; `<last>` is `01` on a block's last fragment, else `00` | `90 00` |
-| Refresh, blocking | `F0 D4 85 00 00` | `90 00`, only once the panel has refreshed |
-
-P2 `80` asks the tag to answer the refresh at once and leave the caller to
-poll. That works from a USB reader (alt-core) but not from an iPhone: Core
-NFC ends the session about 20 s in, the field drops mid-refresh, and the
-panel is left half drawn. P2 `00` holds the reply until the refresh is done,
-which niw/EPaperNFCSwift found keeps the session open
-([`SendImageOperation.swift`](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/SendImageOperation.swift#L56-L60)).
-It does on an iPhone 15 Pro (iOS 27), where a 2.9" 4-colour refresh held the
-reply for about 24 s and a 4.2" one for about 22 s.
-
-The 4.2" panel draws more power while it refreshes. With the phone in one
-position, its refresh lost contact after 3–13 s, a different time on each
-try, which points to the field rather than a time limit, and left the panel
-faint and half drawn. With the display turned 90° under the phone, both
-refreshes finished. So a contact lost during a refresh tells the user to
-turn the phone, not just to hold it still (`REPOSITION_ADVICE`). One write
-straight after an interrupted refresh was refused at authentication with
-`65 02`; the next one authenticated.
-
-alt-core polls `F0 DE 00 00 01` after the non-blocking refresh (`01 90 00`
-busy, `00 90 00` done). After a blocking refresh that had drawn the panel,
-that poll still answered `01 90 00`, so a test write doesn't poll (#138).
-
-The frame is packed at the panel's bits per pixel in its native layout
-(`packFrame`): a row's first byte holds its last pixels, lowest bits first.
-It's cut into 2,000-byte blocks, each sent as an LZO1X stream in fragments of
-at most 250 bytes. The stream is one literal run and the end marker
-(`lzoLiteralStream`), not LZO1X-1 compression. Any conforming LZO1X
-decompressor turns it back into the block, so the panel gets the same pixels;
-the only cost is more fragments, about 138 commands for a 400 × 300
-4-colour panel. A test write needs no smaller stream.
+An EZ Sign test write (`EzSignTestWriter`) sends the
+[EZ Sign write sequence](#ez-sign-label-writes) from its second SELECT on;
+the probe has already read the device information. Each block goes as one
+literal run and the end marker (`lzoLiteralStream`), the stream first
+verified on hardware, rather than compressed. Any conforming LZO1X
+decompressor turns it back into the block, so the panel gets the same
+pixels; the only cost is more fragments, about 138 commands for a
+400 × 300 4-colour panel.
 
 The patterns (`TestPatterns.kt`) are generated from the decoded resolution
 and colours, in native coordinates, so the write assumes nothing about how
@@ -281,16 +274,6 @@ shows how long it ran. A refused or unexpected reply is a failure that names
 its step, with a retry.
 See [Write time budget](#write-time-budget).
 
-Sources: alt-core/nfc-eink
-[protocol.py](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/protocol.py),
-[card.py](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/card.py)
-and
-[image.py](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/image.py)
-for the commands, packing and fragments;
-[niw/EPaperNFCSwift](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/Command.swift)
-and [niw's protocol notes](https://gist.github.com/niw/3885b22d502bb1e145984d41568f202d)
-for the same sequence.
-
 ## Good Display
 
 - **Transport:** ISO 14443-4 (ISO-DEP).
@@ -302,13 +285,112 @@ for the same sequence.
 ## EZ Sign family
 
 - **Transport:** ISO-DEP, with the same AID.
-- **Image data:** LZO1X-1 compressed, sent in 2,000-byte blocks of 250-byte
-  fragments. 2- or 4-colour panels.
+- **Commands:** ISO 7816-4 APDUs, some proprietary (`F0 xx`). A successful
+  reply ends in `90 00`.
+- **Image data:** packed at the panel's bits per pixel (2- or 4-colour
+  panels), in 2,000-byte blocks, each an LZO1X stream sent in fragments of
+  at most 250 bytes.
 - **Coverage:** some newer tags from other vendors may use this protocol too.
   That's unverified.
-- **In KegInker:** Report a display decodes its device information and can
-  write [test patterns](#test-writes-opt-in). There's no label writer yet
-  (#135).
+- **In KegInker:** label writes to the [panels below](#ez-sign-panels).
+  Report a display also decodes any EZ Sign tag's device information and
+  can write [test patterns](#test-writes-opt-in).
+
+### EZ Sign panels
+
+| Display | Native size | Label | Panel memory holds the label |
+|---|---|---|---|
+| EZ Sign 2.9" | 128 × 296 | 128 × 296, portrait | turned 180° |
+| EZ Sign 4.2" | 400 × 300 | 300 × 400, portrait | turned 90° counter-clockwise: held landscape, its left edge is the label's top |
+
+Both panels show 4 colours at 2 bits per pixel: index 0 black, 1 white,
+2 yellow, 3 red. Labels are black and white, written as indices 0 and 1
+(`ezSignLabelPixels`). The native size is what the device information's A0
+TLV reports. Each display's turn is set in one place (`LabelDisplay`). The
+test-write reports found them: held portrait, the 2.9" showed native (0, 0)
+bottom right with native row 0 along the bottom
+([#130](https://github.com/cacack/keginker/issues/130#issuecomment-6431800781));
+held landscape, the 4.2" showed native (0, 0) top left with native row 0
+along the top
+([#131](https://github.com/cacack/keginker/issues/131#issuecomment-6431801006)).
+
+### EZ Sign label writes
+
+An EZ Sign tag reaches the app as an ISO-DEP tag it can't name without
+sending a command. When an EZ Sign display is chosen, the write opens the
+tag and asks for its device information (`identifyEzSign`); the native size
+it reports names the display. A tag that's a different display is sent
+nothing more, and the failure names the display to choose
+(`chooseDisplayMessage`); a Waveshare tag's names the Waveshare displays
+(`chooseWaveshareMessage`). A size that matches no display gets
+`EZ_SIGN_SIZE_UNSUPPORTED_MESSAGE`. When a Waveshare display is chosen, an
+ISO-DEP tag that isn't a Waveshare board is sent nothing, and the failure
+says to choose the EZ Sign display if it is one (`notWaveshareMessage`).
+
+| Step | Bytes | Expected reply |
+|---|---|---|
+| SELECT the NDEF application | `00 A4 04 00 07 D2760000850101` | `90 00` |
+| Device information | `00 D1 00 00 00` | TLVs, then `90 00`; see [Vendor queries](#vendor-queries-opt-in) |
+| Size check | none; the A0 native size must be the chosen display's | |
+| SELECT again | `00 A4 04 00 07 D2760000850101` | `90 00` |
+| Authenticate | `00 20 00 01 04 20 09 12 10` | `90 00` |
+| Image fragment | `F0 D3 00 <last> <Lc> <block> <fragment> <data>`; `<last>` is `01` on a block's last fragment, else `00` | `90 00` |
+| Refresh, blocking | `F0 D4 85 00 00` | `90 00`, only once the panel has refreshed |
+
+From the second SELECT on, label and test writes share one command core
+(`sendEzSignFrame`), the sequence first verified on hardware.
+
+The frame is packed at the panel's bits per pixel in its native layout
+(`packFrame`): a row's first byte holds its last pixels, lowest bits first.
+It's cut into 2,000-byte blocks (`frameBlocks`), and a label write
+compresses each with LZO1X-1 (`lzo1xCompress`), written from the stream
+format in the Linux kernel's
+[`Documentation/staging/lzo.rst`](https://docs.kernel.org/staging/lzo.html).
+In the tests, a label-like 4.2" frame drops from 135 fragments to 15. So
+far it's checked only against the tests' decoder, written from the same
+description; if a display refuses it, `lzoLiteralStream`, which test writes
+have sent to real displays, is the fallback.
+
+P2 `80` asks the tag to answer the refresh at once and leave the caller to
+poll. That works from a USB reader (alt-core) but not from an iPhone: Core
+NFC ends the session about 20 s in, the field drops mid-refresh, and the
+panel is left half drawn. P2 `00` holds the reply until the refresh is done,
+which niw/EPaperNFCSwift found keeps the session open
+([`SendImageOperation.swift`](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/SendImageOperation.swift#L56-L60)).
+It does on an iPhone 15 Pro (iOS 27), where a 2.9" 4-colour refresh held the
+reply for about 24 s and a 4.2" one for about 22 s. The
+[Write time budget](#write-time-budget) covers what that means for timing.
+
+The 4.2" panel draws more power while it refreshes. With the phone in one
+position, its refresh lost contact after 3–13 s, a different time on each
+try, which points to the field rather than a time limit, and left the panel
+faint and half drawn. With the display turned 90° under the phone, both
+refreshes finished. So a contact lost during a refresh tells the user to
+turn the phone, not just to hold it still (`REPOSITION_ADVICE`). One write
+straight after an interrupted refresh was refused at authentication with
+`65 02`; the next one authenticated
+([#138](https://github.com/cacack/keginker/issues/138#issuecomment-6430218289)).
+
+alt-core polls `F0 DE 00 00 01` after the non-blocking refresh (`01 90 00`
+busy, `00 90 00` done). After a blocking refresh that had drawn the panel,
+that poll still answered `01 90 00`, so EZ Sign writes don't poll (#138).
+
+Sources: alt-core/nfc-eink
+[protocol.py](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/protocol.py),
+[card.py](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/card.py)
+and
+[image.py](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/image.py)
+for the commands, packing and fragments;
+[niw/EPaperNFCSwift](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/Command.swift)
+and [niw's protocol notes](https://gist.github.com/niw/3885b22d502bb1e145984d41568f202d)
+for the same sequence; the Linux kernel's
+[LZO stream format](https://docs.kernel.org/staging/lzo.html) for the
+compressor; the display reports for
+[the 2.9"](https://github.com/cacack/keginker/issues/130#issuecomment-6431800781)
+and [the 4.2"](https://github.com/cacack/keginker/issues/131#issuecomment-6431801006)
+for the panels; and the
+[#138 evidence](https://github.com/cacack/keginker/issues/138#issuecomment-6430218289)
+for the blocking refresh and the phone's position.
 
 ## Sources
 

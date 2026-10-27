@@ -25,8 +25,11 @@ final class TagWriter: NSObject, ObservableObject {
     }
     private static let crcModeKey = "crcMode"
 
-    let panel = WavesharePanel.epd2in7
-    private lazy var controller = WriteController(panel: panel, imageWriter: ImageWriter())
+    /// The display labels are written to; remembered across launches by its name. Change it with `choose`.
+    @Published private(set) var display: LabelDisplay
+    static let displayKey = "labelDisplay"
+
+    private let controller: WriteController
     private var watching: (any KotlinAutoCloseable)?
     private var session: NFCTagReaderSession?
     private var isRunning = false
@@ -34,8 +37,21 @@ final class TagWriter: NSObject, ObservableObject {
     static var isNfcAvailable: Bool { NFCTagReaderSession.readingAvailable }
 
     override init() {
+        let saved = UserDefaults.standard.string(forKey: Self.displayKey)
+        let display = LabelDisplay.entries.first { $0.name == saved } ?? .waveshare2in7
+        self.display = display
+        controller = WriteController(display: display, imageWriter: ImageWriter())
         super.init()
         watching = SwiftInteropKt.watch(controller: controller) { [weak self] in self?.show($0) }
+    }
+
+    /// Writes to [display] from now on, and remembers it. Ignored while busy.
+    func choose(_ display: LabelDisplay) {
+        guard !isBusy else { return }
+        controller.choose(display: display)
+        self.display = display
+        UserDefaults.standard.set(display.name, forKey: Self.displayKey)
+        show(current)
     }
 
     private var current: WriteState { controller.state.value as! WriteState }
@@ -124,22 +140,27 @@ final class TagWriter: NSObject, ObservableObject {
             return
         }
         let classified = classify(tag, crcMode: crcMode)
-        guard let writable = classified as? FoundTagWritable else {
+        switch classified {
+        case let writable as FoundTagWritable:
+            NfcLog.log("Classified as \(writable is FoundTagWaveshareIsoDep ? "Waveshare Rev2.2 (ISO-DEP)" : "Waveshare classic")")
+        case let unsupported as FoundTagUnsupported where unsupported.kind == .isoDep && display.isEzSign:
+            // An EZ Sign display is found as an unsupported ISO-DEP tag; the controller identifies it.
+            NfcLog.log("Classified as ISO-DEP; identifying it as \(display.name)")
+        default:
             Task { await handle(classified, session: session) }
             return
         }
-        NfcLog.log("Classified as \(writable is FoundTagWaveshareIsoDep ? "Waveshare Rev2.2 (ISO-DEP)" : "Waveshare classic")")
         session.connect(to: tag) { error in
             MainActor.assumeIsolated {
                 if let error {
                     NfcLog.log("Connect failed: \(error.localizedDescription)")
-                    writable.transport.close()
+                    (classified as? FoundTagWritable)?.transport.close()
                     let message = "Couldn't connect to the tag. Hold it still and try again."
-                    self.fail(message, reason: error.localizedDescription, tag: writable, session: session)
+                    self.fail(message, reason: error.localizedDescription, tag: classified, session: session)
                     return
                 }
                 NfcLog.log("Connected")
-                Task { await self.handle(writable, session: session) }
+                Task { await self.handle(classified, session: session) }
             }
         }
     }
@@ -161,6 +182,7 @@ extension TagWriter: NFCTagReaderSessionDelegate {
             guard session === self.session else { return }
             self.session = nil
             if current is WriteStateWriting {
+                // During an EZ Sign refresh the controller says instead that the refresh wasn't confirmed.
                 let message = "The NFC session ended before the write finished. Try again and keep the iPhone still."
                 controller.fail(message: message, reason: error.localizedDescription, tag: nil)
             } else if current is WriteStateWaiting {

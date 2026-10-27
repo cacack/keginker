@@ -18,7 +18,7 @@ import io.github.cacack.keginker.probe.DEVICE_INFO
 import io.github.cacack.keginker.probe.EZ_SIGN_29_DEVICE_INFO
 import io.github.cacack.keginker.probe.EZ_SIGN_42_DEVICE_INFO
 import io.github.cacack.keginker.probe.EZ_SIGN_DEVICE_INFO
-import io.github.cacack.keginker.probe.EZ_SIGN_PROTOCOL
+import io.github.cacack.keginker.nfc.EZ_SIGN_PROTOCOL_NAME
 import io.github.cacack.keginker.probe.MADE_UP_ID
 import io.github.cacack.keginker.probe.MADE_UP_SERIAL
 import io.github.cacack.keginker.probe.NFCV_UID
@@ -339,7 +339,7 @@ class DisplayReportTest {
         val text = formatDisplayReport(APP, DEVICE, probeEzSign(EZ_SIGN_29_DEVICE_INFO + OK))
 
         listOf(
-            "Detected protocol: $EZ_SIGN_PROTOCOL",
+            "Detected protocol: $EZ_SIGN_PROTOCOL_NAME",
             "\nEZ Sign device information\n" +
                 "  Resolution: 296 × 128 (native 128 × 296)\n" +
                 "  Colours: 4 (black, white, yellow, red), mode 07\n" +

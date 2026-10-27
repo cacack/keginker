@@ -8,8 +8,8 @@ battery-free NFC e-paper tags. Pick what's pouring, preview the label, tap
 your phone to the handle, and the label stays after you walk away.
 
 Made for homebrewers and just as at home in a taproom. It writes to
-Waveshare's 2.7" NFC-powered e-paper today, and can write any image for
-custom labels.
+Waveshare's 2.7" and EZ Sign's 2.9" and 4.2" NFC-powered e-paper today, and
+can write any image for custom labels.
 
 ## Screenshots
 

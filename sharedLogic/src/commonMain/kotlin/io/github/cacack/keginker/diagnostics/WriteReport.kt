@@ -1,9 +1,9 @@
 package io.github.cacack.keginker.diagnostics
 
+import io.github.cacack.keginker.LabelDisplay
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.protocolName
-import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteStep
 
 /** The app that wrote the report; each platform fills it in. */
@@ -33,8 +33,9 @@ enum class Outcome {
 class WriteReport(
     /** Null if the platform didn't capture it. */
     val tag: TagInfo?,
-    /** From [io.github.cacack.keginker.nfc.protocolName]. */
+    /** From [io.github.cacack.keginker.nfc.protocolName], or EZ Sign once its device information decoded. */
     val protocol: String,
+    /** The [LabelDisplay.name] the label was composed for. */
     val panel: String,
     /** What the user was shown. */
     val message: String,
@@ -51,13 +52,14 @@ class WriteReport(
 )
 
 /**
- * The report of writing to [tag] with [panel], built the same way on both
- * platforms. [log] is null when nothing was sent; [step], [reason] and
- * [cause] are as in [WriteReport].
+ * The report of writing a label composed for [display] to [tag], built the
+ * same way on both platforms. [log] is null when nothing was sent; [step],
+ * [reason] and [cause] are as in [WriteReport]. [protocol] is the tag's
+ * classification unless the write learned more.
  */
 fun writeReport(
     tag: FoundTag,
-    panel: WavesharePanel,
+    display: LabelDisplay,
     message: String,
     outcome: Outcome,
     testPattern: Boolean,
@@ -65,10 +67,11 @@ fun writeReport(
     step: WriteStep? = null,
     reason: String? = null,
     cause: Throwable? = null,
+    protocol: String = tag.protocolName,
 ) = WriteReport(
     tag = tag.info,
-    protocol = tag.protocolName,
-    panel = panel.name,
+    protocol = protocol,
+    panel = display.name,
     message = message,
     outcome = outcome,
     testPattern = testPattern,

@@ -22,7 +22,7 @@ interface TestWriteFamily {
 
     /**
      * The real time one write may take before it's stopped as a failure:
-     * [WRITE_DEADLINE_MS], as for label writes, unless the family holds a
+     * [WRITE_DEADLINE_MS], as for Waveshare label writes, unless the family holds a
      * command open for longer, as EZ Sign's blocking refresh does.
      */
     val deadlineMs: Long get() = WRITE_DEADLINE_MS
@@ -53,8 +53,8 @@ fun testWriteFamilyFor(result: ProbeResult): TestWriteFamily? = result.deviceInf
 internal class EzSignTestWriteFamily(private val info: EzSignDeviceInfo) : TestWriteFamily {
     override val name = "EZ Sign"
 
-    /** A label write's deadline, plus as long as the tag may hold its blocking refresh. */
-    override val deadlineMs = WRITE_DEADLINE_MS + BLOCKING_REFRESH_TIMEOUT_MS
+    /** The same deadline as an EZ Sign label write. */
+    override val deadlineMs = EZ_SIGN_WRITE_DEADLINE_MS
 
     /** Built on first use, so offering test writes allocates no pixels. */
     override val patterns by lazy { ezSignTestPatterns(info) }

@@ -60,6 +60,15 @@ class WriteMessagesTest {
     }
 
     @Test
+    fun aBlockingRefreshThatNeverAnsweredSuggestsAnotherPosition() {
+        // EZ Sign's blocking refresh fails at REFRESH; Waveshare's busy polls at WAIT_FOR_REFRESH.
+        val message = WriteResult.Failure(WriteStep.REFRESH, FailureKind.REFRESH_UNCONFIRMED, "Tag communication failed").userMessage
+
+        assertEquals("The display didn't confirm it finished updating. $REPOSITION_ADVICE", message)
+        assertEquals(BLOCKING_REFRESH_UNCONFIRMED_MESSAGE, message)
+    }
+
+    @Test
     fun progressSaysTheDisplayIsUpdatingOnceTheImageIsSent() {
         assertEquals("Writing 89%. Keep the iPhone still.", writeProgressMessage(IMAGE_SENT_PROGRESS - 1, "iPhone"))
         assertEquals("Updating the display. Keep the phone still.", writeProgressMessage(IMAGE_SENT_PROGRESS, "phone"))

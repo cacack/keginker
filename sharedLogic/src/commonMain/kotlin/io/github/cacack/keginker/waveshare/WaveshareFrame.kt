@@ -10,18 +10,19 @@ import io.github.cacack.keginker.image.toBlackWhite
  *
  * The image is centre-cropped to the panel's view shape (176 × 264 portrait
  * for the 2.7") and scaled; it is never letterboxed or rotated to fit, so
- * platform UIs should preview the crop. UIs that preview should call
- * [renderView] and then [packFrame] instead, so the preview is the frame.
+ * platform UIs should preview the crop. UIs that preview should render with
+ * the [io.github.cacack.keginker.LabelDisplay] `renderView` and write that
+ * view instead, so the preview is the frame.
  */
 fun encodeFrame(panel: WavesharePanel, image: GrayImage, dither: Dither = Dither.FloydSteinberg): ByteArray =
     packFrame(panel, renderView(panel, image, dither))
 
 /**
  * The black/white image exactly as the panel will show it: row-major,
- * [WavesharePanel.viewWidth] wide, `true` is white. UIs preview this and then
- * pass it to [packFrame], so the preview and the write can't disagree.
+ * [WavesharePanel.viewWidth] wide, `true` is white. UIs use the
+ * [io.github.cacack.keginker.LabelDisplay] `renderView`, which matches this.
  */
-fun renderView(panel: WavesharePanel, image: GrayImage, dither: Dither = Dither.FloydSteinberg): BooleanArray =
+internal fun renderView(panel: WavesharePanel, image: GrayImage, dither: Dither = Dither.FloydSteinberg): BooleanArray =
     image.fill(panel.viewWidth, panel.viewHeight).toBlackWhite(dither)
 
 /**

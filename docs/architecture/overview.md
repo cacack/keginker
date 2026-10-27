@@ -57,12 +57,14 @@ own threading rules, against a fake of its NFC API (`androidApp/src/test`,
 ## Constraints that shape the design
 
 - **The tag is powered by the phone's field.** Moving the phone mid-write cuts
-  power. The UI guides placement, shows progress, polls the tag until refresh
-  completes, and retries cleanly.
+  power. The UI guides placement, shows progress, waits for the refresh to
+  complete, and retries cleanly.
 - **Timeouts.** Panel refreshes take seconds. Android timeouts are set
   generously. iOS offers no per-command timeout and limits a tag connection to
   roughly 20 seconds, so every write fits a 15 s
-  [time budget](protocols.md#write-time-budget).
+  [time budget](protocols.md#write-time-budget); an EZ Sign write fits it
+  up to the refresh, whose blocking command keeps the session open until
+  the panel is done.
 - **Image pipeline.** Platforms decode images natively, upright, from the
   file's bytes, downsampled to about 1,024 px on the long side. Both hand
   the core non-premultiplied `0xAARRGGBB` pixels (`GrayImage.fromArgb`), so
@@ -78,8 +80,9 @@ own threading rules, against a fake of its NFC API (`androidApp/src/test`,
   write, and an image that finishes loading mid-write is shown only once the
   write ends. A seeded model-based test checks this across random sequences
   of user actions and tag events.
-- **Rotation and packing are per panel.** Each panel declares its view
-  orientation (`PanelView`). Unit tests pin the mapping, because it's easy to
+- **Rotation and packing are per panel.** Each Waveshare panel declares
+  its view orientation (`PanelView`), and each EZ Sign display its turn
+  (`LabelDisplay`). Unit tests pin the mapping, because it's easy to
   get subtly wrong. Test-only simulated panels (`SimulatedPanels.kt`), one per
   board and written from [protocols.md](protocols.md), take the commands a
   write sends and rebuild the image the display would show; tests check it

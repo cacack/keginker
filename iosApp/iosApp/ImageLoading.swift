@@ -10,12 +10,13 @@ private let maxSide = 1024
 /// a PNG or GIF in full before downsampling it. Android has the same limit.
 private let maxPixels = 120_000_000
 
-/// Decodes image data, upright and downsampled while decoding, then crops
-/// and scales it to [panel]'s view. Like Android, it hands non-premultiplied
+/// Decodes image data into greyscale, upright and downsampled while
+/// decoding; rendering crops and scales it to the chosen display, so it can
+/// be rendered again for another. Like Android, it hands non-premultiplied
 /// ARGB to `GrayImage.fromArgb`, which converts to grey and composites
 /// transparency over white, so a photo makes the same label on both.
 /// Images over `maxPixels` fail.
-func loadGrayImage(_ data: Data, panel: WavesharePanel) -> GrayImage? {
+func loadGrayImage(_ data: Data) -> GrayImage? {
     let options = [
         kCGImageSourceCreateThumbnailFromImageAlways: true,
         kCGImageSourceCreateThumbnailWithTransform: true,
@@ -46,8 +47,7 @@ func loadGrayImage(_ data: Data, panel: WavesharePanel) -> GrayImage? {
         argbPixel(r: rgba[i * 4], g: rgba[i * 4 + 1], b: rgba[i * 4 + 2], a: rgba[i * 4 + 3])
     }
     let pixels = argb.withUnsafeBytes { SwiftInteropKt.kotlinInts(data: Data($0)) }
-    let gray = GrayImage.companion.fromArgb(width: Int32(width), height: Int32(height), argb: pixels)
-    return gray.fill(width: panel.viewWidth, height: panel.viewHeight)
+    return GrayImage.companion.fromArgb(width: Int32(width), height: Int32(height), argb: pixels)
 }
 
 /// A premultiplied RGBA pixel as non-premultiplied `0xAARRGGBB`, rounding

@@ -4,6 +4,7 @@ import io.github.cacack.keginker.diagnostics.describe
 import io.github.cacack.keginker.ezsign.EzSignDeviceInfo
 import io.github.cacack.keginker.ezsign.EzSignDeviceInfoParse
 import io.github.cacack.keginker.ezsign.parseEzSignDeviceInfo
+import io.github.cacack.keginker.nfc.EZ_SIGN_PROTOCOL_NAME
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.TagKind
@@ -17,9 +18,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /** Most NDEF message bytes the probe reads; a launcher record is far smaller. */
 internal const val MAX_NDEF_BYTES = 1_024
-
-/** The protocol a report names for a tag whose [DEVICE_INFO] reply decoded. */
-internal const val EZ_SIGN_PROTOCOL = "EZ Sign (ISO-DEP), no label writer yet"
 
 /** Most bytes one Type 4 READ BINARY asks for. */
 private const val TYPE4_CHUNK = 250
@@ -111,7 +109,7 @@ class NfcVSystemInfo(
 class ProbeResult(
     /** Null if the platform didn't capture it. */
     val tag: TagInfo?,
-    /** From [io.github.cacack.keginker.nfc.protocolName], or [EZ_SIGN_PROTOCOL] when [deviceInfo] decoded. */
+    /** From [io.github.cacack.keginker.nfc.protocolName], or [EZ_SIGN_PROTOCOL_NAME] when [deviceInfo] decoded. */
     val protocol: String,
     val kind: TagKind,
     /** The [PROBE_AIDS] the tag accepted; always empty for a tag that isn't ISO-DEP. */
@@ -202,7 +200,7 @@ internal suspend fun probeDisplay(
     return ProbeResult(
         tag = tag.info,
         // Only a tag no supported protocol recognised is named by its reply.
-        protocol = if (deviceInfo != null && tag is FoundTag.Unsupported) EZ_SIGN_PROTOCOL else tag.protocolName,
+        protocol = if (deviceInfo != null && tag is FoundTag.Unsupported) EZ_SIGN_PROTOCOL_NAME else tag.protocolName,
         kind = tag.kind,
         acceptedAids = probe.acceptedAids,
         capabilityContainer = probe.capabilityContainer,

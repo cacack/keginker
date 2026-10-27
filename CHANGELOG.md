@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/cacack/keginker/compare/v0.6.0...v0.7.0) (2026-10-27)
+
+
+### Features
+
+* **diagnostics:** save each shown report as a file in Debug builds ([59bfbe3](https://github.com/cacack/keginker/commit/59bfbe390f59cbfd547c3224753a19e96c2fc8df)), closes [#140](https://github.com/cacack/keginker/issues/140)
+* **ezsign:** write labels to EZ Sign displays ([919a01a](https://github.com/cacack/keginker/commit/919a01a6c9d3e2c7b7a32d4e13e6f3b9737d1d0a)), closes [#135](https://github.com/cacack/keginker/issues/135)
+* **report:** ask whether the phone moved before retrying a test write ([a280c38](https://github.com/cacack/keginker/commit/a280c38c4234ae2a333212d991f92afe9a521547)), closes [#143](https://github.com/cacack/keginker/issues/143)
+* **report:** suggest vendor commands when a tag accepts the NDEF application ([be74f6d](https://github.com/cacack/keginker/commit/be74f6d53d97bf276958a06be1f2ee96066e1b2c)), closes [#142](https://github.com/cacack/keginker/issues/142)
+* **ui:** choose the label display on both apps ([c2c0d96](https://github.com/cacack/keginker/commit/c2c0d96ffe61176489d00e0a689ff6c2a5ad9bac)), closes [#135](https://github.com/cacack/keginker/issues/135)
+
+
+### Bug Fixes
+
+* **ezsign:** write 4.2" labels landscape ([a6bd3cb](https://github.com/cacack/keginker/commit/a6bd3cb0a103efafd997b3e1b9248f1e40e603f9)), closes [#135](https://github.com/cacack/keginker/issues/135)
+
 ## [0.6.0](https://github.com/cacack/keginker/compare/v0.5.0...v0.6.0) (2026-10-27)
 
 

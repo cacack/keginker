@@ -2,14 +2,19 @@ import PhotosUI
 import SharedLogic
 import SwiftUI
 
-/// The write screen: choose an image, preview it as the panel will show it,
-/// then write it to a tag.
+/// The write screen: choose a display and an image, preview it as the
+/// display will show it, then write it to a tag.
 struct ContentView: View {
     @StateObject private var writer = TagWriter()
+    /// The chosen image as loaded; nil for the built-in test pattern.
     @State private var source: GrayImage?
+    /// [source], or the test pattern, cropped and scaled to a display, so re-rendering it is cheap.
+    @State private var fitted: Fitted?
+    @State private var fitting: Task<Void, Never>?
     @State private var dither = true
     /// Where grey becomes black when dithering is off (0–255).
     @State private var threshold = Double(DitherThreshold.companion.DEFAULT_LEVEL)
+    /// The image as `fitted.display` will show it; Write waits until that's the chosen display.
     @State private var view: KotlinBooleanArray?
     /// The preview, built once per render; body re-evaluates on every progress tick.
     @State private var previewCGImage: CGImage?
@@ -24,7 +29,7 @@ struct ContentView: View {
         _source = State(initialValue: source)
     }
 
-    private var panel: WavesharePanel { writer.panel }
+    private var display: LabelDisplay { writer.display }
 
     var body: some View {
         NavigationStack {
@@ -36,7 +41,8 @@ struct ContentView: View {
                     }
                 }
         }
-        .onAppear(perform: render)
+        .onAppear(perform: fitNow)
+        .onChange(of: writer.display) { fitInBackground() }
         .onChange(of: dither) { render() }
         .onChange(of: threshold) { render() }
         .onChange(of: pickerItem) { load(pickerItem) }
@@ -45,7 +51,7 @@ struct ContentView: View {
     private var screen: some View {
         ScrollView {
             VStack(spacing: 16) {
-                Text("Waveshare 2.7\" e-paper").font(.headline)
+                displayPicker
                 preview
                 HStack {
                     PhotosPicker("Choose image", selection: $pickerItem, matching: .images)
@@ -71,13 +77,28 @@ struct ContentView: View {
         }
     }
 
+    private var displayPicker: some View {
+        HStack {
+            Text("Display").font(.headline)
+            Picker("Display", selection: Binding(get: { writer.display }, set: { writer.choose($0) })) {
+                ForEach(LabelDisplay.entries, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+        }
+        // Keeps the chosen display's name on one line.
+        .fixedSize()
+        .disabled(writer.isBusy)
+    }
+
     @ViewBuilder private var preview: some View {
         if let image = previewCGImage {
+            // Fits the tallest label (EZ Sign 2.9") without cropping; Waveshare 2.7" fills it at 220 × 330.
             Image(decorative: image, scale: 1)
                 .resizable()
                 .interpolation(.none)
-                .aspectRatio(CGFloat(panel.viewWidth) / CGFloat(panel.viewHeight), contentMode: .fit)
-                .frame(width: 220)
+                .aspectRatio(CGFloat(image.width) / CGFloat(image.height), contentMode: .fit)
+                .frame(maxWidth: 220, maxHeight: 330)
                 .border(.secondary)
                 .accessibilityLabel("Preview of the tag")
         }
@@ -111,9 +132,12 @@ struct ContentView: View {
             .disabled(writer.isBusy)
     }
 
+    /// Whether [view] is for the chosen display; just after choosing one, it's still being fitted.
+    private var viewIsForDisplay: Bool { view != nil && fitted?.display == display }
+
     private func writeButton(_ title: String) -> some View {
         Button(title) {
-            guard let view else { return }
+            guard let view, viewIsForDisplay else { return }
             let testPattern = source == nil
             if canSimulate {
                 writer.simulate(view: view, testPattern: testPattern)
@@ -122,7 +146,7 @@ struct ContentView: View {
             }
         }
         .buttonStyle(.borderedProminent)
-        .disabled(writer.isBusy || !(TagWriter.isNfcAvailable || canSimulate))
+        .disabled(writer.isBusy || !viewIsForDisplay || !(TagWriter.isNfcAvailable || canSimulate))
     }
 
     /// The Simulator has no NFC, so debug builds there write to a simulated tag.
@@ -134,30 +158,63 @@ struct ContentView: View {
         #endif
     }
 
+    /// Fits and renders the first preview at once, so the screen opens with
+    /// it; the app opens on the test pattern, which is quick to make.
+    private func fitNow() {
+        fitted = Fitted(display: display, image: fit(source, to: display))
+        render()
+    }
+
+    /// Fits [source] to the display off the main actor, then renders it; a
+    /// later fit replaces one still running.
+    private func fitInBackground() {
+        let source = self.source
+        let display = self.display
+        fitting?.cancel()
+        fitting = Task {
+            let image = await Task.detached { fit(source, to: display) }.value
+            guard !Task.isCancelled else { return }
+            fitted = Fitted(display: display, image: image)
+            render()
+        }
+    }
+
     private func render() {
-        let image = source ?? TestPatternKt.testPattern(width: panel.viewWidth, height: panel.viewHeight)
+        guard let fitted else { return }
         let method: Dither = dither ? DitherFloydSteinberg.shared : DitherThreshold(level: Int32(threshold))
-        let rendered = WaveshareFrameKt.renderView(panel: panel, image: image, dither: method)
+        let rendered = LabelDisplayKt.renderView(display: fitted.display, image: fitted.image, dither: method)
         view = rendered
-        previewCGImage = previewImage(rendered, width: Int(panel.viewWidth))
+        previewCGImage = previewImage(rendered, width: Int(fitted.display.viewWidth))
     }
 
     private func load(_ item: PhotosPickerItem?) {
         guard let item else { return }
         pickerItem = nil
-        let panel = self.panel
         loading?.cancel()
         loading = Task {
             let data = try? await item.loadTransferable(type: Data.self)
-            let image = await Task.detached { data.flatMap { loadGrayImage($0, panel: panel) } }.value
+            let image = await Task.detached { data.flatMap { loadGrayImage($0) } }.value
             guard !Task.isCancelled else { return }
             if let image {
                 source = image
                 loadError = nil
-                render()
+                fitInBackground()
             } else {
                 loadError = "Couldn't open that image."
             }
         }
     }
+}
+
+/// An image cropped and scaled to [display]'s view.
+private struct Fitted {
+    let display: LabelDisplay
+    let image: GrayImage
+}
+
+/// Crops and scales [source], or makes the test pattern, for [display]. Scaling
+/// a photo takes a while, so it runs off the main actor once the screen is up.
+private func fit(_ source: GrayImage?, to display: LabelDisplay) -> GrayImage {
+    source?.fill(width: display.viewWidth, height: display.viewHeight)
+        ?? TestPatternKt.testPattern(width: display.viewWidth, height: display.viewHeight)
 }

@@ -32,6 +32,8 @@ final class ScreenshotTests: XCTestCase {
         }
         // A setting from an earlier run would add "Share details" after a write.
         UserDefaults.standard.set(false, forKey: offerReportsKey)
+        // The README shows the Waveshare 2.7" label, whichever display an earlier run chose.
+        UserDefaults.standard.removeObject(forKey: TagWriter.displayKey)
     }
 
     func testPreview() throws {
@@ -56,12 +58,12 @@ final class ScreenshotTests: XCTestCase {
 
     private func sampleLabel() throws -> GrayImage {
         let data = try Data(contentsOf: root.appendingPathComponent("fixtures/screenshots/sample-label.png"))
-        return try XCTUnwrap(loadGrayImage(data, panel: panel))
+        return try XCTUnwrap(loadGrayImage(data))
     }
 
     /// The sample label as ContentView renders it, with its default dither.
     private func sampleView() throws -> KotlinBooleanArray {
-        WaveshareFrameKt.renderView(panel: panel, image: try sampleLabel(), dither: DitherFloydSteinberg.shared)
+        LabelDisplayKt.renderView(display: .waveshare2in7, image: try sampleLabel(), dither: DitherFloydSteinberg.shared)
     }
 
     private func capture(_ writer: TagWriter, _ name: String, file: StaticString = #filePath, line: UInt = #line) throws {

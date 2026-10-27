@@ -41,7 +41,7 @@ class WriteControllerFaultTest {
             for (failAt in 0 until commands) {
                 for (fault in Fault.entries) {
                     val case = "$protocol, command ${failAt + 1}/$commands, $fault"
-                    val expected = imageWriter.write(found(protocol, faultyTag(protocol, failAt, fault)), DISPLAY, testView()) {}
+                    val expected = imageWriter.write(found(protocol, faultyTag(protocol, failAt, fault)), DISPLAY.wavesharePanel!!, testView()) {}
                     assertIs<WriteResult.Failure>(expected, case)
                     val controller = WriteController(DISPLAY, imageWriter)
                     val tag = faultyTag(protocol, failAt, fault)

@@ -14,7 +14,7 @@ import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.TagKind
 import io.github.cacack.keginker.nfc.Transport
-import io.github.cacack.keginker.probe.EZ_SIGN_PROTOCOL
+import io.github.cacack.keginker.nfc.EZ_SIGN_PROTOCOL_NAME
 import io.github.cacack.keginker.probe.ProbeResult
 import io.github.cacack.keginker.waveshare.FailureKind
 import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
@@ -113,7 +113,7 @@ private fun succeeded() = TestWriteOutcome(ExchangeLog(), refreshMs = 1200, fail
 /** A probe of the EZ Sign display [PANEL_29] whose UID is [uid]. */
 private fun ezSignProbe(uid: ByteArray) = ProbeResult(
     tag = TagInfo(listOf("IsoDep"), uid),
-    protocol = EZ_SIGN_PROTOCOL,
+    protocol = EZ_SIGN_PROTOCOL_NAME,
     kind = TagKind.ISO_DEP,
     acceptedAids = emptyList(),
     capabilityContainer = null,
@@ -425,7 +425,7 @@ class TestWriteControllerTest {
     fun aProbedEzSignDisplayIsTestWrittenEndToEnd() = runTest {
         val result = ProbeResult(
             tag = TagInfo(listOf("IsoDep"), UID),
-            protocol = EZ_SIGN_PROTOCOL,
+            protocol = EZ_SIGN_PROTOCOL_NAME,
             kind = TagKind.ISO_DEP,
             acceptedAids = emptyList(),
             capabilityContainer = null,

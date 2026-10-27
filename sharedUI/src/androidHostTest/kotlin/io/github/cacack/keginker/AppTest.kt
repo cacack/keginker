@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -359,6 +360,27 @@ class AppTest {
             "image data" to hex(image),
         )
         for ((what, shown) in hidden) assertTrue("Saved report shows the $what", shown !in report)
+    }
+
+    @Test
+    fun aChosenDisplayIsSavedAndShapesThePreview() {
+        compose.setContent { App(tags, APP, DEVICE) }
+
+        compose.onNodeWithText(LabelDisplay.WAVESHARE_2IN7.title).performClick()
+        compose.onNodeWithText(LabelDisplay.EZ_SIGN_2IN9.title).performClick()
+        compose.waitForIdle()
+
+        assertEquals(LabelDisplay.EZ_SIGN_2IN9, DisplaySetting(ApplicationProvider.getApplicationContext()).display)
+        val preview = compose.onNodeWithContentDescription("Preview of the tag").fetchSemanticsNode().size
+        assertEquals(128f / 296f, preview.width.toFloat() / preview.height, 0.01f)
+    }
+
+    @Test
+    fun aSavedDisplayIsChosenAtStart() {
+        DisplaySetting(ApplicationProvider.getApplicationContext()).display = LabelDisplay.EZ_SIGN_4IN2
+        compose.setContent { App(tags, APP, DEVICE) }
+
+        compose.onNodeWithText(LabelDisplay.EZ_SIGN_4IN2.title).assertIsDisplayed()
     }
 
     private fun hex(bytes: ByteArray) = bytes.joinToString(" ") { "%02X".format(it) }

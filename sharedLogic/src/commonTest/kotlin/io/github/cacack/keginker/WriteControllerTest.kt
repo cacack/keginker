@@ -20,6 +20,7 @@ import io.github.cacack.keginker.probe.EZ_SIGN_42_DEVICE_INFO
 import io.github.cacack.keginker.waveshare.BLOCKING_REFRESH_UNCONFIRMED_MESSAGE
 import io.github.cacack.keginker.waveshare.DONE_MESSAGE
 import io.github.cacack.keginker.waveshare.EZ_SIGN_SIZE_UNSUPPORTED_MESSAGE
+import io.github.cacack.keginker.waveshare.IMAGE_SENT_PROGRESS
 import io.github.cacack.keginker.waveshare.UNSUPPORTED_TAG_MESSAGE
 import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
 import io.github.cacack.keginker.waveshare.WRITE_TIMED_OUT_MESSAGE
@@ -496,7 +497,7 @@ class EzSignWriteControllerTest {
         controller.onTag(FoundTag.Waveshare(tag))
 
         val failed = assertIs<WriteState.Failed>(controller.state.value)
-        assertEquals("This is the Waveshare 2.7\" display. Choose Waveshare 2.7\" and try again.", failed.message)
+        assertEquals("This is a Waveshare display. Choose Waveshare 2.7\" and try again.", failed.message)
         assertEquals(Outcome.NOT_ATTEMPTED, failed.report?.outcome)
         assertEquals(0, tag.sent)
         assertTrue(tag.closed)
@@ -510,8 +511,66 @@ class EzSignWriteControllerTest {
 
         controller.onTag(FoundTag.Unsupported(ISO_DEP_INFO, TagKind.ISO_DEP) { opened = true; FakeTag() })
 
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        // It may be an EZ Sign display, so the message points to the display picker.
+        assertEquals("This isn't a Waveshare 2.7\" display. If it's an EZ Sign display, choose it and try again.", failed.message)
+        assertEquals(Outcome.NOT_ATTEMPTED, failed.report?.outcome)
+        assertFalse(opened)
+    }
+
+    @Test
+    fun anNfcATagWhileAnEzSignDisplayIsChosenIsUnsupported() = runTest {
+        var opened = false
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+
+        controller.onTag(FoundTag.Unsupported(ISO_DEP_INFO, TagKind.NFC_A) { opened = true; FakeTag() })
+
         assertEquals(UNSUPPORTED_TAG_MESSAGE, assertIs<WriteState.Failed>(controller.state.value).message)
         assertFalse(opened)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.currentTime
+    @Test
+    fun theDeadlinePassingDuringTheRefreshSaysItWasNotConfirmed() = runTest {
+        // Slow to answer SELECT, so the deadline passes while the refresh, in time on its own, is pending.
+        val inTime = EzSignTagInTime(simulatedEzSign(EZ_SIGN_29_DEVICE_INFO), refreshMs = BLOCKING_REFRESH_TIMEOUT_MS - 1)
+        val slowStart = object : Transport by inTime {
+            var first = true
+
+            override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+                if (first) delay(WRITE_DEADLINE_MS + 1_000)
+                first = false
+                return inTime.transceive(command, timeoutMs)
+            }
+        }
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+
+        controller.onTag(ezSignFound(slowStart))
+
+        assertEquals(EZ_SIGN_WRITE_DEADLINE_MS, testScheduler.currentTime)
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertEquals(BLOCKING_REFRESH_UNCONFIRMED_MESSAGE, failed.message)
+        assertEquals(WriteStep.REFRESH, failed.report?.step)
+        assertEquals("No result within $EZ_SIGN_WRITE_DEADLINE_MS ms", failed.report?.reason)
+        assertTrue(inTime.closed)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.currentTime
+    @Test
+    fun theDeadlinePassingBeforeTheRefreshTimesOut() = runTest {
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+        val stuck = object : Transport {
+            override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray = awaitCancellation()
+
+            override fun close() {}
+        }
+
+        controller.onTag(ezSignFound(stuck))
+
+        assertEquals(WRITE_TIMED_OUT_MESSAGE, assertIs<WriteState.Failed>(controller.state.value).message)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.currentTime
@@ -585,7 +644,86 @@ class EzSignWriteControllerTest {
         job.join()
 
         assertTrue(job.isCancelled)
-        assertIs<WriteState.Failed>(controller.state.value)
+        // Cancelled during the refresh, the panel may still be updating.
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertEquals(BLOCKING_REFRESH_UNCONFIRMED_MESSAGE, failed.message)
+        assertEquals(WriteStep.REFRESH, failed.report?.step)
         assertTrue(closed)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.runCurrent
+    @Test
+    fun failingDuringTheRefreshSaysItWasNotConfirmed() = runTest {
+        val tag = EzSignTagInTime(simulatedEzSign(EZ_SIGN_29_DEVICE_INFO), refreshMs = 20_000)
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+
+        val write = launch { controller.onTag(ezSignFound(tag)) }
+        testScheduler.runCurrent()
+        assertEquals(WriteState.Writing(IMAGE_SENT_PROGRESS), controller.state.value)
+        controller.fail("The NFC session ended before the write finished.", "Session timeout", tag = null)
+        write.join()
+
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertEquals(BLOCKING_REFRESH_UNCONFIRMED_MESSAGE, failed.message)
+        assertEquals(WriteStep.REFRESH, failed.report?.step)
+        assertEquals("Session timeout", failed.report?.reason)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.runCurrent
+    @Test
+    fun failingWhileSendingTheImageShowsTheGivenMessage() = runTest {
+        val simulated = simulatedEzSign(EZ_SIGN_29_DEVICE_INFO)
+        val slowImage = object : Transport by simulated {
+            override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
+                // Each image fragment (F0 D3) takes a second.
+                if (command[0] == 0xF0.toByte() && command[1] == 0xD3.toByte()) delay(1_000)
+                return simulated.transceive(command, timeoutMs)
+            }
+        }
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+
+        val write = launch { controller.onTag(ezSignFound(slowImage)) }
+        testScheduler.runCurrent()
+        assertIs<WriteState.Writing>(controller.state.value)
+        controller.fail("The NFC session ended before the write finished.", "Session timeout", tag = null)
+        write.join()
+
+        val failed = assertIs<WriteState.Failed>(controller.state.value)
+        assertEquals("The NFC session ended before the write finished.", failed.message)
+        assertNull(failed.report?.step)
+    }
+
+    @Test
+    fun choosingAnotherDisplayDropsTheArmedViewAndWritesTheNewOne() = runTest {
+        val controller = WriteController(DISPLAY)
+        controller.arm(viewOf(DISPLAY))
+
+        controller.choose(LabelDisplay.EZ_SIGN_4IN2)
+
+        assertEquals(WriteState.Idle, controller.state.value)
+        assertEquals(LabelDisplay.EZ_SIGN_4IN2, controller.display)
+        val simulated = simulatedEzSign(EZ_SIGN_42_DEVICE_INFO)
+        val view = viewOf(LabelDisplay.EZ_SIGN_4IN2)
+        controller.arm(view)
+        controller.onTag(ezSignFound(EzSignTagInTime(simulated)))
+        assertIs<WriteState.Done>(controller.state.value)
+        assertContentEquals(ezSignLabelPixels(LabelDisplay.EZ_SIGN_4IN2, view), simulated.shownPixels())
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // testScheduler.runCurrent
+    @Test
+    fun choosingIsIgnoredDuringAWrite() = runTest {
+        val controller = WriteController(LabelDisplay.EZ_SIGN_2IN9)
+        controller.arm(viewOf(LabelDisplay.EZ_SIGN_2IN9))
+        val write = launch { controller.onTag(ezSignFound(EzSignTagInTime(simulatedEzSign(EZ_SIGN_29_DEVICE_INFO), refreshMs = 1_000))) }
+        testScheduler.runCurrent()
+
+        controller.choose(LabelDisplay.EZ_SIGN_4IN2)
+        write.join()
+
+        assertEquals(LabelDisplay.EZ_SIGN_2IN9, controller.display)
+        assertIs<WriteState.Done>(controller.state.value)
     }
 }

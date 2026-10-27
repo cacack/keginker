@@ -28,10 +28,27 @@ fun writeProgressMessage(percent: Int, phone: String): String =
 const val DONE_MESSAGE = "Done. The tag keeps this image without power."
 
 /** Shown when a tag isn't one KegInker can write. */
-const val UNSUPPORTED_TAG_MESSAGE = "This tag isn't supported. KegInker writes Waveshare NFC e-paper tags."
+const val UNSUPPORTED_TAG_MESSAGE = "This tag isn't supported. KegInker writes Waveshare and EZ Sign NFC e-paper displays."
 
 /** Shown when the display held to the phone is [found], not the display the user chose. */
 fun chooseDisplayMessage(found: LabelDisplay): String = "This is the ${found.title} display. Choose ${found.title} and try again."
+
+/**
+ * Shown when a Waveshare tag is held while an EZ Sign display is chosen. The
+ * tag doesn't say its size, so this names every Waveshare display.
+ */
+fun chooseWaveshareMessage(): String =
+    "This is a Waveshare display. Choose " +
+        LabelDisplay.entries.filter { it.wavesharePanel != null }.joinToString(" or ") { it.title } +
+        " and try again."
+
+/**
+ * Shown when an ISO-DEP tag that isn't a Waveshare board is held while the
+ * Waveshare display [chosen] is: it may be an EZ Sign display, which is
+ * identified only once it's chosen, so nothing is sent to it before then.
+ */
+fun notWaveshareMessage(chosen: LabelDisplay): String =
+    "This isn't a ${chosen.title} display. If it's an EZ Sign display, choose it and try again."
 
 /** Shown when an EZ Sign display's device information gives a size no [LabelDisplay] has. */
 const val EZ_SIGN_SIZE_UNSUPPORTED_MESSAGE =

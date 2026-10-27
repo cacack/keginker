@@ -8,6 +8,8 @@ KegInker is in early development.
 |---|---|---|
 | Waveshare | 2.7" NFC e-Paper, Rev2.2 board (black/white) | Works on iPhone; Android untested |
 | Waveshare | 2.7" NFC e-Paper, earlier boards (black/white) | Implemented, not yet tested on hardware |
+| EZ Sign | 2.9" NFC e-paper, 4-colour (labels in black/white) | Test patterns work on iPhone; labels implemented, not yet tested on hardware |
+| EZ Sign | 4.2" NFC e-paper, 4-colour (labels in black/white) | Test patterns work on iPhone; labels implemented, not yet tested on hardware |
 
 The board revision is printed on the back of the driver board.
 
@@ -17,8 +19,11 @@ families involved.
 
 ## Writing a tag
 
-1. Open KegInker. The preview shows exactly what the tag will display; it
-   starts with a test pattern whose solid corner marks the top-left.
+1. Open KegInker and choose your display on the write screen. The app
+   remembers it. The preview shows exactly what the tag will display, at
+   that display's size; it starts with a test pattern whose solid corner
+   marks the top-left. If you hold a different display to the phone,
+   nothing is written and KegInker tells you which display to choose.
 2. Optionally tap **Choose image**. Photos are centre-cropped to the panel.
    Images up to 120 megapixels open (on Android, files up to 64 MB).
    Turn **Dither** off for text and logos; the slider that appears sets which

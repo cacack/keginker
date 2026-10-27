@@ -30,8 +30,9 @@ sealed interface FoundTag {
 
     /**
      * A tag no supported protocol recognises; [info] always has at least its
-     * UID. Only the display probe calls [openTransport] (null for a [kind] it
-     * can't talk to), and it owns and closes what that returns.
+     * UID. [openTransport] is null for a [kind] nothing can talk to.
+     * Whoever calls it owns and closes what it returns: the display probe,
+     * test writes, and EZ Sign label writes.
      */
     class Unsupported(
         override val info: TagInfo,
@@ -80,8 +81,8 @@ internal const val EZ_SIGN_PROTOCOL_NAME = "EZ Sign (ISO-DEP)"
 /**
  * Classifies an NFC-A tag that isn't ISO-DEP by its UID, without sending it
  * any command; the result carries [info] for reports. [openTransport] is
- * called here only for a supported tag; an unsupported one keeps it for the
- * display probe.
+ * called here only for a supported tag; an unsupported one keeps it for
+ * whoever reads or writes it next.
  */
 fun classifyNfcATag(info: TagInfo, openTransport: () -> Transport): FoundTag =
     if (isWaveshareTag(info.uid)) {
@@ -94,7 +95,8 @@ fun classifyNfcATag(info: TagInfo, openTransport: () -> Transport): FoundTag =
  * Classifies an ISO-DEP tag by its ATS historical bytes (none counts as
  * empty), without sending it any command; the result carries [info] for
  * reports. [openTransport] is called here only for a supported tag; an
- * unsupported one keeps it for the display probe.
+ * unsupported one keeps it for whoever reads or writes it next, as an EZ
+ * Sign display needs.
  */
 fun classifyIsoDepTag(info: TagInfo, openTransport: () -> Transport): FoundTag =
     if (isWaveshareIsoDepTag(info.historicalBytes ?: ByteArray(0))) {
@@ -106,7 +108,7 @@ fun classifyIsoDepTag(info: TagInfo, openTransport: () -> Transport): FoundTag =
 /**
  * Classifies an NFC-V (ISO 15693) tag, without sending it any command; the
  * result carries [info] for reports. No supported protocol uses NFC-V, so
- * [openTransport] is never called here; the result keeps it for the display probe.
+ * [openTransport] is never called here; the result keeps it for whoever reads it next.
  */
 fun classifyNfcVTag(info: TagInfo, openTransport: () -> Transport): FoundTag =
     FoundTag.Unsupported(info, TagKind.NFC_V, openTransport)

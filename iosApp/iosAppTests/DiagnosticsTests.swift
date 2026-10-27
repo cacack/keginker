@@ -39,10 +39,12 @@ final class DiagnosticsTests: XCTestCase {
     }
 
     func testASuccessfulWriteLeavesAReportNamingTheTestPattern() async throws {
+        // The simulated tag is Waveshare, whichever display an earlier run chose.
+        UserDefaults.standard.removeObject(forKey: TagWriter.displayKey)
         let writer = TagWriter()
-        let view = WaveshareFrameKt.renderView(
-            panel: writer.panel,
-            image: TestPatternKt.testPattern(width: writer.panel.viewWidth, height: writer.panel.viewHeight),
+        let view = LabelDisplayKt.renderView(
+            display: writer.display,
+            image: TestPatternKt.testPattern(width: writer.display.viewWidth, height: writer.display.viewHeight),
             dither: DitherFloydSteinberg.shared
         )
 
@@ -74,7 +76,7 @@ final class DiagnosticsTests: XCTestCase {
 
     private func format(_ info: TagInfo) -> String {
         let report = WriteReport(
-            tag: info, protocol: "unsupported", panel: "EPD_2IN7", message: "x",
+            tag: info, protocol: "unsupported", panel: "WAVESHARE_2IN7", message: "x",
             outcome: .notAttempted, testPattern: false, step: nil, reason: nil, cause: nil, exchanges: []
         )
         return DiagnosticReportKt.formatDiagnosticReport(app: Diagnostics.appInfo, device: Diagnostics.deviceInfo(), report: report)

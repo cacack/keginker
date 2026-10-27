@@ -1,6 +1,8 @@
 package io.github.cacack.keginker
 
+import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.image.GrayImage
+import io.github.cacack.keginker.image.testPattern
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
 import io.github.cacack.keginker.nfc.TagInfo
@@ -21,7 +23,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
-private val PANEL = WavesharePanel.EPD_2IN7
 
 /** Random action sequences the model-based test runs, seeded 0, 1, 2 … */
 private const val SEQUENCES = 1_000
@@ -60,16 +61,16 @@ private class ScriptedTag(
 
 private val imageWriter = ImageWriter(pause = {})
 
-private fun session() = WriteSession(PANEL, imageWriter)
+private fun session() = WriteSession(LabelDisplay.WAVESHARE_2IN7, imageWriter)
 
 /** The commands a tag of [isoDep]'s kind receives when [view] is written to it. */
 private suspend fun commandsFor(view: BooleanArray, isoDep: Boolean): List<List<Byte>> {
     val tag = ScriptedTag(isoDep, instant = true)
-    imageWriter.write(tag.found() as FoundTag.Writable, LabelDisplay.WAVESHARE_2IN7, view) {}
+    imageWriter.write(tag.found() as FoundTag.Writable, WavesharePanel.EPD_2IN7, view) {}
     return tag.sent
 }
 
-/** A small random image; the session scales it to the panel. */
+/** A small random image; the session scales it to the display. */
 private fun Random.nextImage() = GrayImage(8, 6, nextBytes(8 * 6))
 
 /** How often the random sequences reached the situations worth checking. */
@@ -91,7 +92,7 @@ class WriteSessionTest {
         runCurrent()
         assertIs<WriteState.Writing>(session.controller.state.value)
 
-        session.imageLoaded(GrayImage(1, 1, byteArrayOf(0)))
+        session.imageLoaded(FittedImage(GrayImage(1, 1, byteArrayOf(0))))
 
         assertContentEquals(written, session.view.value)
         advanceUntilIdle()
@@ -109,7 +110,7 @@ class WriteSessionTest {
         runCurrent()
         assertIs<WriteState.Writing>(session.controller.state.value)
 
-        session.imageLoaded(GrayImage(1, 1, byteArrayOf(0)))
+        session.imageLoaded(FittedImage(GrayImage(1, 1, byteArrayOf(0))))
         advanceUntilIdle()
 
         assertTrue(session.view.value.none { it })
@@ -123,7 +124,7 @@ class WriteSessionTest {
         session.onTag(ScriptedTag(isoDep = false, instant = true).found())
         assertTrue(assertIs<WriteState.Done>(session.controller.state.value).report.testPattern)
 
-        session.imageLoaded(GrayImage(1, 1, byteArrayOf(0)))
+        session.imageLoaded(FittedImage(GrayImage(1, 1, byteArrayOf(0))))
         session.write()
         session.onTag(ScriptedTag(isoDep = false, instant = true).found())
         assertEquals(false, assertIs<WriteState.Done>(session.controller.state.value).report.testPattern)
@@ -143,6 +144,49 @@ class WriteSessionTest {
         assertContentEquals(written, session.view.value)
         advanceUntilIdle()
         assertIs<WriteState.Done>(session.controller.state.value)
+    }
+
+    @Test
+    fun choosingADisplayReRendersAtItsSizeAndIsIgnoredDuringAWrite() = runTest {
+        val session = session()
+        session.imageLoaded(FittedImage(GrayImage(2, 1, byteArrayOf(0, -1))))
+        session.toggleDither()
+        session.write()
+
+        session.choose(LabelDisplay.EZ_SIGN_2IN9)
+
+        assertEquals(LabelDisplay.EZ_SIGN_2IN9, session.display.value)
+        assertEquals(LabelDisplay.EZ_SIGN_2IN9, session.controller.display)
+        assertEquals(128 * 296, session.view.value.size)
+        // The same image, cropped to the new shape, and the dither choice kept.
+        val expected = renderView(LabelDisplay.EZ_SIGN_2IN9, GrayImage(2, 1, byteArrayOf(0, -1)), session.dither.value)
+        assertContentEquals(expected, session.view.value)
+        assertIs<Dither.Threshold>(session.dither.value)
+        // The armed Waveshare view was dropped.
+        assertEquals(WriteState.Idle, session.controller.state.value)
+
+        session.choose(LabelDisplay.WAVESHARE_2IN7)
+        val written = session.view.value
+        session.write()
+        launch { session.onTag(ScriptedTag(isoDep = false).found()) }
+        runCurrent()
+        assertIs<WriteState.Writing>(session.controller.state.value)
+
+        session.choose(LabelDisplay.EZ_SIGN_4IN2)
+
+        assertEquals(LabelDisplay.WAVESHARE_2IN7, session.display.value)
+        assertContentEquals(written, session.view.value)
+        advanceUntilIdle()
+        assertIs<WriteState.Done>(session.controller.state.value)
+    }
+
+    @Test
+    fun theTestPatternIsRegeneratedAtTheNewSize() = runTest {
+        val session = session()
+
+        session.choose(LabelDisplay.EZ_SIGN_4IN2)
+
+        assertContentEquals(renderView(LabelDisplay.EZ_SIGN_4IN2, testPattern(300, 400)), session.view.value)
     }
 
     /**
@@ -180,9 +224,16 @@ class WriteSessionTest {
         repeat(STEPS_PER_SEQUENCE) {
             when (random.nextInt(8)) {
                 0 -> {
-                    steps += "toggle dither"
                     if (state.value == WriteState.Waiting) coverage.changesDuringWait++
-                    session.toggleDither()
+                    if (random.nextInt(4) == 0) {
+                        // Waveshare tags fail on an EZ Sign display, so mostly come back to Waveshare.
+                        val display = if (random.nextBoolean()) LabelDisplay.WAVESHARE_2IN7 else LabelDisplay.entries.random(random)
+                        steps += "choose ${display.name}"
+                        session.choose(display)
+                    } else {
+                        steps += "toggle dither"
+                        session.toggleDither()
+                    }
                 }
                 1 -> {
                     val level = random.nextInt(-10, 266)
@@ -196,7 +247,7 @@ class WriteSessionTest {
                         WriteState.Waiting -> coverage.changesDuringWait++
                         else -> {}
                     }
-                    session.imageLoaded(random.nextImage())
+                    session.imageLoaded(FittedImage(random.nextImage()))
                 }
                 3 -> {
                     // Also the Retry button after a failure.

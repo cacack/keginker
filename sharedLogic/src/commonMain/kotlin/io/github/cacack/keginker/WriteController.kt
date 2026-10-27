@@ -14,14 +14,18 @@ import io.github.cacack.keginker.nfc.ImageWriter
 import io.github.cacack.keginker.nfc.TagKind
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.nfc.protocolName
+import io.github.cacack.keginker.waveshare.BLOCKING_REFRESH_UNCONFIRMED_MESSAGE
 import io.github.cacack.keginker.waveshare.DONE_MESSAGE
 import io.github.cacack.keginker.waveshare.EZ_SIGN_SIZE_UNSUPPORTED_MESSAGE
+import io.github.cacack.keginker.waveshare.IMAGE_SENT_PROGRESS
 import io.github.cacack.keginker.waveshare.UNSUPPORTED_TAG_MESSAGE
 import io.github.cacack.keginker.waveshare.WRITE_DEADLINE_MS
 import io.github.cacack.keginker.waveshare.WRITE_TIMED_OUT_MESSAGE
 import io.github.cacack.keginker.waveshare.WriteResult
 import io.github.cacack.keginker.waveshare.WriteStep
 import io.github.cacack.keginker.waveshare.chooseDisplayMessage
+import io.github.cacack.keginker.waveshare.chooseWaveshareMessage
+import io.github.cacack.keginker.waveshare.notWaveshareMessage
 import io.github.cacack.keginker.waveshare.userMessage
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,25 +61,36 @@ private const val CONNECT_FAILED_MESSAGE = "Couldn't connect to the tag. Hold it
  *
  * A write still running after its deadline is stopped and fails:
  * [WRITE_DEADLINE_MS], or [EZ_SIGN_WRITE_DEADLINE_MS] to leave room for EZ
- * Sign's blocking refresh. Both apps use it: Android's write screen, and
- * iOS's `TagWriter` around its Core NFC session.
+ * Sign's blocking refresh. A write stopped, failed or cancelled while that
+ * refresh is pending fails with [BLOCKING_REFRESH_UNCONFIRMED_MESSAGE] at
+ * [WriteStep.REFRESH]: the panel may still be updating.
+ *
+ * Both apps use it: Android's write screen, and iOS's `TagWriter` around
+ * its Core NFC session.
  */
 class WriteController(
-    private val display: LabelDisplay,
+    display: LabelDisplay,
     private val imageWriter: ImageWriter = ImageWriter(),
 ) {
     private val mutableState = MutableStateFlow<WriteState>(WriteState.Idle)
     val state: StateFlow<WriteState> = mutableState
 
-    private val deadlineMs = if (display.isEzSign) EZ_SIGN_WRITE_DEADLINE_MS else WRITE_DEADLINE_MS
+    /** The display the next write is for; change it with [choose]. */
+    var display: LabelDisplay = display
+        private set
+
+    private val deadlineMs get() = if (display.isEzSign) EZ_SIGN_WRITE_DEADLINE_MS else WRITE_DEADLINE_MS
 
     private var view: BooleanArray? = null
     private var testPattern = false
 
     /** A write in progress: its tag and exchanges, and the protocol its report names. */
     private class RunningWrite(val tag: FoundTag, val log: ExchangeLog) {
-        /** The tag's classification, until an EZ Sign tag's device information decodes. */
+        /** The tag's classification, until an EZ Sign tag's device information decodes; report text only. */
         var protocol: String = tag.protocolName
+
+        /** Whether the whole image is on an EZ Sign display and its blocking refresh hasn't answered yet. */
+        var refreshPending = false
     }
 
     /** The running write, for [fail]'s report. */
@@ -102,15 +117,29 @@ class WriteController(
     }
 
     /**
+     * Makes [display] the one written to, returning to [WriteState.Idle] and
+     * dropping the armed view: [arm] again with a view for [display].
+     * Ignored while a write is running.
+     */
+    fun choose(display: LabelDisplay) {
+        if (mutableState.value is WriteState.Writing) return
+        this.display = display
+        view = null
+        mutableState.value = WriteState.Idle
+    }
+
+    /**
      * Fails the waiting or running write with [message], for a step outside
      * the controller that ended it: on iOS, connecting to the tag or the NFC
      * session ending. A running write's report holds its exchanges so far,
      * and its own result is dropped when it ends; a waiting write reports on
      * [tag], if there is one. [reason] goes in the report. Ignored otherwise.
+     * A write whose blocking refresh is pending says so instead of [message];
+     * see [interrupted].
      */
     fun fail(message: String, reason: String?, tag: FoundTag?) {
         mutableState.value = when (mutableState.value) {
-            is WriteState.Writing -> failed(running ?: return, message, reason = reason)
+            is WriteState.Writing -> interrupted(running ?: return, message, reason = reason)
             WriteState.Waiting -> WriteState.Failed(message, tag?.let { report(it, message, Outcome.FAILED, log = null, reason = reason) })
             else -> return
         }
@@ -129,23 +158,27 @@ class WriteController(
         }
         when (tag) {
             is FoundTag.Unsupported -> {
-                val open = tag.openTransport?.takeIf { display.isEzSign && tag.kind == TagKind.ISO_DEP }
-                if (open == null) {
-                    notAttempted(tag, UNSUPPORTED_TAG_MESSAGE)
-                } else {
-                    write(tag, open) { transport, write, onProgress -> writeEzSign(transport, write, view, onProgress) }
+                val isoDep = tag.kind == TagKind.ISO_DEP
+                val open = tag.openTransport?.takeIf { display.isEzSign && isoDep }
+                when {
+                    open != null ->
+                        write(tag, open) { transport, write, onProgress -> writeEzSign(transport, write, view, onProgress) }
+                    // Possibly an EZ Sign display, which is identified only once it's chosen.
+                    isoDep && !display.isEzSign -> notAttempted(tag, notWaveshareMessage(display))
+                    else -> notAttempted(tag, UNSUPPORTED_TAG_MESSAGE)
                 }
             }
-            is FoundTag.Writable ->
-                if (display.wavesharePanel == null) {
+            is FoundTag.Writable -> {
+                val panel = display.wavesharePanel
+                if (panel == null) {
                     tag.transport.close()
-                    // There's one Waveshare display to choose; with more, the tag couldn't say which it is.
-                    notAttempted(tag, chooseDisplayMessage(LabelDisplay.entries.single { it.wavesharePanel != null }))
+                    notAttempted(tag, chooseWaveshareMessage())
                 } else {
                     write(tag, { tag.transport }) { _, write, onProgress ->
-                        ended(write, imageWriter.write(tag, display, view, write.log, onProgress))
+                        ended(write, imageWriter.write(tag, panel, view, write.log, onProgress))
                     }
                 }
+            }
         }
     }
 
@@ -172,13 +205,13 @@ class WriteController(
         val ended = try {
             withTimeoutOrNull(deadlineMs) {
                 attempt(transport, write) { showUnlessFailed(WriteState.Writing(it)) }
-            } ?: failed(
+            } ?: interrupted(
                 write, WRITE_TIMED_OUT_MESSAGE, write.log.entries.lastOrNull()?.step,
                 "No result within $deadlineMs ms",
             )
         } catch (e: CancellationException) {
             showUnlessFailed(
-                failed(write, "The write was interrupted. Hold the tag to the phone and try again.", cause = e),
+                interrupted(write, "The write was interrupted. Hold the tag to the phone and try again.", cause = e),
             )
             throw e
         } catch (e: Exception) {
@@ -214,7 +247,12 @@ class WriteController(
                 "${display.name} is ${display.nativeWidth} × ${display.nativeHeight}"
             return failed(write, message, WriteStep.INIT, reason)
         }
-        return ended(write, EzSignLabelWriter(transport, info).write(display, view, write.log, onProgress))
+        val result = EzSignLabelWriter(transport, info).write(display, view, write.log) { percent ->
+            // From the whole image sent until the refresh answers, the panel may be updating.
+            write.refreshPending = percent in IMAGE_SENT_PROGRESS until 100
+            onProgress(percent)
+        }
+        return ended(write, result)
     }
 
     /** Shows [state] for the running write, unless [fail] has already ended it. */
@@ -226,6 +264,25 @@ class WriteController(
     private fun ended(write: RunningWrite, result: WriteResult): WriteState = when (result) {
         WriteResult.Success -> WriteState.Done(report(write.tag, DONE_MESSAGE, Outcome.SUCCEEDED, write.log, protocol = write.protocol))
         is WriteResult.Failure -> failed(write, result.userMessage, result.step, result.reason, result.cause)
+    }
+
+    /**
+     * A [WriteState.Failed] for [write], stopped from outside its writer: by
+     * [fail], the deadline, or cancellation. While its blocking refresh is
+     * pending the panel may still be updating, so it fails with
+     * [BLOCKING_REFRESH_UNCONFIRMED_MESSAGE] at [WriteStep.REFRESH];
+     * otherwise as [failed] does.
+     */
+    private fun interrupted(
+        write: RunningWrite,
+        message: String,
+        step: WriteStep? = null,
+        reason: String? = null,
+        cause: Throwable? = null,
+    ) = if (write.refreshPending) {
+        failed(write, BLOCKING_REFRESH_UNCONFIRMED_MESSAGE, WriteStep.REFRESH, reason, cause)
+    } else {
+        failed(write, message, step, reason, cause)
     }
 
     /** A [WriteState.Failed] for [write] showing [message], with a report of what happened. */

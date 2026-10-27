@@ -10,6 +10,11 @@ final class TagWriterTests: XCTestCase {
     private var shown: [TagWriter.State] = []
     private var watching: AnyCancellable?
 
+    // The simulated tags are Waveshare, whichever display an earlier run chose.
+    override func setUp() { UserDefaults.standard.removeObject(forKey: TagWriter.displayKey) }
+
+    override func tearDown() { UserDefaults.standard.removeObject(forKey: TagWriter.displayKey) }
+
     private func writer() -> TagWriter {
         let writer = TagWriter()
         watching = writer.$state.sink { [weak self] in self?.shown.append($0) }
@@ -17,7 +22,28 @@ final class TagWriterTests: XCTestCase {
     }
 
     private func view(_ writer: TagWriter) -> KotlinBooleanArray {
-        KotlinBooleanArray(size: writer.panel.viewWidth * writer.panel.viewHeight)
+        KotlinBooleanArray(size: writer.display.viewWidth * writer.display.viewHeight)
+    }
+
+    func testTheChosenDisplayIsRememberedAndWritesNeedItsSize() {
+        let writer = writer()
+        XCTAssertEqual(writer.display, .waveshare2in7)
+
+        writer.choose(.ezSign2in9)
+
+        XCTAssertEqual(TagWriter().display, .ezSign2in9)
+        XCTAssertEqual(view(writer).size, 128 * 296)
+    }
+
+    func testAWaveshareTagWhileAnEzSignDisplayIsChosenNamesTheWaveshareDisplays() async throws {
+        let writer = writer()
+        writer.choose(.ezSign4in2)
+
+        writer.simulate(view: view(writer), testPattern: true, transport: SimulatedWaveshareTransport(commandDelayMs: 0))
+        try await waitUntilDone(writer)
+
+        guard case let .failed(message, _) = writer.state else { return XCTFail("Not failed: \(writer.state)") }
+        XCTAssertEqual(message, WriteMessagesKt.chooseWaveshareMessage())
     }
 
     /// Waits for the write to end, as the screen does before enabling its buttons.

@@ -15,14 +15,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenu
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,8 +61,8 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.Flow
 
 /**
- * The write screen: choose an image, preview it as the panel will show it,
- * then write it to a tag.
+ * The write screen: choose a display and an image, preview it as the
+ * display will show it, then write it to a tag. The display is remembered.
  *
  * [nfcProblem] explains why tags can't be read (no NFC, NFC off), if so.
  * [appInfo] and [deviceInfo] go into the diagnostics report offered after a
@@ -74,13 +82,17 @@ fun App(
     saveReport: ((title: String, report: String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val model: WriteViewModel = viewModel { WriteViewModel() }
+    val displaySetting = remember { DisplaySetting(context) }
+    val model: WriteViewModel = viewModel { WriteViewModel(displaySetting.display) }
     val state by model.controller.state.collectAsState()
     val dither by model.dither.collectAsState()
     val view by model.view.collectAsState()
     val loadError by model.loadError.collectAsState()
-    val panel = model.panel
-    val preview = remember(view) { view.toPreviewBitmap(panel.viewWidth).asImageBitmap() }
+    val display by model.display.collectAsState()
+    // Saved from the model, which ignores a choice made while a write runs.
+    LaunchedEffect(display) { displaySetting.display = display }
+    // The session sets the display before rendering its view, so a new view's display is current.
+    val preview = remember(view) { view.toPreviewBitmap(model.display.value.viewWidth).asImageBitmap() }
     val busy = state is WriteState.Writing
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     val probeState by model.probe.state.collectAsState()
@@ -168,12 +180,14 @@ fun App(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(enabled = !busy, onClick = { showAdvanced = true }) { Text("Advanced") }
                 }
-                Text("Waveshare 2.7\" e-paper", style = MaterialTheme.typography.titleMedium)
+                DisplayPicker(display = display, enabled = !busy, onChoose = model::choose)
                 Image(
                     bitmap = preview,
                     contentDescription = "Preview of the tag",
                     filterQuality = FilterQuality.None,
-                    modifier = Modifier.width(220.dp).aspectRatio(panel.viewWidth / panel.viewHeight.toFloat())
+                    // Fits the tallest label (EZ Sign 2.9") without cropping; Waveshare 2.7" fills it at 220 × 330.
+                    modifier = Modifier.sizeIn(maxWidth = 220.dp, maxHeight = 330.dp)
+                        .aspectRatio(preview.width / preview.height.toFloat())
                         .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline)),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -202,6 +216,40 @@ fun App(
                     onSimulateTag = onSimulateTag,
                     onSimulateFailure = onSimulateFailure,
                     onShareDetails = { showReport = true }.takeIf { offeredReport != null },
+                )
+            }
+        }
+    }
+}
+
+/** Which display labels are written to; the preview is rendered for it. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DisplayPicker(display: LabelDisplay, enabled: Boolean, onChoose: (LabelDisplay) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded && enabled,
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.width(260.dp),
+    ) {
+        OutlinedTextField(
+            value = display.title,
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            singleLine = true,
+            label = { Text("Display") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && enabled) },
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
+            LabelDisplay.entries.forEach { choice ->
+                DropdownMenuItem(
+                    text = { Text(choice.title) },
+                    onClick = {
+                        onChoose(choice)
+                        expanded = false
+                    },
                 )
             }
         }

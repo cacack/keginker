@@ -27,13 +27,22 @@ private const val M3_MAX_SHORT_LENGTH = 31
  * Greedy, in the manner of LZO1X-1: at each byte it looks up the next 4 in
  * a hash table of where 4-byte sequences last appeared, takes the match if
  * there is one and extends it as far as it goes, and otherwise moves on a
- * byte. Matches are coded as M2 (3–8 bytes up to 2 KiB back) or M3 (any
- * length up to 16 KiB back); [block] is at most [BLOCK_BYTES], so M4 is never
- * needed. Data with nothing to match codes as [lzoLiteralStream] does.
+ * byte. Matches are coded as M2 (4–8 bytes, as [MIN_MATCH] starts them, up
+ * to 2 KiB back) or M3 (any length up to 16 KiB back); [block] is at most
+ * [BLOCK_BYTES], so M4 is never needed. Data with nothing to match codes as
+ * [lzoLiteralStream] does.
+ *
+ * Its output has been checked only against the test decoder,
+ * `lzo1xDecompress` in SimulatedEzSignTag.kt, written from the same format
+ * description; no real display has accepted it yet. [lzoLiteralStream],
+ * which test writes have sent to real displays, is the fallback if one
+ * doesn't.
  */
 internal fun lzo1xCompress(block: ByteArray): ByteArray {
     val out = mutableListOf<Byte>()
-    // Where the last match's trailing-literal count goes: its second-to-last byte.
+    // Where the last match's trailing-literal count goes: the low 2 bits of its
+    // second-to-last byte. Valid only right after a match: 1–3 literals that
+    // follow it fold into that operand instead of taking an instruction.
     var countAt = -1
 
     fun lengthBytes(excess: Int) {
@@ -43,6 +52,9 @@ internal fun lzo1xCompress(block: ByteArray): ByteArray {
         out += (excess - zeros * 255).toByte()
     }
 
+    // Codes block[from until until] as one literal run. Two runs are never
+    // adjacent: a run opens the stream, follows a match, or both. So a run of
+    // 1–3 that doesn't open the stream follows a match and can use countAt.
     fun literals(from: Int, until: Int) {
         val n = until - from
         when {
@@ -58,6 +70,8 @@ internal fun lzo1xCompress(block: ByteArray): ByteArray {
         for (i in from until until) out += block[i]
     }
 
+    // Codes a match of [length] (at least MIN_MATCH) from [distance] (1 to
+    // BLOCK_BYTES) back, then points countAt at its operand for the next run.
     fun match(distance: Int, length: Int) {
         val d = distance - 1
         if (length <= M2_MAX_LENGTH && distance <= M2_MAX_DISTANCE) {

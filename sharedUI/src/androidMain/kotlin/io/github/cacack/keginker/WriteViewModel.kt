@@ -6,12 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.image.GrayImage
-import io.github.cacack.keginker.image.fill
 import io.github.cacack.keginker.nfc.FoundTag
-import io.github.cacack.keginker.waveshare.WavesharePanel
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -20,12 +19,14 @@ import kotlinx.coroutines.withContext
 /**
  * Holds the [WriteSession], the [probe] and its [testWrites], and runs
  * writes and reads in [viewModelScope], so none is cut short if the
- * activity is recreated.
+ * activity is recreated. Writes start out to [display].
  */
-class WriteViewModel : ViewModel() {
-    private val session = WriteSession(WavesharePanel.EPD_2IN7)
-    val panel = session.panel
+class WriteViewModel(display: LabelDisplay = LabelDisplay.WAVESHARE_2IN7) : ViewModel() {
+    private val session = WriteSession(display)
     val controller = session.controller
+
+    /** The display the preview is rendered for and the next write goes to. */
+    val display: StateFlow<LabelDisplay> = session.display
 
     /** "Report a display"; while it waits, found tags are read instead of written. Arm it with [reportDisplay]. */
     val probe = ProbeController()
@@ -92,6 +93,9 @@ class WriteViewModel : ViewModel() {
 
     fun write() = session.write()
 
+    /** Renders the preview for [display] and writes to it from now on. Ignored while a write is running. */
+    fun choose(display: LabelDisplay) = session.choose(display)
+
     fun toggleDither() = session.toggleDither()
 
     /** Sets where grey becomes black (0–255) when dithering is off. */
@@ -107,10 +111,11 @@ class WriteViewModel : ViewModel() {
     internal fun load(read: suspend () -> GrayImage): Job {
         loading?.cancel()
         return viewModelScope.launch {
+            // Scaled off the main thread; a read that finishes after a later pick cancelled it isn't shown.
             runCatching {
                 val image = read()
-                withContext(Dispatchers.Default) { image.fill(panel.viewWidth, panel.viewHeight) }
-            }.onSuccess { image: GrayImage ->
+                withContext(Dispatchers.Default) { FittedImage(image) }.also { ensureActive() }
+            }.onSuccess { image: FittedImage ->
                 mutableLoadError.value = null
                 session.imageLoaded(image)
             }.onFailure {

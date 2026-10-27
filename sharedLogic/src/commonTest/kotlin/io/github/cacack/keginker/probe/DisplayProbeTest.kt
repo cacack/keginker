@@ -1,5 +1,6 @@
 package io.github.cacack.keginker.probe
 
+import io.github.cacack.keginker.nfc.EZ_SIGN_PROTOCOL_NAME
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.TagKind
@@ -469,7 +470,7 @@ class DisplayProbeTest {
         val info = assertNotNull(result.deviceInfo)
         assertEquals(296 to 128, info.viewWidth to info.viewHeight)
         assertNull(result.deviceInfoNotDecoded)
-        assertEquals(EZ_SIGN_PROTOCOL, result.protocol)
+        assertEquals(EZ_SIGN_PROTOCOL_NAME, result.protocol)
     }
 
     @Test

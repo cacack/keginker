@@ -59,9 +59,16 @@ internal fun cornerPattern(info: EzSignDeviceInfo): TestWritePattern {
         height = height,
         pixels = pixels,
         questions = listOf(
+            // Without it, "top left" can't be turned into native coordinates:
+            // a portrait and a landscape hold put the same corner in different places.
+            TestQuestion(
+                id = "hold",
+                text = "$HOLD_IT Which way is its long edge?",
+                options = listOf("Across: it's wider than it's tall", "Up and down: it's taller than it's wide"),
+            ),
             TestQuestion(
                 id = "square",
-                text = "$HOLD_IT Where is the black square?",
+                text = "Where is the black square?",
                 options = listOf("Top left", "Top right", "Bottom left", "Bottom right", "No square, or something else"),
             ),
             TestQuestion(

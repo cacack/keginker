@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import io.github.cacack.keginker.ezsign.TestQuestion
+import io.github.cacack.keginker.waveshare.writeProgressMessage
 
 /** What test writes do, shown with the offer on the display report and again before the user confirms. */
 const val TEST_WRITES_OFFER = "Writes a few test patterns to the display and asks what you see. This replaces what the display shows."
@@ -75,7 +76,7 @@ fun TestWriteScreen(
             is TestWriteState.Writing -> {
                 Text(state.pattern.title, style = MaterialTheme.typography.titleMedium)
                 LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())
-                Text("Writing ${state.percent}%. Keep the phone still.")
+                Text(writeProgressMessage(state.percent, phone = "phone"))
             }
             is TestWriteState.Asking -> Questions(state, onAnswer)
             is TestWriteState.Failed -> {

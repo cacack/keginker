@@ -19,6 +19,12 @@ class Exchange internal constructor(
     val reply: ByteArray?,
     /** The exception's class name and message, if the exchange failed. */
     val error: String?,
+    /**
+     * Milliseconds from sending the command to its reply or error. A
+     * failure's time tells a tag that stopped answering at once from one
+     * that held the command until a platform limit ended it.
+     */
+    val durationMs: Long = 0,
 )
 
 /**
@@ -50,6 +56,7 @@ class ExchangeLog(timeSource: TimeSource) {
             imageBytes = dropped,
             reply = reply?.copyOf(),
             error = error?.let(::describe),
+            durationMs = (elapsedMs() - atMs).coerceAtLeast(0),
         )
     }
 }

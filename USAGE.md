@@ -72,8 +72,12 @@ says about itself helps add it.
    a screen that explains them; nothing is written until you tap **Start test
    writes**. Each test pattern replaces what the display shows, and the
    display keeps the last one afterwards. For each pattern, hold the display
-   to the phone once, then answer a few questions about what it shows. Your
-   answers and how long each refresh took are added to the report you share.
+   to the phone once and keep it still: a colour display can take half a
+   minute to redraw. If it stops while updating, turn the phone a quarter
+   turn over the display and try again: a larger display needs a good
+   position to draw enough power. Then answer a few questions about what it shows,
+   starting with which way you're holding it. Your answers and how long each
+   refresh took are added to the report you share.
 6. Tap **Open a GitHub issue** to open the **New display report** form in
    your browser with the report filled in. If it's too long to fill in, it's
    copied instead, ready to paste. Add the brand and model printed on the

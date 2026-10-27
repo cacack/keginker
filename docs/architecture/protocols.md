@@ -128,16 +128,17 @@ and fails if it exceeds the budget, or leaves room for another poll. A
 recorded real write would show how close typical commands are to the
 allowance.
 
-EZ Sign [test writes](#test-writes-opt-in) don't use a poll count. They're
-diagnostic, and their job is to measure the refresh within the iOS session,
-so they poll every 500 ms until another poll would take real time since the
-first command past the budget. Real tags answer a command in about 8 ms, far
-under the allowance, so a count would give up seconds before a slow refresh
-finishes. At 8 ms a command, a 400 × 300 4-colour panel gets about 13.7 s of
-refresh window (27 polls) and a 128 × 296 one about 14.2 s. A panel still
-busy then is recorded as a finding, not a failure. `WriteBudgetTest` and
-`EzSignTestWriterTest` check that the wait ends within the budget whatever
-each command costs, and that a fast tag waits out a 12 s refresh.
+EZ Sign [test writes](#test-writes-opt-in) work differently. A 4-colour EZ
+Sign refresh takes more than 20 s, longer than an iOS session (#138), so they
+send the blocking refresh, which the tag doesn't answer until the panel is
+done. That keeps the NFC field up for the whole refresh. The refresh alone
+may take up to 45 s (`BLOCKING_REFRESH_TIMEOUT_MS`, its Android timeout), so
+a test write's deadline is that plus `WRITE_DEADLINE_MS`
+(`TestWriteFamily.deadlineMs`). The tag's reply ends the write; they don't
+poll. On a 2.9" 4-colour panel the reply came after about 24 s, and the
+iPhone session stayed open. `EzSignTestWriterTest` checks that the refresh
+time is how long the tag held its reply, that only the refresh gets the
+longer timeout, and that a refresh past it fails at the refresh step.
 
 Scheduled time assumes each command is quick, but on Android a tag can take
 up to 3 s over every command. So `WriteController` also stops any write
@@ -212,8 +213,29 @@ An EZ Sign test write (`EzSignTestWriter`) sends:
 | SELECT the NDEF application | `00 A4 04 00 07 D2760000850101` | `90 00` |
 | Authenticate | `00 20 00 01 04 20 09 12 10` | `90 00` |
 | Image fragment | `F0 D3 00 <last> <Lc> <block> <fragment> <data>`; `<last>` is `01` on a block's last fragment, else `00` | `90 00` |
-| Refresh | `F0 D4 85 80 00` | `90 00` |
-| Poll, every 500 ms | `F0 DE 00 00 01` | `01 90 00` while busy, `00 90 00` when done |
+| Refresh, blocking | `F0 D4 85 00 00` | `90 00`, only once the panel has refreshed |
+
+P2 `80` asks the tag to answer the refresh at once and leave the caller to
+poll. That works from a USB reader (alt-core) but not from an iPhone: Core
+NFC ends the session about 20 s in, the field drops mid-refresh, and the
+panel is left half drawn. P2 `00` holds the reply until the refresh is done,
+which niw/EPaperNFCSwift found keeps the session open
+([`SendImageOperation.swift`](https://github.com/niw/EPaperNFCSwift/blob/ee0440e270ee7f4637a20e4f6e0ee4b58695b5df/Sources/EPaperNFCSwift/SendImageOperation.swift#L56-L60)).
+It does on an iPhone 15 Pro (iOS 27), where a 2.9" 4-colour refresh held the
+reply for about 24 s and a 4.2" one for about 22 s.
+
+The 4.2" panel draws more power while it refreshes. With the phone in one
+position, its refresh lost contact after 3–13 s, a different time on each
+try, which points to the field rather than a time limit, and left the panel
+faint and half drawn. With the display turned 90° under the phone, both
+refreshes finished. So a contact lost during a refresh tells the user to
+turn the phone, not just to hold it still (`REPOSITION_ADVICE`). One write
+straight after an interrupted refresh was refused at authentication with
+`65 02`; the next one authenticated.
+
+alt-core polls `F0 DE 00 00 01` after the non-blocking refresh (`01 90 00`
+busy, `00 90 00` done). After a blocking refresh that had drawn the panel,
+that poll still answered `01 90 00`, so a test write doesn't poll (#138).
 
 The frame is packed at the panel's bits per pixel in its native layout
 (`packFrame`): a row's first byte holds its last pixels, lowest bits first.
@@ -230,24 +252,26 @@ the panel is turned:
 
 - **Corner and line:** white, with a black square at native (0, 0) a quarter
   of the short side across, and a black line along native rows 0–3 to the
-  middle of the row. Where the square lands shows how native (0, 0) is
-  turned; the line's edge shows which way native rows run.
+  middle of the row. The first question asks which way the user holds the
+  display, long edge across or up and down, so their "top left" can be
+  placed. Where the square lands then shows how native (0, 0) is turned; the
+  line's edge shows which way native rows run.
 - **Colour bands** (4-colour panels only): four equal bands along native
   rows, band k in colour index k, from native row 0. The answers map each
   index to a colour.
 
 A fixed image would fit one panel size and would need a known orientation to
 be read; generated patterns fit any decoded panel and turn the user's answers
-into its orientation and colour order.
+into its orientation and colour order. The orientation found is how the
+panel's memory maps onto the glass, a fixed fact about the hardware; a label
+writer can rotate a label into it whichever way the display is mounted.
 
-Label writers stop polling after a count set before they start
-(`busyPollLimit`, see [Write time budget](#write-time-budget)). A test write
-is diagnostic: its job is to measure the refresh within the iOS session. So
-it polls until another poll and its pause would take real time since its
-first command past `WRITE_BUDGET_MS`. A panel still busy then isn't a
-failure; the report records "Still busy at *n* ms (write budget reached)",
-and the image may still appear. A refused or unexpected reply is a failure
-that names its step, with a retry.
+The refresh time in the report is how long the tag held its reply to the
+blocking refresh. A refresh that outlasts its timeout, or a session that
+ends during it, fails at the refresh step, and the report's exchange line
+shows how long it ran. A refused or unexpected reply is a failure that names
+its step, with a retry.
+See [Write time budget](#write-time-budget).
 
 Sources: alt-core/nfc-eink
 [protocol.py](https://github.com/alt-core/nfc-eink/blob/682519f87aa6e422930d0f7a178eaa2d0d9640da/src/nfc_eink/protocol.py),

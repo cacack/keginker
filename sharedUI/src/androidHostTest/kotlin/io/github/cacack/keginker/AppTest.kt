@@ -234,6 +234,7 @@ class AppTest {
         tags.tryEmit(foundEzSign(display))
         waitForText("Where is the black square?")
         compose.onNodeWithText("Next").assertIsNotEnabled()
+        compose.onNodeWithText("Across: it's wider than it's tall").performScrollTo().performClick()
         compose.onNodeWithText("Top left").performScrollTo().performClick()
         compose.onNodeWithText("Along the top or bottom edge").performScrollTo().performClick()
         compose.onNodeWithText("Next").performScrollTo().assertIsEnabled().performClick()

@@ -416,19 +416,20 @@ class DisplayReportTest {
             written,
             corner.questions.map { TestAnswer(it.id, it.text, it.options.first()) },
         )
-        val busy = TestWriteRecord("Colour bands", TestWriteOutcome(ExchangeLog(), refreshMs = null, busyAtMs = 7012, failure = null), emptyList())
+        val unanswered = TestWriteRecord("Colour bands", TestWriteOutcome(ExchangeLog(), refreshMs = 24_173, failure = null), emptyList())
         val failure = WriteResult.Failure(WriteStep.SEND_DATA, FailureKind.LOST_CONTACT, "Tag was lost")
-        val failed = TestWriteRecord("Colour bands", TestWriteOutcome(ExchangeLog(), null, null, failure), emptyList())
+        val failed = TestWriteRecord("Colour bands", TestWriteOutcome(ExchangeLog(), null, failure), emptyList())
 
-        val text = formatDisplayReport(APP, DEVICE, result, listOf(answered, busy, failed))
+        val text = formatDisplayReport(APP, DEVICE, result, listOf(answered, unanswered, failed))
 
         listOf(
             "\nTest writes (3)\n\n1. Corner and line\n",
-            "  Q: Hold the display the way up you'd read it. Where is the black square?\n  A: Top left\n",
+            "  Q: Hold the display the way up you'd read it. Which way is its long edge?\n  A: Across: it's wider than it's tall\n",
+            "  Q: Where is the black square?\n  A: Top left\n",
             "  Q: Which way does the line from it run?\n  A: Along the top or bottom edge\n",
             "  Refresh: ${written.refreshMs} ms\n",
             "bytes image data",
-            "\n2. Colour bands\n  Not answered\n  Still busy at 7012 ms (write budget reached)\nExchanges: none\n",
+            "\n2. Colour bands\n  Not answered\n  Refresh: 24173 ms\nExchanges: none\n",
             "\n3. Colour bands\n  Failed: SEND_DATA (sending the image): Tag was lost\nExchanges: none\n",
         ).forEach { assertTrue(it in text, "Missing \"$it\" in:\n$text") }
         assertTrue("Exchanges (${written.log.entries.size})" in text, text)
@@ -451,12 +452,12 @@ class DisplayReportTest {
                     log.record(at.toLong(), WriteStep.SEND_DATA, header + chunk, chunk.size, reply.takeIf { error == null }, error)
                 }
                 val failure = if (random.nextBoolean()) {
-                    WriteResult.Failure(WriteStep.WAIT_FOR_REFRESH, FailureKind.UNEXPECTED_REPLY, "Unexpected reply ${UID.toHex()} 90 00")
+                    WriteResult.Failure(WriteStep.REFRESH, FailureKind.UNEXPECTED_REPLY, "Unexpected reply ${UID.toHex()} 90 00")
                 } else {
                     null
                 }
                 val refreshMs = if (failure == null) random.nextLong(0, 15_000) else null
-                TestWriteRecord("Pattern $it", TestWriteOutcome(log, refreshMs, null, failure), emptyList())
+                TestWriteRecord("Pattern $it", TestWriteOutcome(log, refreshMs, failure), emptyList())
             }
 
             val text = formatDisplayReport(APP, DEVICE, result, records)

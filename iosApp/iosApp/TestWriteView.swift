@@ -21,9 +21,6 @@ struct TestWriteReportView: View {
                 TestWriteView(writer: writer)
                     .onDisappear { writer.finish() }
             }
-            .onChange(of: writer.state is TestWriteStateDone) { _, done in
-                if done { showingTestWrites = false }
-            }
     }
 
     private var offer: some View {
@@ -48,10 +45,16 @@ struct TestWriteView: View {
     @ObservedObject var writer: DisplayTestWriter
     /// The chosen option of each question, by question id.
     @State private var choices: [String: String] = [:]
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         Form { content }
             .navigationTitle("Test writes")
+            // Back to the report, which now holds the records. The screen
+            // dismisses itself: the report's own binding didn't pop it while covered.
+            .onChange(of: writer.state is TestWriteStateDone) { _, done in
+                if done { dismiss() }
+            }
     }
 
     @ViewBuilder private var content: some View {
@@ -81,7 +84,8 @@ struct TestWriteView: View {
             }
         case let writing as TestWriteStateWriting:
             Section {
-                Text("Writing \(writing.pattern.title). Keep the iPhone still.")
+                Text(writing.pattern.title)
+                Text(WriteMessagesKt.writeProgressMessage(percent: writing.percent, phone: "iPhone"))
                 ProgressView(value: Double(writing.percent), total: 100)
             }
         case let asking as TestWriteStateAsking:
@@ -112,7 +116,10 @@ struct TestWriteView: View {
                 Button("Finish and see report") { writer.finish() }
             }
         default:
-            EmptyView()
+            // Done: normally dismissed at once; never left blank.
+            Section {
+                Button("See the report") { dismiss() }
+            }
         }
     }
 

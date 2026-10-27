@@ -33,6 +33,11 @@ const val REFRESH_UNCONFIRMED_MESSAGE =
     "The display didn't confirm it finished updating. " +
         "Lift the phone away, then hold it still against the tag and try again."
 
+/** Advice when contact is lost while the panel redraws, which a weak field causes more often than movement. */
+const val REPOSITION_ADVICE =
+    "A display can run short of power while it redraws: " +
+        "turn the phone a quarter turn over the display, then hold it still and try again."
+
 /** Shown when a write runs past [WRITE_DEADLINE_MS]. */
 const val WRITE_TIMED_OUT_MESSAGE =
     "The tag answered too slowly, so the write was stopped. " +
@@ -47,8 +52,13 @@ const val WRITE_TIMED_OUT_MESSAGE =
 val WriteResult.Failure.userMessage: String
     get() = when (kind) {
         FailureKind.LOST_CONTACT ->
+            // A redraw draws the most power, so contact lost then is usually a weak field, not movement (#138).
             "Lost contact with the tag while ${step.activity}. " +
-                "Lift the phone away, then hold it still against the tag and try again."
+                if (step == WriteStep.REFRESH || step == WriteStep.WAIT_FOR_REFRESH) {
+                    REPOSITION_ADVICE
+                } else {
+                    "Lift the phone away, then hold it still against the tag and try again."
+                }
         FailureKind.UNEXPECTED_REPLY ->
             "The tag gave an unexpected reply while ${step.activity}. " +
                 "Lift the phone away and try again; if it keeps happening, this tag may not be supported."

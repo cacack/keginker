@@ -186,7 +186,7 @@ class WriteSessionTest {
 
         session.choose(LabelDisplay.EZ_SIGN_4IN2)
 
-        assertContentEquals(renderView(LabelDisplay.EZ_SIGN_4IN2, testPattern(300, 400)), session.view.value)
+        assertContentEquals(renderView(LabelDisplay.EZ_SIGN_4IN2, testPattern(400, 300)), session.view.value)
     }
 
     /**

@@ -10,6 +10,7 @@ import io.github.cacack.keginker.ezsign.deviceInfoData
 import io.github.cacack.keginker.ezsign.ezSignLabelPixels
 import io.github.cacack.keginker.ezsign.infoFrom
 import io.github.cacack.keginker.ezsign.simulatedEzSign
+import io.github.cacack.keginker.image.WHITE
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
 import io.github.cacack.keginker.nfc.TagInfo
@@ -91,7 +92,7 @@ private class SlowTag : Transport {
     }
 }
 
-private fun testView() = BooleanArray(PANEL.viewWidth * PANEL.viewHeight) { true }
+private fun testView() = ByteArray(PANEL.viewWidth * PANEL.viewHeight) { WHITE }
 
 private fun controller() = WriteController(DISPLAY, ImageWriter(pause = {}))
 
@@ -389,7 +390,9 @@ private val ISO_DEP_INFO = TagInfo(listOf("IsoDep"), byteArrayOf(4, 1, 2, 3, 4, 
 /** [transport] as the phone finds an EZ Sign display: an unsupported ISO-DEP tag it can open. */
 private fun ezSignFound(transport: Transport) = FoundTag.Unsupported(ISO_DEP_INFO, TagKind.ISO_DEP) { transport }
 
-private fun viewOf(display: LabelDisplay) = BooleanArray(display.viewWidth * display.viewHeight) { it % 3 == 0 }
+/** A view cycling through every colour of [display]'s palette. */
+private fun viewOf(display: LabelDisplay) =
+    ByteArray(display.viewWidth * display.viewHeight) { (it % display.palette.colours.size).toByte() }
 
 private fun isRefresh(command: ByteArray) = command[0] == 0xF0.toByte() && command[1] == 0xD4.toByte()
 

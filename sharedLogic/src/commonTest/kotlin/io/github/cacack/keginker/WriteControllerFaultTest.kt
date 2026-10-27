@@ -1,5 +1,6 @@
 package io.github.cacack.keginker
 
+import io.github.cacack.keginker.image.WHITE
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
 import io.github.cacack.keginker.nfc.Transport
@@ -24,7 +25,7 @@ private val DISPLAY = LabelDisplay.WAVESHARE_2IN7
 private fun found(protocol: Protocol, transport: Transport): FoundTag.Writable =
     if (protocol == Protocol.CLASSIC) FoundTag.Waveshare(transport) else FoundTag.WaveshareIsoDep(transport)
 
-private fun testView() = BooleanArray(DISPLAY.viewWidth * DISPLAY.viewHeight) { true }
+private fun testView() = ByteArray(DISPLAY.viewWidth * DISPLAY.viewHeight) { WHITE }
 
 private val imageWriter = ImageWriter(pause = {})
 

@@ -3,6 +3,7 @@ package io.github.cacack.keginker
 import android.content.Context
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
+import io.github.cacack.keginker.image.WHITE
 import java.io.File
 import java.io.IOException
 import kotlin.test.Test
@@ -16,7 +17,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Loads each fixture photo in `fixtures/photos` through [loadGrayImage] and
+ * Loads each fixture photo in `fixtures/photos` through [loadImage] and
  * checks its view against the golden beside it, pixel for pixel. The iOS
  * loader test (`iosAppTests/ImageLoadingTests.swift`) checks the same goldens.
  *
@@ -57,18 +58,18 @@ class ImageLoadingTest {
         }
         // WriteViewModel shows "Couldn't open that image." for any failure;
         // the loader's own failures are IOExceptions.
-        assertFailsWith<IOException> { runBlocking { loadGrayImage(context, Uri.fromFile(notAnImage)) } }
+        assertFailsWith<IOException> { runBlocking { loadImage(context, Uri.fromFile(notAnImage)) } }
     }
 
     @Test
     fun photo48MpStillLoads() {
-        runBlocking { loadGrayImage(context, Uri.fromFile(File(fixtures, "48mp.png"))) }
+        runBlocking { loadImage(context, Uri.fromFile(File(fixtures, "48mp.png"))) }
     }
 
     @Test
     fun imageOverPixelLimitFails() {
         val photo = File(fixtures, "over-pixel-limit.png")
-        assertFailsWith<IOException> { runBlocking { loadGrayImage(context, Uri.fromFile(photo)) } }
+        assertFailsWith<IOException> { runBlocking { loadImage(context, Uri.fromFile(photo)) } }
     }
 
     @Test
@@ -79,11 +80,11 @@ class ImageLoadingTest {
             writeBytes(File(fixtures, "tiny.png").readBytes())
             appendBytes(ByteArray(MAX_FILE_BYTES))
         }
-        assertFailsWith<IOException> { runBlocking { loadGrayImage(context, Uri.fromFile(padded)) } }
+        assertFailsWith<IOException> { runBlocking { loadImage(context, Uri.fromFile(padded)) } }
     }
 
     private fun checkGolden(name: String) {
-        val view = renderView(display, runBlocking { loadGrayImage(context, Uri.fromFile(File(fixtures, name))) })
+        val view = renderView(display, runBlocking { loadImage(context, Uri.fromFile(File(fixtures, name))) }).map { it == WHITE }.toBooleanArray()
         val golden = File(fixtures, name.substringBeforeLast('.') + ".pbm")
         if (!golden.exists()) {
             golden.writeText(toPbm(view, display.viewWidth))

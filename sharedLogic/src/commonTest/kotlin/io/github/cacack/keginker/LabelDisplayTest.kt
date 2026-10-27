@@ -3,7 +3,12 @@ package io.github.cacack.keginker
 import io.github.cacack.keginker.ezsign.ezSignLabelPixels
 import io.github.cacack.keginker.ezsign.infoFrom
 import io.github.cacack.keginker.ezsign.packFrame
+import io.github.cacack.keginker.image.BLACK
+import io.github.cacack.keginker.image.ColourImage
+import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.image.GrayImage
+import io.github.cacack.keginker.image.Palette
+import io.github.cacack.keginker.image.WHITE
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.renderView as renderPanelView
 import kotlin.test.Test
@@ -69,7 +74,7 @@ class LabelDisplayTest {
     @Test
     fun allWhiteViewsPackToAll0x55() {
         for ((display, a0) in listOf(LabelDisplay.EZ_SIGN_2IN9 to A0_29, LabelDisplay.EZ_SIGN_4IN2 to A0_42)) {
-            val white = BooleanArray(display.viewWidth * display.viewHeight) { true }
+            val white = ByteArray(display.viewWidth * display.viewHeight) { WHITE }
 
             val packed = packFrame(ezSignLabelPixels(display, white), infoFrom(a0))
 
@@ -81,29 +86,79 @@ class LabelDisplayTest {
     @Test
     fun labelPixelsNeedAnEzSignDisplayAndItsViewSize() {
         assertFailsWith<IllegalArgumentException> {
-            ezSignLabelPixels(LabelDisplay.WAVESHARE_2IN7, BooleanArray(176 * 264))
+            ezSignLabelPixels(LabelDisplay.WAVESHARE_2IN7, ByteArray(176 * 264))
         }
         assertFailsWith<IllegalArgumentException> {
-            ezSignLabelPixels(LabelDisplay.EZ_SIGN_4IN2, BooleanArray(400 * 300 - 1))
+            ezSignLabelPixels(LabelDisplay.EZ_SIGN_4IN2, ByteArray(400 * 300 - 1))
         }
     }
 
     @Test
     fun renderingForTheWaveshareDisplayMatchesItsPanel() {
         val image = GrayImage(5, 7, ByteArray(35) { (it * 7).toByte() })
+        val white = renderPanelView(WavesharePanel.EPD_2IN7, image)
 
         assertContentEquals(
-            renderPanelView(WavesharePanel.EPD_2IN7, image),
-            renderView(LabelDisplay.WAVESHARE_2IN7, image),
+            ByteArray(white.size) { if (white[it]) WHITE else BLACK },
+            renderView(LabelDisplay.WAVESHARE_2IN7, ColourImage.fromGray(image)),
         )
-        assertEquals(400 * 300, renderView(LabelDisplay.EZ_SIGN_4IN2, image).size)
+        assertEquals(400 * 300, renderView(LabelDisplay.EZ_SIGN_4IN2, ColourImage.fromGray(image)).size)
+    }
+
+    @Test
+    fun palettesFollowTheDisplay() {
+        assertEquals(Palette.BLACK_WHITE, LabelDisplay.WAVESHARE_2IN7.palette)
+        assertEquals(Palette.BLACK_WHITE_YELLOW_RED, LabelDisplay.EZ_SIGN_2IN9.palette)
+        assertEquals(Palette.BLACK_WHITE_YELLOW_RED, LabelDisplay.EZ_SIGN_4IN2.palette)
+    }
+
+    @Test
+    fun colourPhotosKeepTheirColoursOnlyWhereShownAndAsked() {
+        // Left half red, right half yellow.
+        val photo = ColourImage.fromArgb(4, 2, IntArray(8) { if (it % 4 < 2) 0xFFFF0000.toInt() else 0xFFFFFF00.toInt() })
+        val display = LabelDisplay.EZ_SIGN_4IN2
+
+        for (dither in listOf(Dither.FloydSteinberg, Dither.Threshold())) {
+            val colour = renderView(display, photo, dither, colour = true)
+            assertEquals(3.toByte(), colour[0], "$dither: left is red")
+            assertEquals(2.toByte(), colour[display.viewWidth - 1], "$dither: right is yellow")
+
+            val plain = renderView(display, photo, dither, colour = false)
+            assertTrue(plain.all { it == BLACK || it == WHITE }, "$dither: colour off")
+            assertTrue(renderView(LabelDisplay.WAVESHARE_2IN7, photo, dither).all { it == BLACK || it == WHITE })
+        }
+    }
+
+    @Test
+    fun greyImagesRenderTheSameInColourAsInBlackAndWhite() {
+        val image = ColourImage.fromGray(GrayImage(40, 30, ByteArray(1200) { (it * 13).toByte() }))
+
+        for (dither in listOf(Dither.FloydSteinberg, Dither.Threshold(), Dither.Threshold(200))) {
+            assertContentEquals(
+                renderView(LabelDisplay.EZ_SIGN_4IN2, image, dither, colour = false),
+                renderView(LabelDisplay.EZ_SIGN_4IN2, image, dither, colour = true),
+                "$dither",
+            )
+        }
+    }
+
+    @Test
+    fun yellowAndRedPackAsIndices2And3() {
+        for ((index, packed) in listOf(2 to 0xAA, 3 to 0xFF)) {
+            val display = LabelDisplay.EZ_SIGN_4IN2
+            val view = ByteArray(display.viewWidth * display.viewHeight) { index.toByte() }
+
+            val frame = packFrame(ezSignLabelPixels(display, view), infoFrom(A0_42))
+
+            assertTrue(frame.all { it == packed.toByte() }, "index $index")
+        }
     }
 
     /** One black pixel at each view corner in [corners] lands at its native pixel, and only there. */
     private fun assertCornersLand(display: LabelDisplay, corners: Map<Pair<Int, Int>, Pair<Int, Int>>) {
         for ((view, native) in corners) {
-            val white = BooleanArray(display.viewWidth * display.viewHeight) { true }
-            white[view.second * display.viewWidth + view.first] = false
+            val white = ByteArray(display.viewWidth * display.viewHeight) { WHITE }
+            white[view.second * display.viewWidth + view.first] = BLACK
 
             val pixels = ezSignLabelPixels(display, white)
 

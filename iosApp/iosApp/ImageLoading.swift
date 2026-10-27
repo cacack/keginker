@@ -10,13 +10,13 @@ private let maxSide = 1024
 /// a PNG or GIF in full before downsampling it. Android has the same limit.
 private let maxPixels = 120_000_000
 
-/// Decodes image data into greyscale, upright and downsampled while
+/// Decodes image data in colour, upright and downsampled while
 /// decoding; rendering crops and scales it to the chosen display, so it can
 /// be rendered again for another. Like Android, it hands non-premultiplied
-/// ARGB to `GrayImage.fromArgb`, which converts to grey and composites
-/// transparency over white, so a photo makes the same label on both.
+/// ARGB to `ColourImage.fromArgb`, which composites transparency over
+/// white, so a photo makes the same label on both.
 /// Images over `maxPixels` fail.
-func loadGrayImage(_ data: Data) -> GrayImage? {
+func loadImage(_ data: Data) -> ColourImage? {
     let options = [
         kCGImageSourceCreateThumbnailFromImageAlways: true,
         kCGImageSourceCreateThumbnailWithTransform: true,
@@ -47,7 +47,7 @@ func loadGrayImage(_ data: Data) -> GrayImage? {
         argbPixel(r: rgba[i * 4], g: rgba[i * 4 + 1], b: rgba[i * 4 + 2], a: rgba[i * 4 + 3])
     }
     let pixels = argb.withUnsafeBytes { SwiftInteropKt.kotlinInts(data: Data($0)) }
-    return GrayImage.companion.fromArgb(width: Int32(width), height: Int32(height), argb: pixels)
+    return ColourImage.companion.fromArgb(width: Int32(width), height: Int32(height), argb: pixels)
 }
 
 /// A premultiplied RGBA pixel as non-premultiplied `0xAARRGGBB`, rounding
@@ -58,15 +58,23 @@ private func argbPixel(r: UInt8, g: UInt8, b: UInt8, a: UInt8) -> UInt32 {
     return alpha << 24 | unpremultiply(r) << 16 | unpremultiply(g) << 8 | unpremultiply(b)
 }
 
-/// A black/white view image (`true` is white) as a CGImage for previewing.
-func previewImage(_ view: KotlinBooleanArray, width: Int) -> CGImage? {
-    let count = Int(view.size)
-    var pixels = [UInt8](repeating: 0, count: count)
-    for i in 0..<count where view.get(index: Int32(i)) { pixels[i] = 255 }
-    guard let provider = CGDataProvider(data: Data(pixels) as CFData) else { return nil }
+/// A view of [display] (from `renderView`) as a CGImage for previewing, in its palette's colours.
+func previewImage(_ view: KotlinByteArray, display: LabelDisplay) -> CGImage? {
+    let argb = display.palette.argb(view: view)
+    let count = Int(argb.size)
+    let width = Int(display.viewWidth)
+    var pixels = [UInt8](repeating: 0, count: count * 3)
+    for i in 0..<count {
+        let pixel = UInt32(bitPattern: argb.get(index: Int32(i)))
+        pixels[i * 3] = UInt8(pixel >> 16 & 0xFF)
+        pixels[i * 3 + 1] = UInt8(pixel >> 8 & 0xFF)
+        pixels[i * 3 + 2] = UInt8(pixel & 0xFF)
+    }
+    guard let provider = CGDataProvider(data: Data(pixels) as CFData),
+          let srgb = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
     return CGImage(
-        width: width, height: count / width, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: width,
-        space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+        width: width, height: count / width, bitsPerComponent: 8, bitsPerPixel: 24, bytesPerRow: width * 3,
+        space: srgb, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
         provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
     )
 }

@@ -5,7 +5,7 @@ import XCTest
 @testable import KegInker
 
 /// The README screenshots (`docs/images/screenshots/ios.*.png`): the sample
-/// label in `fixtures/screenshots`, loaded through `loadGrayImage`, then
+/// label in `fixtures/screenshots`, loaded through `loadImage`, then
 /// written. Runs only when `KEGINKER_SCREENSHOTS` is `record` or `verify`,
 /// on the simulator the images were recorded on; see CONTRIBUTING.md.
 @MainActor
@@ -57,14 +57,14 @@ final class ScreenshotTests: XCTestCase {
         try capture(writer, "3-done")
     }
 
-    private func sampleLabel() throws -> GrayImage {
+    private func sampleLabel() throws -> ColourImage {
         let data = try Data(contentsOf: root.appendingPathComponent("fixtures/screenshots/sample-label.png"))
-        return try XCTUnwrap(loadGrayImage(data))
+        return try XCTUnwrap(loadImage(data))
     }
 
     /// The sample label as ContentView renders it, with its default dither.
-    private func sampleView() throws -> KotlinBooleanArray {
-        LabelDisplayKt.renderView(display: .waveshare2in7, image: try sampleLabel(), dither: DitherFloydSteinberg.shared)
+    private func sampleView() throws -> KotlinByteArray {
+        LabelDisplayKt.renderView(display: .waveshare2in7, image: try sampleLabel(), dither: DitherFloydSteinberg.shared, colour: true)
     }
 
     private func capture(_ writer: TagWriter, _ name: String, file: StaticString = #filePath, line: UInt = #line) throws {

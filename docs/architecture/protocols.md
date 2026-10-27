@@ -304,8 +304,8 @@ See [Write time budget](#write-time-budget).
 | EZ Sign 4.2" | 400 × 300 | 400 × 300, landscape, its wider border along the bottom | as it is |
 
 Both panels show 4 colours at 2 bits per pixel: index 0 black, 1 white,
-2 yellow, 3 red. Labels are black and white, written as indices 0 and 1
-(`ezSignLabelPixels`). The native size is what the device information's A0
+2 yellow, 3 red. Labels are written in these colours, the view's palette
+indices unchanged (`Palette.BLACK_WHITE_YELLOW_RED`, `ezSignLabelPixels`). The native size is what the device information's A0
 TLV reports. Each display's turn is set in one place (`LabelDisplay`). The
 test-write reports found them: held portrait, the 2.9" showed native (0, 0)
 bottom right with native row 0 along the bottom

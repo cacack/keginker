@@ -107,4 +107,35 @@ class DitherTest {
             assertTrue(abs(whiteShare - grey / 255.0) <= FLOYD_STEINBERG_TOLERANCE, "White share was $whiteShare")
         }
     }
+
+    @Test
+    fun saturatedColoursTakeTheNearestPaletteColour() {
+        // Red, orange, yellow, blue, and a pale pink that counts as grey.
+        val argb = intArrayOf(0xFF0000, 0xFF9000, 0xFFFF00, 0x0000FF, 0xFFC0C0).map { it or (0xFF shl 24) }.toIntArray()
+        val image = ColourImage.fromArgb(argb.size, 1, argb)
+
+        val indices = image.toPalette(Palette.BLACK_WHITE_YELLOW_RED, Dither.Threshold()).toList()
+
+        assertEquals(listOf<Byte>(3, 2, 2, BLACK, WHITE), indices)
+    }
+
+    @Test
+    fun paletteFloydSteinbergRendersMidGreyAsHalfWhiteWithNoColour() {
+        val grey = ColourImage.fromGray(GrayImage(16, 16, ByteArray(256) { 127 }))
+
+        val indices = grey.toPalette(Palette.BLACK_WHITE_YELLOW_RED, Dither.FloydSteinberg)
+
+        assertEquals(128, indices.count { it == WHITE })
+        assertTrue(indices.all { it == BLACK || it == WHITE })
+    }
+
+    @Test
+    fun previewsShowThePaletteColours() {
+        val view = byteArrayOf(0, 1, 2, 3)
+
+        assertEquals(
+            listOf(0xFF000000, 0xFFFFFFFF, 0xFFFFFF00, 0xFFFF0000).map { it.toInt() },
+            Palette.BLACK_WHITE_YELLOW_RED.argb(view).toList(),
+        )
+    }
 }

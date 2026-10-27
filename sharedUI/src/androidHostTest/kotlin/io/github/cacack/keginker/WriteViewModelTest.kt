@@ -1,6 +1,8 @@
 package io.github.cacack.keginker
 
+import io.github.cacack.keginker.image.ColourImage
 import io.github.cacack.keginker.image.GrayImage
+import io.github.cacack.keginker.image.WHITE
 import java.io.IOException
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -23,7 +25,7 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
 
 /** A uniform image of one grey. */
-private fun plain(gray: Int) = GrayImage(1, 1, byteArrayOf(gray.toByte()))
+private fun plain(gray: Int) = ColourImage.fromGray(GrayImage(1, 1, byteArrayOf(gray.toByte())))
 
 /** Loading a picked image on Android: the latest pick wins, and a failed load says so. Routing found tags to test writes. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -48,7 +50,7 @@ class WriteViewModelTest {
         earlierRead.complete(Unit)
         earlier.join()
 
-        assertTrue(model.view.value.all { it }, "the later, white pick is shown")
+        assertTrue(model.view.value.all { it == WHITE }, "the later, white pick is shown")
         assertEquals(null, model.loadError.value)
     }
 

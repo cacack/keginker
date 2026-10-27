@@ -21,8 +21,8 @@ final class TagWriterTests: XCTestCase {
         return writer
     }
 
-    private func view(_ writer: TagWriter) -> KotlinBooleanArray {
-        KotlinBooleanArray(size: writer.display.viewWidth * writer.display.viewHeight)
+    private func view(_ writer: TagWriter) -> KotlinByteArray {
+        KotlinByteArray(size: writer.display.viewWidth * writer.display.viewHeight)
     }
 
     func testTheChosenDisplayIsRememberedAndWritesNeedItsSize() {

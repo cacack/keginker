@@ -58,15 +58,15 @@ internal class EzSignLabelWriter(
     private val info: EzSignDeviceInfo,
 ) {
     /**
-     * Writes [view] (row-major, [LabelDisplay.viewWidth] wide, `true` is
-     * white), composed for [display], recording every exchange in [log].
+     * Writes [view] (row-major [LabelDisplay.palette] indices,
+     * [LabelDisplay.viewWidth] wide), composed for [display], recording every exchange in [log].
      * [onProgress] receives 0–100 and never decreases. Cancellation propagates.
      *
      * A blocking refresh that never answers, whether its timeout ran out or
      * the transport failed, is [FailureKind.REFRESH_UNCONFIRMED]: the panel
      * may have drawn, but the tag never said so.
      */
-    suspend fun write(display: LabelDisplay, view: BooleanArray, log: ExchangeLog, onProgress: (Int) -> Unit = {}): WriteResult {
+    suspend fun write(display: LabelDisplay, view: ByteArray, log: ExchangeLog, onProgress: (Int) -> Unit = {}): WriteResult {
         require(display.nativeWidth == info.nativeWidth && display.nativeHeight == info.nativeHeight) {
             "${display.name} is ${display.nativeWidth} × ${display.nativeHeight}; the panel is ${info.nativeWidth} × ${info.nativeHeight}"
         }

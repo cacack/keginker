@@ -230,6 +230,28 @@ class AppTest {
     }
 
     @Test
+    fun aReportWithVendorCommandsOffSuggestsReadingAgainWithThemOn() {
+        val display = EzSignTag()
+        compose.setContent { App(tags, APP, DEVICE) }
+        compose.onNodeWithText("Advanced").performScrollTo().performClick()
+        compose.onNodeWithText("Report a display").performScrollTo().performClick()
+        compose.waitForIdle()
+        tags.tryEmit(foundEzSign(display))
+        waitForText("Display report")
+
+        compose.onNodeWithText(VENDOR_QUERIES_SUGGESTION).assertIsDisplayed()
+        compose.onNodeWithText("Test writes").assertDoesNotExist()
+        compose.onNodeWithText("Read again with vendor commands").performClick()
+        compose.waitForIdle()
+        compose.onNode(isToggleable()).assertIsOn()
+
+        tags.tryEmit(foundEzSign(display))
+        waitForText("Display report")
+        compose.onNodeWithText(VENDOR_QUERIES_SUGGESTION).assertDoesNotExist()
+        compose.onNodeWithText("Test writes").assertIsDisplayed()
+    }
+
+    @Test
     fun testWritesWriteNothingUntilConfirmed() {
         val display = EzSignTag()
         offerTestWrites(display)

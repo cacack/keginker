@@ -210,6 +210,10 @@ retried. Before the retry, the user can say whether the phone moved on the displ
 `Position changed`, or `not answered` if the user skipped the question. This matters
 because a different position can make a write succeed (#138, #143).
 
+A report read with vendor queries off, of an ISO-DEP tag that accepted the
+NDEF application (`suggestsVendorQueries`), instead suggests reading again
+with them on: that's the application the device information query selects.
+
 An EZ Sign test write (`EzSignTestWriter`) sends:
 
 | Step | Bytes | Expected reply |

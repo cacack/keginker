@@ -68,7 +68,11 @@ says about itself helps add it.
    sent with the reply.
 5. Optionally tap **Test writes**. They're offered only for a display
    KegInker recognises from its vendor commands, so far the EZ Sign family,
-   which means **Also try vendor commands** must be on. **Test writes** opens
+   which means **Also try vendor commands** must be on. With it off, a
+   report on a display that might offer them suggests **Read again with
+   vendor commands**, which turns the switch on so you can read the display
+   again.
+   **Test writes** opens
    a screen that explains them; nothing is written until you tap **Start test
    writes**. Each test pattern replaces what the display shows, and the
    display keeps the last one afterwards. For each pattern, hold the display

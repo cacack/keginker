@@ -13,6 +13,7 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -408,6 +409,15 @@ class DisplayProbeTest {
 
         assertEquals("The tag doesn't answer Type 2 reads.", result.note)
         assertEquals(2, result.exchanges.count { it.pass == ProbePass.VENDOR })
+    }
+
+    @Test
+    fun vendorQueriesAreSuggestedOnlyWhenOffForATagThatAcceptsTheNdefApplication() = runTest {
+        val launcher = launcherRecord("com.example.epaper")
+        assertTrue(suggestsVendorQueries(probeDisplay(isoDep(Type4Tag(launcher)))))
+        assertFalse(suggestsVendorQueries(probeDisplay(isoDep(Type4Tag(launcher)), vendorQueries = true)))
+        assertFalse(suggestsVendorQueries(probeDisplay(isoDep(Type4Tag(ByteArray(0), hasNdefApp = false)))))
+        assertFalse(suggestsVendorQueries(probeDisplay(nfcA(Type2Tag(type2Memory(ndefTlv(launcher)))))))
     }
 
     @Test

@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -24,6 +25,7 @@ import io.github.cacack.keginker.diagnostics.AppInfo
 import io.github.cacack.keginker.diagnostics.DeviceInfo
 import io.github.cacack.keginker.diagnostics.displayReportIssueLink
 import io.github.cacack.keginker.diagnostics.formatDisplayReport
+import io.github.cacack.keginker.probe.suggestsVendorQueries
 
 /**
  * "Report a display": waits for a tag, reads what it says about itself
@@ -34,7 +36,9 @@ import io.github.cacack.keginker.diagnostics.formatDisplayReport
  * A report on a display that can be test-written offers them through
  * [onOfferTestWrites]. Once offered, [testWrites]' screens show until it's
  * done, and the report then holds its records. [onLeaveTestWrites] backs
- * out of them. [saveReport] is as in [ReportScreen].
+ * out of them. A report read with vendor commands off that might offer
+ * them suggests reading again with them on, through [onVendorQueriesChange].
+ * [saveReport] is as in [ReportScreen].
  */
 @Composable
 fun DisplayProbeScreen(
@@ -75,7 +79,11 @@ fun DisplayProbeScreen(
             onBack = onBack,
             title = "Display report",
             issueLink = remember(text) { displayReportIssueLink(text) },
-            extra = offer?.let { { TestWritesOffer(onTestWrites = { onOfferTestWrites(it) }) } },
+            extra = when {
+                offer != null -> { { TestWritesOffer(onTestWrites = { onOfferTestWrites(offer) }) } }
+                suggestsVendorQueries(state.result) -> { { VendorQueriesSuggestion(onReadAgain = { onVendorQueriesChange(true) }) } }
+                else -> null
+            },
             saveReport = saveReport,
         )
         return
@@ -106,3 +114,16 @@ fun DisplayProbeScreen(
         }
     }
 }
+
+/** Why to read again with vendor commands, and the cost; [onReadAgain] turns them on and waits for the tag. */
+@Composable
+private fun VendorQueriesSuggestion(onReadAgain: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        OutlinedButton(onClick = onReadAgain) { Text("Read again with vendor commands") }
+        Text(VENDOR_QUERIES_SUGGESTION, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/** Shown with the button that reads a display again with vendor commands on. */
+const val VENDOR_QUERIES_SUGGESTION =
+    "Turn on vendor commands to see whether test writes are offered for this display. They aren't documented and could change what the display shows."

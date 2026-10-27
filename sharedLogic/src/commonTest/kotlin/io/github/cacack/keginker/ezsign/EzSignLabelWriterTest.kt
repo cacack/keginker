@@ -150,7 +150,7 @@ class EzSignLabelWriterTest {
     fun aViewForAnotherDisplayIsRejected() = runTest {
         assertFailsWith<IllegalArgumentException> {
             EzSignLabelWriter(simulatedEzSign(EZ_SIGN_29_DEVICE_INFO), infoFrom(EZ_SIGN_29_DEVICE_INFO))
-                .write(LabelDisplay.EZ_SIGN_4IN2, BooleanArray(300 * 400), ExchangeLog())
+                .write(LabelDisplay.EZ_SIGN_4IN2, BooleanArray(400 * 300), ExchangeLog())
         }
     }
 

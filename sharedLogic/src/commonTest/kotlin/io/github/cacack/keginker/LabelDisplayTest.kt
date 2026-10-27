@@ -22,10 +22,10 @@ private val A0_42 = bytes(0xA0, 0x07, 0xF0, 0x07, 0x20, 0x02, 0x58, 0x01, 0x90)
 
 class LabelDisplayTest {
     @Test
-    fun viewsArePortraitAtEachDisplaysSize() {
+    fun viewsAreEachDisplaysReadingShape() {
         assertEquals(176 to 264, LabelDisplay.WAVESHARE_2IN7.let { it.viewWidth to it.viewHeight })
         assertEquals(128 to 296, LabelDisplay.EZ_SIGN_2IN9.let { it.viewWidth to it.viewHeight })
-        assertEquals(300 to 400, LabelDisplay.EZ_SIGN_4IN2.let { it.viewWidth to it.viewHeight })
+        assertEquals(400 to 300, LabelDisplay.EZ_SIGN_4IN2.let { it.viewWidth to it.viewHeight })
     }
 
     @Test
@@ -54,15 +54,14 @@ class LabelDisplayTest {
     }
 
     @Test
-    fun the42ViewCornersLandWithTheLandscapesLeftEdgeOnTop() {
-        // View (vx, vy) → native (vy, 299 − vx), 400 wide.
+    fun the42ViewCornersLandUnturned() {
         assertCornersLand(
             LabelDisplay.EZ_SIGN_4IN2,
             mapOf(
-                (0 to 0) to (0 to 299),
-                (299 to 0) to (0 to 0),
-                (0 to 399) to (399 to 299),
-                (299 to 399) to (399 to 0),
+                (0 to 0) to (0 to 0),
+                (399 to 0) to (399 to 0),
+                (0 to 299) to (0 to 299),
+                (399 to 299) to (399 to 299),
             ),
         )
     }
@@ -97,7 +96,7 @@ class LabelDisplayTest {
             renderPanelView(WavesharePanel.EPD_2IN7, image),
             renderView(LabelDisplay.WAVESHARE_2IN7, image),
         )
-        assertEquals(300 * 400, renderView(LabelDisplay.EZ_SIGN_4IN2, image).size)
+        assertEquals(400 * 300, renderView(LabelDisplay.EZ_SIGN_4IN2, image).size)
     }
 
     /** One black pixel at each view corner in [corners] lands at its native pixel, and only there. */

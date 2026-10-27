@@ -8,8 +8,8 @@ KegInker is in early development.
 |---|---|---|
 | Waveshare | 2.7" NFC e-Paper, Rev2.2 board (black/white) | Works on iPhone; Android untested |
 | Waveshare | 2.7" NFC e-Paper, earlier boards (black/white) | Implemented, not yet tested on hardware |
-| EZ Sign | 2.9" NFC e-paper, 4-colour (labels in black/white) | Test patterns work on iPhone; labels implemented, not yet tested on hardware |
-| EZ Sign | 4.2" NFC e-paper, 4-colour (labels in black/white) | Test patterns work on iPhone; labels implemented, not yet tested on hardware |
+| EZ Sign | 2.9" NFC e-paper, 4-colour (labels in black/white) | Works on iPhone; Android untested |
+| EZ Sign | 4.2" NFC e-paper, 4-colour (labels in black/white) | Writes on iPhone; the landscape label is not yet tested on hardware |
 
 The board revision is printed on the back of the driver board.
 

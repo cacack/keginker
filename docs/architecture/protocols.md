@@ -301,7 +301,7 @@ See [Write time budget](#write-time-budget).
 | Display | Native size | Label | Panel memory holds the label |
 |---|---|---|---|
 | EZ Sign 2.9" | 128 × 296 | 128 × 296, portrait | turned 180° |
-| EZ Sign 4.2" | 400 × 300 | 300 × 400, portrait | turned 90° counter-clockwise: held landscape, its left edge is the label's top |
+| EZ Sign 4.2" | 400 × 300 | 400 × 300, landscape, its wider border along the bottom | as it is |
 
 Both panels show 4 colours at 2 bits per pixel: index 0 black, 1 white,
 2 yellow, 3 red. Labels are black and white, written as indices 0 and 1

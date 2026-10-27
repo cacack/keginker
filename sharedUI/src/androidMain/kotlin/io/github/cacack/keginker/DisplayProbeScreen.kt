@@ -34,7 +34,7 @@ import io.github.cacack.keginker.diagnostics.formatDisplayReport
  * A report on a display that can be test-written offers them through
  * [onOfferTestWrites]. Once offered, [testWrites]' screens show until it's
  * done, and the report then holds its records. [onLeaveTestWrites] backs
- * out of them.
+ * out of them. [saveReport] is as in [ReportScreen].
  */
 @Composable
 fun DisplayProbeScreen(
@@ -48,6 +48,7 @@ fun DisplayProbeScreen(
     onOfferTestWrites: (TestWriteController) -> Unit,
     onLeaveTestWrites: () -> Unit,
     onBack: () -> Unit,
+    saveReport: ((title: String, report: String) -> Unit)? = null,
 ) {
     if (state is ProbeState.Done) {
         val testWriteState = testWrites?.state?.collectAsState()?.value
@@ -75,6 +76,7 @@ fun DisplayProbeScreen(
             title = "Display report",
             issueLink = remember(text) { displayReportIssueLink(text) },
             extra = offer?.let { { TestWritesOffer(onTestWrites = { onOfferTestWrites(it) }) } },
+            saveReport = saveReport,
         )
         return
     }

@@ -60,7 +60,8 @@ import kotlinx.coroutines.flow.Flow
  * [appInfo] and [deviceInfo] go into the diagnostics report offered after a
  * failure, and after a success when turned on under Advanced.
  * [onSimulateTag] and [onSimulateFailure] are offered in debug builds to
- * exercise the flow without a tag.
+ * exercise the flow without a tag, and [saveReport] saves each report shown
+ * (see [ReportScreen]).
  */
 @Composable
 fun App(
@@ -70,6 +71,7 @@ fun App(
     nfcProblem: String? = null,
     onSimulateTag: (() -> Unit)? = null,
     onSimulateFailure: (() -> Unit)? = null,
+    saveReport: ((title: String, report: String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val model: WriteViewModel = viewModel { WriteViewModel() }
@@ -133,6 +135,7 @@ fun App(
                     onOfferTestWrites = model::offerTestWrites,
                     onLeaveTestWrites = model::leaveTestWrites,
                     onBack = closeProbe,
+                    saveReport = saveReport,
                 )
                 return@Surface
             }
@@ -154,7 +157,7 @@ fun App(
             }
             shownReport?.let { report ->
                 val text = remember(report) { formatDiagnosticReport(appInfo, deviceInfo, report) }
-                ReportScreen(report = text, onBack = { showReport = false })
+                ReportScreen(report = text, onBack = { showReport = false }, saveReport = saveReport)
                 return@Surface
             }
             Column(

@@ -59,6 +59,19 @@ final class DiagnosticsTests: XCTestCase {
         XCTAssertTrue(text.contains("bytes image data"), text)
     }
 
+    func testASavedReportIsTheReportTextUnderDocumentsReports() throws {
+        let text = format(Diagnostics.tagInfo(.miFare(FakeMiFareTag(family: .ultralight))))
+
+        let url = try XCTUnwrap(SavedReports.save(title: "Diagnostics report", text: text))
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertEqual(url.deletingLastPathComponent(), SavedReports.folder)
+        XCTAssertEqual(SavedReports.folder.lastPathComponent, "reports")
+        XCTAssertTrue(url.lastPathComponent.hasPrefix("diagnostics-report-"), url.lastPathComponent)
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), text)
+        XCTAssertEqual(try SavedReports.folder.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+    }
+
     private func format(_ info: TagInfo) -> String {
         let report = WriteReport(
             tag: info, protocol: "unsupported", panel: "EPD_2IN7", message: "x",

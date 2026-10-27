@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 /// copies it. Nothing is sent anywhere unless they choose to. With an
 /// [issueLink], it can also open a pre-filled GitHub issue in the browser; if
 /// the report is too long for the link, Share sends it as a `.txt` file.
+/// Debug builds also save each report shown, with `SavedReports`.
 struct ReportView: View {
     let title: String
     let text: String
@@ -56,6 +57,10 @@ struct ReportView: View {
             .padding()
         }
         .navigationTitle(title)
+        #if DEBUG
+        // The very text shown and shared, so a saved report hides what a shared one does.
+        .task(id: text) { SavedReports.save(title: title, text: text) }
+        #endif
     }
 
     @ViewBuilder private var shareLink: some View {

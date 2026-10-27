@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,8 @@ import kotlinx.coroutines.launch
  * copies it. Nothing is sent anywhere unless they choose to. With an
  * [issueLink], it can also open a pre-filled GitHub issue in the browser; if
  * the report is too long for the link, Share sends it as a `.txt` file.
+ * [saveReport], given only in Debug builds, is called with the title and
+ * text each time a report is shown, to save it for a developer.
  */
 @Composable
 fun ReportScreen(
@@ -52,7 +55,10 @@ fun ReportScreen(
     issueLink: IssueLink? = null,
     /** Something more to do before sharing, shown above Share. */
     extra: (@Composable () -> Unit)? = null,
+    saveReport: ((title: String, report: String) -> Unit)? = null,
 ) {
+    // The very text shown and shared, so a saved report hides what a shared one does.
+    LaunchedEffect(report) { saveReport?.invoke(title, report) }
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()

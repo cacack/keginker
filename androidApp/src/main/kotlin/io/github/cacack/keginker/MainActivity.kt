@@ -8,12 +8,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.lifecycleScope
 import io.github.cacack.keginker.diagnostics.AppInfo
 import io.github.cacack.keginker.diagnostics.DeviceInfo
 import io.github.cacack.keginker.nfc.TagReader
 
 class MainActivity : ComponentActivity() {
     private val debuggable by lazy { applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 }
+    private val savedReports by lazy { SavedReports(noBackupFilesDir, lifecycleScope) }
     private val tagReader by lazy { TagReader(NfcAdapter.getDefaultAdapter(this), debug = debuggable) }
     private val nfcProblem = mutableStateOf<String?>(null)
     private val deviceInfo = mutableStateOf(currentDeviceInfo(nfcEnabled = false))
@@ -35,6 +37,7 @@ class MainActivity : ComponentActivity() {
                 deviceInfo = deviceInfo.value,
                 onSimulateTag = if (debuggable) tagReader::simulateWaveshareTag else null,
                 onSimulateFailure = if (debuggable) tagReader::simulateFailingTag else null,
+                saveReport = if (debuggable) { title, report -> savedReports.save(title, report) } else null,
             )
         }
     }

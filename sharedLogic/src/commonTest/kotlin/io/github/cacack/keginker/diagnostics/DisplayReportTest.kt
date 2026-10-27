@@ -419,11 +419,19 @@ class DisplayReportTest {
         val unanswered = TestWriteRecord("Colour bands", TestWriteOutcome(ExchangeLog(), refreshMs = 24_173, failure = null), emptyList())
         val failure = WriteResult.Failure(WriteStep.SEND_DATA, FailureKind.LOST_CONTACT, "Tag was lost")
         val failed = TestWriteRecord("Colour bands", TestWriteOutcome(ExchangeLog(), null, failure), emptyList())
+        val retriedUnasked = TestWriteRecord("Colour bands", TestWriteOutcome(ExchangeLog(), null, failure), emptyList(), retry = true)
+        val retried = TestWriteRecord(
+            "Colour bands",
+            TestWriteOutcome(ExchangeLog(), refreshMs = 24_173, failure = null),
+            emptyList(),
+            retry = true,
+            positionChanged = "Not sure",
+        )
 
-        val text = formatDisplayReport(APP, DEVICE, result, listOf(answered, unanswered, failed))
+        val text = formatDisplayReport(APP, DEVICE, result, listOf(answered, unanswered, failed, retriedUnasked, retried))
 
         listOf(
-            "\nTest writes (3)\n\n1. Corner and line\n",
+            "\nTest writes (5)\n\n1. Corner and line\n",
             "  Q: Hold the display the way up you'd read it. Which way is its long edge?\n  A: Across: it's wider than it's tall\n",
             "  Q: Where is the black square?\n  A: Top left\n",
             "  Q: Which way does the line from it run?\n  A: Along the top or bottom edge\n",
@@ -431,6 +439,8 @@ class DisplayReportTest {
             "bytes image data",
             "\n2. Colour bands\n  Not answered\n  Refresh: 24173 ms\nExchanges: none\n",
             "\n3. Colour bands\n  Failed: SEND_DATA (sending the image): Tag was lost\nExchanges: none\n",
+            "\n4. Colour bands\n  Position changed: not answered\n  Failed:",
+            "\n5. Colour bands\n  Position changed: not sure\n  Not answered\n",
         ).forEach { assertTrue(it in text, "Missing \"$it\" in:\n$text") }
         assertTrue("Exchanges (${written.log.entries.size})" in text, text)
     }

@@ -18,8 +18,11 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -52,7 +55,7 @@ fun TestWriteScreen(
     familyName: String,
     onOptIn: () -> Unit,
     onAnswer: (List<String>) -> Unit,
-    onRetry: () -> Unit,
+    onRetry: (positionChanged: String?) -> Unit,
     onFinish: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -80,10 +83,13 @@ fun TestWriteScreen(
             }
             is TestWriteState.Asking -> Questions(state, onAnswer)
             is TestWriteState.Failed -> {
+                // Optional: Retry works without an answer.
+                var positionChanged by remember(state) { mutableStateOf<String?>(null) }
                 Text(state.record.pattern, style = MaterialTheme.typography.titleMedium)
                 Text(state.message, color = MaterialTheme.colorScheme.error)
+                Question(POSITION_CHANGED_QUESTION, positionChanged) { positionChanged = it }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onRetry) { Text("Retry") }
+                    Button(onClick = { onRetry(positionChanged) }) { Text("Retry") }
                     OutlinedButton(onClick = onFinish) { Text("Finish and see report") }
                 }
             }

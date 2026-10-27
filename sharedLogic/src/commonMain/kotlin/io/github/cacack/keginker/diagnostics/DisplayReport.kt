@@ -105,7 +105,7 @@ fun formatDisplayReport(app: AppInfo, device: DeviceInfo, result: ProbeResult, t
     testWritesSection(testWrites, uid)
 }
 
-/** Each of [records]: its pattern, answers, refresh time or failure, and exchanges, with [uid] hidden. */
+/** Each of [records]: its pattern, whether the phone moved before a retry, answers, refresh time or failure, and exchanges, with [uid] hidden. */
 private fun StringBuilder.testWritesSection(records: List<TestWriteRecord>, uid: ByteArray?) {
     if (records.isEmpty()) return
     fun hidingUid(text: String) = textHidingUid(text, uid)
@@ -115,6 +115,7 @@ private fun StringBuilder.testWritesSection(records: List<TestWriteRecord>, uid:
         val outcome = record.outcome
         appendLine()
         appendLine("${index + 1}. ${record.pattern}")
+        if (record.retry) field("Position changed", record.positionChanged?.lowercase() ?: "not answered")
         record.answers.forEach {
             appendLine("  Q: ${it.question}")
             appendLine("  A: ${it.answer}")

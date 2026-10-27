@@ -254,6 +254,41 @@ class TestWriteControllerTest {
     }
 
     @Test
+    fun aRetryRecordsWhetherThePhoneMovedOnTheNextAttempt() = runTest {
+        val family = FakeFamily(failures = 3)
+        val controller = TestWriteController(family, UID)
+        controller.optIn()
+
+        controller.onTag(display(RecordingTag()))
+        controller.retry("Yes")
+        controller.onTag(display(RecordingTag()))
+        controller.retry()
+        controller.onTag(display(RecordingTag()))
+        controller.retry("Maybe")
+        controller.onTag(display(RecordingTag()))
+        controller.answer(listOf("Left", "Red"))
+
+        // The answer goes on the attempt after it; no answer, or one that isn't an option, records none.
+        assertEquals(listOf(false, true, true, true), controller.records.map { it.retry })
+        assertEquals(listOf(null, "Yes", null, null), controller.records.map { it.positionChanged })
+    }
+
+    @Test
+    fun aRetryStoppedBeforeItsAnswersKeepsWhetherThePhoneMoved() = runTest {
+        val controller = TestWriteController(FakeFamily(failures = 1), UID)
+        controller.optIn()
+        controller.onTag(display(RecordingTag()))
+        controller.retry("No")
+        controller.onTag(display(RecordingTag()))
+
+        controller.cancel()
+
+        val retried = controller.records.last()
+        assertTrue(retried.retry)
+        assertEquals("No", retried.positionChanged)
+    }
+
+    @Test
     fun answersThatAreNotOptionsOfEachQuestionAreIgnored() = runTest {
         val controller = TestWriteController(FakeFamily(), UID)
         controller.optIn()

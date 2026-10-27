@@ -264,6 +264,26 @@ class AppTest {
     }
 
     @Test
+    fun aRetryAfterAFailedTestWriteReportsWhetherThePhoneMoved() {
+        val display = EzSignTag()
+        offerTestWrites(display)
+        compose.onNodeWithText("Start test writes").performClick()
+        display.lostCommands = 1
+        tags.tryEmit(foundEzSign(display))
+        waitForText("Did you change how the phone sits on the display?")
+
+        compose.onNodeWithText("Yes").performScrollTo().performClick()
+        compose.onNodeWithText("Retry").performScrollTo().performClick()
+        tags.tryEmit(foundEzSign(display))
+        waitForText("Where is the black square?")
+        compose.onNodeWithText("Back").performClick()
+        waitForText("Display report")
+
+        compose.onNodeWithText("Test writes (2)", substring = true).assertExists()
+        compose.onNodeWithText("2. Corner and line\n  Position changed: yes\n", substring = true).assertExists()
+    }
+
+    @Test
     fun backingOutOfTestWritesKeepsTheRecordsSoFar() {
         val display = EzSignTag()
         offerTestWrites(display)

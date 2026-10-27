@@ -204,7 +204,11 @@ decoded), the report offers **Test writes**. `TestWriteController` writes
 nothing until the user confirms on a second screen, and then writes only the
 probed tag, matched by UID. Each pattern is one write, then a few questions;
 the answers, the refresh time and every exchange (image bytes counted, never
-kept) go into the report's "Test writes" section.
+kept) go into the report's "Test writes" section. A failed write can be
+retried. Before the retry, the user can say whether the phone moved on the display
+(`POSITION_CHANGED_QUESTION`). The next attempt written shows the answer as
+`Position changed`, or `not answered` if the user skipped the question. This matters
+because a different position can make a write succeed (#138, #143).
 
 An EZ Sign test write (`EzSignTestWriter`) sends:
 

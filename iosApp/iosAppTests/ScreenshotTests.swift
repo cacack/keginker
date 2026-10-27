@@ -52,7 +52,8 @@ final class ScreenshotTests: XCTestCase {
     func testDone() throws {
         let writer = TagWriter()
         writer.simulate(view: try sampleView(), testPattern: false, transport: SimulatedWaveshareTransport(commandDelayMs: 0))
-        wait(until: { if case .done = writer.state { true } else { false } }())
+        // The controller shows Done before the write settles, while the buttons are still disabled.
+        wait(until: { if case .done = writer.state { !writer.isBusy } else { false } }())
         try capture(writer, "3-done")
     }
 

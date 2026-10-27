@@ -223,6 +223,17 @@ internal suspend fun probeDisplay(
     )
 }
 
+/**
+ * Whether the report should suggest reading [result]'s tag again with vendor
+ * queries: they were off ([ProbeResult.vendorQueriesListed] is null), and the
+ * tag accepted the NDEF application (so it's ISO-DEP), which the EZ Sign
+ * device information query in [VENDOR_QUERIES] selects. A hint that the tag
+ * might offer test writes, not a prediction: any Type 4 tag qualifies, and
+ * only the vendor pass can tell whether its family is one they're offered for.
+ */
+fun suggestsVendorQueries(result: ProbeResult): Boolean =
+    result.vendorQueriesListed == null && result.acceptedAids.any { it.contentEquals(NDEF_APPLICATION_AID) }
+
 /** Whether [reply] is a status word alone, other than `90 00`: the tag refused the command and sent no data. */
 private fun isBareRefusal(reply: ByteArray) =
     reply.size == 2 && !(reply[0] == 0x90.toByte() && reply[1] == 0x00.toByte())

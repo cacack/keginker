@@ -31,4 +31,21 @@ final class DisplayProbeTests: XCTestCase {
 
         XCTAssertEqual((classified as? FoundTagUnsupported)?.kind, .isoDep)
     }
+
+    /// The display report suggests vendor commands only when they were off for a tag that accepted the NDEF application.
+    func testVendorQueriesAreSuggestedOnlyWhenOffForATagThatAcceptsTheNdefApplication() {
+        func result(acceptedAids: [KotlinByteArray], vendorQueriesListed: KotlinInt?) -> ProbeResult {
+            ProbeResult(
+                tag: nil, protocol: "ISO-DEP", kind: .isoDep,
+                acceptedAids: acceptedAids, capabilityContainer: nil, ndef: nil, note: nil, exchanges: [],
+                version: nil, signature: nil, systemInfo: nil, memory: nil, memoryAddress: 0,
+                vendorQueriesListed: vendorQueriesListed, vendorQueriesSent: 0, vendorPassSkipped: nil,
+                deviceInfo: nil, deviceInfoNotDecoded: nil
+            )
+        }
+
+        XCTAssertTrue(DisplayProbeKt.suggestsVendorQueries(result: result(acceptedAids: ProbeCommandsKt.PROBE_AIDS, vendorQueriesListed: nil)))
+        XCTAssertFalse(DisplayProbeKt.suggestsVendorQueries(result: result(acceptedAids: ProbeCommandsKt.PROBE_AIDS, vendorQueriesListed: 1)))
+        XCTAssertFalse(DisplayProbeKt.suggestsVendorQueries(result: result(acceptedAids: [], vendorQueriesListed: nil)))
+    }
 }

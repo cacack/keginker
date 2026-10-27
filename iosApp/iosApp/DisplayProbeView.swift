@@ -23,6 +23,9 @@ struct DisplayProbeView: View {
                 TestWriteReportView(writer: testWriter)
             } else {
                 displayReport(result, testWrites: [])
+                    .safeAreaInset(edge: .bottom) {
+                        if DisplayProbeKt.suggestsVendorQueries(result: result) { vendorQueriesSuggestion }
+                    }
             }
         } else {
             Form {
@@ -51,6 +54,24 @@ struct DisplayProbeView: View {
             }
             .navigationTitle("Report a display")
         }
+    }
+
+    /// Why to read again with vendor commands, and the cost; its button turns them on and reads again.
+    private var vendorQueriesSuggestion: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button("Read again with vendor commands") {
+                vendorQueries = true
+                prober.read(vendorQueries: true)
+            }
+            .buttonStyle(.bordered)
+            .disabled(prober.isBusy || !TagWriter.isNfcAvailable)
+            Text("Turn on vendor commands to see whether test writes are offered for this display. They aren't documented and could change what the display shows.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.bar)
     }
 }
 

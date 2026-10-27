@@ -87,7 +87,8 @@ internal val DEVICE_INFO = bytes(0x00, 0xD1, 0x00, 0x00, 0x00)
 
 /**
  * The vendor pass's queries, in the order it sends them. A getter, so each
- * caller gets fresh command arrays it can't change for the next.
+ * caller gets fresh command arrays it can't change for the next. A query for
+ * another kind of tag or application needs [suggestsVendorQueries] widened too.
  */
 internal val VENDOR_QUERIES: List<VendorQuery> get() = listOf(
     VendorQuery(

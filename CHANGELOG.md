@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.0](https://github.com/cacack/keginker/compare/v0.5.0...v0.6.0) (2026-10-27)
+
+
+### Features
+
+* **report:** decode EZ Sign device information in display reports ([92b032d](https://github.com/cacack/keginker/commit/92b032d9c46da6d9ed4427a5e1ebd07c49e085ba)), closes [#133](https://github.com/cacack/keginker/issues/133)
+* **report:** guided EZ Sign test writes in Report a display ([95200d3](https://github.com/cacack/keginker/commit/95200d305fb4897e734601858b91fc93e470adff)), closes [#134](https://github.com/cacack/keginker/issues/134)
+
+
+### Bug Fixes
+
+* **ezsign:** end a test write on the blocking refresh reply ([971495f](https://github.com/cacack/keginker/commit/971495f114fc433dd5ee0efc2e08ee1da490b512)), closes [#138](https://github.com/cacack/keginker/issues/138)
+* **ezsign:** wait for the refresh with the blocking refresh command ([7b4b0f7](https://github.com/cacack/keginker/commit/7b4b0f790ba010ca5725763550e9529a1f2267be)), closes [#138](https://github.com/cacack/keginker/issues/138)
+* **report:** address panel review findings on display reports and test writes ([1375b60](https://github.com/cacack/keginker/commit/1375b6081005e7cc7def98f862e066bb41d6dfb8))
+* **report:** hide UID bytes inside the historical bytes ([72d4ad9](https://github.com/cacack/keginker/commit/72d4ad9ad77946d3fda569e300ef517d5cf9c7b4)), closes [#132](https://github.com/cacack/keginker/issues/132)
+* **report:** show how long a failed or slow exchange took ([55a2e80](https://github.com/cacack/keginker/commit/55a2e80390c96b6fa60dcad7fd659504b2e10da8)), closes [#138](https://github.com/cacack/keginker/issues/138)
+* **write:** suggest turning the phone when contact drops mid-refresh ([a2eae2d](https://github.com/cacack/keginker/commit/a2eae2d99300a5d1b2690af4af05f3bb94138b39)), closes [#138](https://github.com/cacack/keginker/issues/138)
+
 ## [0.5.0](https://github.com/cacack/keginker/compare/v0.4.2-alpha.1...v0.5.0) (2026-10-26)
 
 

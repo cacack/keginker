@@ -103,7 +103,7 @@ class WriteBudgetTest {
             val tag = simulatedEzSign(deviceInfoData(display))
             val log = ExchangeLog()
             assertIs<EzSignIdentity.Identified>(identifyEzSign(tag, log))
-            EzSignLabelWriter(tag, info).write(display, BooleanArray(display.viewWidth * display.viewHeight), log)
+            EzSignLabelWriter(tag, info).write(display, ByteArray(display.viewWidth * display.viewHeight), log)
             val setup = tag.sent.indexOfFirst { it[1] == 0xD4.toByte() } - tag.sent.count { it[1] == 0xD3.toByte() }
             // Random bytes hold almost nothing to match, so they compress no better than a literal run.
             val frame = Random(0).nextBytes(packFrame(ByteArray(info.nativeWidth * info.nativeHeight), info).size)
@@ -135,7 +135,7 @@ class WriteBudgetTest {
             val log = ExchangeLog()
             val info = assertIs<EzSignIdentity.Identified>(identifyEzSign(slow, log)).info
 
-            val result = EzSignLabelWriter(slow, info).write(display, BooleanArray(display.viewWidth * display.viewHeight), log)
+            val result = EzSignLabelWriter(slow, info).write(display, ByteArray(display.viewWidth * display.viewHeight), log)
 
             val failure = assertIs<WriteResult.Failure>(result, display.name)
             assertEquals(FailureKind.REFRESH_UNCONFIRMED, failure.kind, display.name)

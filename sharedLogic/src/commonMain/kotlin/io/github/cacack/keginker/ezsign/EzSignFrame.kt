@@ -50,26 +50,20 @@ internal fun packFrame(pixels: ByteArray, info: EzSignDeviceInfo): ByteArray {
     return packed
 }
 
-/** Colour index 0, black on every EZ Sign panel (#130, #131). */
-private const val BLACK: Byte = 0
-
-/** Colour index 1, white on every EZ Sign panel (#130, #131). */
-private const val WHITE: Byte = 1
-
 /**
- * Turns a black/white view of an EZ Sign [display] (row-major,
- * [LabelDisplay.viewWidth] wide, `true` is white) into native row-major
- * colour indices, white 1 and black 0, ready for [packFrame].
+ * Turns a view of an EZ Sign [display] (row-major [LabelDisplay.palette]
+ * indices, [LabelDisplay.viewWidth] wide) into native row-major colour
+ * indices, ready for [packFrame]. The palette's indices are the panel's.
  */
-internal fun ezSignLabelPixels(display: LabelDisplay, white: BooleanArray): ByteArray {
+internal fun ezSignLabelPixels(display: LabelDisplay, view: ByteArray): ByteArray {
     val turn = requireNotNull(display.ezSignTurn) { "${display.name} isn't an EZ Sign display" }
     val width = display.viewWidth
     val height = display.viewHeight
-    require(white.size == width * height) { "Expected $width×$height pixels, got ${white.size}" }
+    require(view.size == width * height) { "Expected $width×$height pixels, got ${view.size}" }
     val pixels = ByteArray(width * height)
     for (y in 0 until height) {
         for (x in 0 until width) {
-            pixels[turn.nativeIndex(x, y, width, height)] = if (white[y * width + x]) WHITE else BLACK
+            pixels[turn.nativeIndex(x, y, width, height)] = view[y * width + x]
         }
     }
     return pixels

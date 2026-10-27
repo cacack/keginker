@@ -44,8 +44,11 @@ final class DiagnosticsTests: XCTestCase {
         let writer = TagWriter()
         let view = LabelDisplayKt.renderView(
             display: writer.display,
-            image: TestPatternKt.testPattern(width: writer.display.viewWidth, height: writer.display.viewHeight),
-            dither: DitherFloydSteinberg.shared
+            image: ColourImage.companion.fromGray(
+                image: TestPatternKt.testPattern(width: writer.display.viewWidth, height: writer.display.viewHeight)
+            ),
+            dither: DitherFloydSteinberg.shared,
+            colour: true
         )
 
         writer.simulate(view: view, testPattern: true)

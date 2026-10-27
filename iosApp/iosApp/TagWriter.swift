@@ -59,7 +59,7 @@ final class TagWriter: NSObject, ObservableObject {
     /// Opens the NFC sheet and writes [view] (from `renderView`) to the first
     /// tag presented, packed for whichever kind of tag it is. [testPattern]
     /// says, for reports, whether it shows the built-in test pattern.
-    func write(view: KotlinBooleanArray, testPattern: Bool) {
+    func write(view: KotlinByteArray, testPattern: Bool) {
         guard !isBusy else { return }
         isBusy = true
         controller.arm(view: view, testPattern: testPattern)
@@ -73,7 +73,7 @@ final class TagWriter: NSObject, ObservableObject {
     /// Writes [view] to a simulated tag that accepts everything, or to
     /// [transport] in tests. Debug and Simulator only.
     func simulate(
-        view: KotlinBooleanArray,
+        view: KotlinByteArray,
         testPattern: Bool,
         transport: any Transport = SimulatedWaveshareTransport(commandDelayMs: 20)
     ) {

@@ -86,13 +86,14 @@ fun App(
     val model: WriteViewModel = viewModel { WriteViewModel(displaySetting.display) }
     val state by model.controller.state.collectAsState()
     val dither by model.dither.collectAsState()
+    val colour by model.colour.collectAsState()
     val view by model.view.collectAsState()
     val loadError by model.loadError.collectAsState()
     val display by model.display.collectAsState()
     // Saved from the model, which ignores a choice made while a write runs.
     LaunchedEffect(display) { displaySetting.display = display }
     // The session sets the display before rendering its view, so a new view's display is current.
-    val preview = remember(view) { view.toPreviewBitmap(model.display.value.viewWidth).asImageBitmap() }
+    val preview = remember(view) { previewBitmap(model.display.value, view).asImageBitmap() }
     val busy = state is WriteState.Writing
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     val probeState by model.probe.state.collectAsState()
@@ -201,6 +202,14 @@ fun App(
                         onClick = model::toggleDither,
                         label = { Text("Dither") },
                     )
+                    if (display.palette.hasColour) {
+                        FilterChip(
+                            selected = colour,
+                            enabled = !busy,
+                            onClick = model::toggleColour,
+                            label = { Text("Colour") },
+                        )
+                    }
                 }
                 (dither as? Dither.Threshold)?.let { threshold ->
                     ThresholdControl(level = threshold.level, enabled = !busy, onChange = model::setThreshold)

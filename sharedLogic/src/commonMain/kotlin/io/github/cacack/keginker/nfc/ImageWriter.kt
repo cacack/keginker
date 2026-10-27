@@ -1,6 +1,7 @@
 package io.github.cacack.keginker.nfc
 
 import io.github.cacack.keginker.diagnostics.ExchangeLog
+import io.github.cacack.keginker.image.WHITE
 import io.github.cacack.keginker.waveshare.WaveshareIsoDepWriter
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WaveshareWriter
@@ -21,8 +22,8 @@ class ImageWriter(private val pause: suspend (Long) -> Unit) {
     constructor() : this({ delay(it) })
 
     /**
-     * Writes [view] (row-major, [WavesharePanel.viewWidth] wide, `true` is
-     * white) to [tag]. Doesn't close the tag's transport.
+     * Writes [view] (row-major black and white palette indices,
+     * [WavesharePanel.viewWidth] wide) to [tag]. Doesn't close the tag's transport.
      *
      * Problems with the tag (lost contact, unexpected replies, an unconfirmed
      * refresh) are returned as [WriteResult.Failure]. Only programming errors,
@@ -32,7 +33,7 @@ class ImageWriter(private val pause: suspend (Long) -> Unit) {
     suspend fun write(
         tag: FoundTag.Writable,
         panel: WavesharePanel,
-        view: BooleanArray,
+        view: ByteArray,
         onProgress: (Int) -> Unit,
     ): WriteResult = write(tag, panel, view, null, onProgress)
 
@@ -41,13 +42,16 @@ class ImageWriter(private val pause: suspend (Long) -> Unit) {
     suspend fun write(
         tag: FoundTag.Writable,
         panel: WavesharePanel,
-        view: BooleanArray,
+        view: ByteArray,
         log: ExchangeLog?,
         onProgress: (Int) -> Unit,
-    ): WriteResult = when (tag) {
-        is FoundTag.Waveshare ->
-            WaveshareWriter(tag.transport, pause, log).write(panel, packFrame(panel, view), onProgress)
-        is FoundTag.WaveshareIsoDep ->
-            WaveshareIsoDepWriter(tag.transport, pause, log).write(panel, packControllerFrame(panel, view), onProgress)
+    ): WriteResult {
+        val white = BooleanArray(view.size) { view[it] == WHITE }
+        return when (tag) {
+            is FoundTag.Waveshare ->
+                WaveshareWriter(tag.transport, pause, log).write(panel, packFrame(panel, white), onProgress)
+            is FoundTag.WaveshareIsoDep ->
+                WaveshareIsoDepWriter(tag.transport, pause, log).write(panel, packControllerFrame(panel, white), onProgress)
+        }
     }
 }

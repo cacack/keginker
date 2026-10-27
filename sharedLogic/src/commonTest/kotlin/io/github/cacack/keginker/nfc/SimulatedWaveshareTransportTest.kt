@@ -1,5 +1,6 @@
 package io.github.cacack.keginker.nfc
 
+import io.github.cacack.keginker.image.WHITE
 import io.github.cacack.keginker.waveshare.WavesharePanel
 import io.github.cacack.keginker.waveshare.WriteResult
 import io.github.cacack.keginker.waveshare.WriteStep
@@ -24,7 +25,7 @@ class SimulatedWaveshareTransportTest {
     fun simulatedFailureLandsWhileSendingTheImage() = runTest {
         val panel = WavesharePanel.EPD_2IN7
         val transport = SimulatedWaveshareTransport(0, SimulatedWaveshareTransport.FAIL_WHILE_SENDING_IMAGE)
-        val view = BooleanArray(panel.viewWidth * panel.viewHeight) { true }
+        val view = ByteArray(panel.viewWidth * panel.viewHeight) { WHITE }
 
         val result = ImageWriter(pause = {}).write(FoundTag.Waveshare(transport), panel, view) {}
 

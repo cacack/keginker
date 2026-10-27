@@ -1,9 +1,13 @@
 package io.github.cacack.keginker
 
+import io.github.cacack.keginker.image.BLACK
+import io.github.cacack.keginker.image.ColourImage
 import io.github.cacack.keginker.image.Dither
-import io.github.cacack.keginker.image.GrayImage
+import io.github.cacack.keginker.image.Palette
+import io.github.cacack.keginker.image.WHITE
 import io.github.cacack.keginker.image.fill
 import io.github.cacack.keginker.image.toBlackWhite
+import io.github.cacack.keginker.image.toPalette
 import io.github.cacack.keginker.waveshare.WavesharePanel
 
 /** How an EZ Sign panel's memory holds the view, which is the memory's size. */
@@ -38,6 +42,8 @@ enum class LabelDisplay(
     val wavesharePanel: WavesharePanel?,
     /** How an EZ Sign panel's memory holds the view; null on Waveshare displays, whose panel says. */
     internal val ezSignTurn: ViewTurn?,
+    /** The colours it shows. */
+    val palette: Palette,
 ) {
     WAVESHARE_2IN7(
         title = "Waveshare 2.7\"",
@@ -45,6 +51,7 @@ enum class LabelDisplay(
         viewHeight = WavesharePanel.EPD_2IN7.viewHeight,
         wavesharePanel = WavesharePanel.EPD_2IN7,
         ezSignTurn = null,
+        palette = Palette.BLACK_WHITE,
     ),
 
     /**
@@ -52,14 +59,28 @@ enum class LabelDisplay(
      * native (0, 0) showed bottom right and native row 0 ran along the
      * bottom edge, so memory is the view turned 180° (#130, iPhone 15 Pro).
      */
-    EZ_SIGN_2IN9(title = "EZ Sign 2.9\"", viewWidth = 128, viewHeight = 296, wavesharePanel = null, ezSignTurn = ViewTurn.TURNED_180),
+    EZ_SIGN_2IN9(
+        title = "EZ Sign 2.9\"",
+        viewWidth = 128,
+        viewHeight = 296,
+        wavesharePanel = null,
+        ezSignTurn = ViewTurn.TURNED_180,
+        palette = Palette.BLACK_WHITE_YELLOW_RED,
+    ),
 
     /**
      * Native 400 × 300 per its A0 TLV. It's read landscape, with its wider
      * border along the bottom; held so, native (0, 0) shows top left with
      * native row 0 along the top (#131, iPhone 15 Pro), so memory is the view.
      */
-    EZ_SIGN_4IN2(title = "EZ Sign 4.2\"", viewWidth = 400, viewHeight = 300, wavesharePanel = null, ezSignTurn = ViewTurn.NONE),
+    EZ_SIGN_4IN2(
+        title = "EZ Sign 4.2\"",
+        viewWidth = 400,
+        viewHeight = 300,
+        wavesharePanel = null,
+        ezSignTurn = ViewTurn.NONE,
+        palette = Palette.BLACK_WHITE_YELLOW_RED,
+    ),
     ;
 
     init {
@@ -76,9 +97,31 @@ enum class LabelDisplay(
 }
 
 /**
- * The black/white image exactly as [display] will show it: row-major,
- * [LabelDisplay.viewWidth] wide, `true` is white. The image is centre-cropped
- * to the view shape and scaled, as for a Waveshare panel.
+ * [image] centre-cropped and scaled to [display]'s view, ready for
+ * [renderView]: in colour where the display shows it, otherwise just the grey.
  */
-fun renderView(display: LabelDisplay, image: GrayImage, dither: Dither = Dither.FloydSteinberg): BooleanArray =
-    image.fill(display.viewWidth, display.viewHeight).toBlackWhite(dither)
+fun fitView(display: LabelDisplay, image: ColourImage): ColourImage =
+    if (display.palette.hasColour) {
+        image.fill(display.viewWidth, display.viewHeight)
+    } else {
+        ColourImage.fromGray(image.gray.fill(display.viewWidth, display.viewHeight))
+    }
+
+/**
+ * The image exactly as [display] will show it: row-major indices into its
+ * [LabelDisplay.palette], [LabelDisplay.viewWidth] wide. The image is
+ * centre-cropped to the view shape and scaled, as for a Waveshare panel.
+ * In [colour] where the display shows it; otherwise black and white.
+ */
+fun renderView(
+    display: LabelDisplay,
+    image: ColourImage,
+    dither: Dither = Dither.FloydSteinberg,
+    colour: Boolean = true,
+): ByteArray {
+    if (colour && display.palette.hasColour) {
+        return image.fill(display.viewWidth, display.viewHeight).toPalette(display.palette, dither)
+    }
+    val white = image.gray.fill(display.viewWidth, display.viewHeight).toBlackWhite(dither)
+    return ByteArray(white.size) { if (white[it]) WHITE else BLACK }
+}

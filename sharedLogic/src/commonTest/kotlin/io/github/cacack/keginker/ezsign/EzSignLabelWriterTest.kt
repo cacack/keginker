@@ -2,6 +2,8 @@ package io.github.cacack.keginker.ezsign
 
 import io.github.cacack.keginker.LabelDisplay
 import io.github.cacack.keginker.diagnostics.ExchangeLog
+import io.github.cacack.keginker.image.BLACK
+import io.github.cacack.keginker.image.WHITE
 import io.github.cacack.keginker.image.forEachSeed
 import io.github.cacack.keginker.nfc.Transport
 import io.github.cacack.keginker.probe.EZ_SIGN_29_DEVICE_INFO
@@ -40,13 +42,13 @@ internal fun deviceInfoData(display: LabelDisplay): ByteArray = when (display) {
 internal fun simulatedEzSign(data: ByteArray, clock: TestTimeSource? = null, busyMs: Long? = null) =
     SimulatedEzSignTag(infoFrom(data), clock = clock, busyMs = busyMs, deviceInfoReply = data + OK)
 
-/** A random view of [display]. */
+/** A random view of [display], in every colour of its palette. */
 internal fun randomView(display: LabelDisplay, random: kotlin.random.Random) =
-    BooleanArray(display.viewWidth * display.viewHeight) { random.nextBoolean() }
+    ByteArray(display.viewWidth * display.viewHeight) { random.nextInt(display.palette.colours.size).toByte() }
 
 private fun isRefresh(command: ByteArray) = command[1] == 0xD4.toByte()
 
-private suspend fun write(display: LabelDisplay, tag: Transport, view: BooleanArray, log: ExchangeLog = ExchangeLog()) =
+private suspend fun write(display: LabelDisplay, tag: Transport, view: ByteArray, log: ExchangeLog = ExchangeLog()) =
     EzSignLabelWriter(tag, infoFrom(deviceInfoData(display))).write(display, view, log)
 
 class EzSignLabelWriterTest {
@@ -71,7 +73,7 @@ class EzSignLabelWriterTest {
             val info = infoFrom(deviceInfoData(display))
             val tag = simulatedEzSign(deviceInfoData(display))
             // All white but one black pixel per row: mostly repeats, as labels are.
-            val view = BooleanArray(display.viewWidth * display.viewHeight) { it % display.viewWidth != 0 }
+            val view = ByteArray(display.viewWidth * display.viewHeight) { if (it % display.viewWidth != 0) WHITE else BLACK }
 
             assertEquals(WriteResult.Success, write(display, tag, view))
 
@@ -89,7 +91,7 @@ class EzSignLabelWriterTest {
         val display = LabelDisplay.EZ_SIGN_4IN2
         val tag = simulatedEzSign(deviceInfoData(display))
 
-        write(display, tag, BooleanArray(display.viewWidth * display.viewHeight) { true })
+        write(display, tag, ByteArray(display.viewWidth * display.viewHeight) { WHITE })
 
         val sent = tag.sent.map { it.toList() }
         assertEquals(selectAidCommand(), sent[0])
@@ -103,7 +105,7 @@ class EzSignLabelWriterTest {
         val display = LabelDisplay.EZ_SIGN_2IN9
         val tag = simulatedEzSign(deviceInfoData(display), clock = TestTimeSource(), busyMs = BLOCKING_REFRESH_TIMEOUT_MS + 1)
 
-        val failure = assertIs<WriteResult.Failure>(write(display, tag, BooleanArray(display.viewWidth * display.viewHeight)))
+        val failure = assertIs<WriteResult.Failure>(write(display, tag, ByteArray(display.viewWidth * display.viewHeight)))
 
         assertEquals(WriteStep.REFRESH, failure.step)
         assertEquals(FailureKind.REFRESH_UNCONFIRMED, failure.kind)
@@ -118,7 +120,7 @@ class EzSignLabelWriterTest {
         val display = LabelDisplay.EZ_SIGN_4IN2
         val lost = Interfering(simulatedEzSign(deviceInfoData(display)), ::isRefresh) { throw Exception("Tag was lost") }
 
-        val failure = assertIs<WriteResult.Failure>(write(display, lost, BooleanArray(display.viewWidth * display.viewHeight)))
+        val failure = assertIs<WriteResult.Failure>(write(display, lost, ByteArray(display.viewWidth * display.viewHeight)))
 
         assertEquals(FailureKind.REFRESH_UNCONFIRMED, failure.kind)
         assertEquals(BLOCKING_REFRESH_UNCONFIRMED_MESSAGE, failure.userMessage)
@@ -127,7 +129,7 @@ class EzSignLabelWriterTest {
     @Test
     fun otherFailuresKeepTheirKind() = runTest {
         val display = LabelDisplay.EZ_SIGN_4IN2
-        val view = BooleanArray(display.viewWidth * display.viewHeight)
+        val view = ByteArray(display.viewWidth * display.viewHeight)
         val refused = Interfering(simulatedEzSign(deviceInfoData(display)), ::isRefresh) { byteArrayOf(0x6A, 0x80.toByte()) }
         val lostMidImage = Interfering(simulatedEzSign(deviceInfoData(display)), { it[1] == 0xD3.toByte() }) { throw Exception("lost") }
 
@@ -143,14 +145,14 @@ class EzSignLabelWriterTest {
         val display = LabelDisplay.EZ_SIGN_2IN9
         val cancelled = Interfering(simulatedEzSign(deviceInfoData(display)), ::isRefresh) { throw CancellationException("cancelled") }
 
-        assertFailsWith<CancellationException> { write(display, cancelled, BooleanArray(display.viewWidth * display.viewHeight)) }
+        assertFailsWith<CancellationException> { write(display, cancelled, ByteArray(display.viewWidth * display.viewHeight)) }
     }
 
     @Test
     fun aViewForAnotherDisplayIsRejected() = runTest {
         assertFailsWith<IllegalArgumentException> {
             EzSignLabelWriter(simulatedEzSign(EZ_SIGN_29_DEVICE_INFO), infoFrom(EZ_SIGN_29_DEVICE_INFO))
-                .write(LabelDisplay.EZ_SIGN_4IN2, BooleanArray(400 * 300), ExchangeLog())
+                .write(LabelDisplay.EZ_SIGN_4IN2, ByteArray(400 * 300), ExchangeLog())
         }
     }
 

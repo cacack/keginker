@@ -2,7 +2,7 @@ import SharedLogic
 import XCTest
 @testable import KegInker
 
-/// Loads each fixture photo in `fixtures/photos` through `loadGrayImage` and
+/// Loads each fixture photo in `fixtures/photos` through `loadImage` and
 /// checks its view against the golden beside it, pixel for pixel. The goldens
 /// are shared with the Android loader test (`ImageLoadingTest` in sharedUI),
 /// which writes any that are missing.
@@ -26,28 +26,28 @@ final class ImageLoadingTests: XCTestCase {
 
     func testUnreadableImageFails() {
         // ContentView shows "Couldn't open that image." when this is nil.
-        XCTAssertNil(loadGrayImage(Data("not an image".utf8)))
+        XCTAssertNil(loadImage(Data("not an image".utf8)))
     }
 
     func testPhoto48MpStillLoads() throws {
         let photo = try Data(contentsOf: fixtures.appendingPathComponent("48mp.png"))
-        XCTAssertNotNil(loadGrayImage(photo))
+        XCTAssertNotNil(loadImage(photo))
     }
 
     func testImageOverPixelLimitFails() throws {
         let photo = try Data(contentsOf: fixtures.appendingPathComponent("over-pixel-limit.png"))
-        XCTAssertNil(loadGrayImage(photo))
+        XCTAssertNil(loadImage(photo))
     }
 
     private func checkGolden(_ name: String, file: StaticString = #filePath, line: UInt = #line) throws {
         let photo = fixtures.appendingPathComponent(name)
-        let image = try XCTUnwrap(loadGrayImage(try Data(contentsOf: photo)), file: file, line: line)
-        let view = LabelDisplayKt.renderView(display: display, image: image, dither: DitherFloydSteinberg.shared)
+        let image = try XCTUnwrap(loadImage(try Data(contentsOf: photo)), file: file, line: line)
+        let view = LabelDisplayKt.renderView(display: display, image: image, dither: DitherFloydSteinberg.shared, colour: true)
         let golden = photo.deletingPathExtension().appendingPathExtension("pbm")
         let expected = try readPbm(golden)
 
         XCTAssertEqual(Int(view.size), expected.count, "\(name): view size", file: file, line: line)
-        let differing = expected.indices.filter { view.get(index: Int32($0)) != expected[$0] }.count
+        let differing = expected.indices.filter { (view.get(index: Int32($0)) == PaletteKt.WHITE) != expected[$0] }.count
         XCTAssertEqual(differing, 0, "\(name): pixels that differ from \(golden.lastPathComponent)", file: file, line: line)
     }
 }

@@ -1,7 +1,10 @@
 package io.github.cacack.keginker
 
+import io.github.cacack.keginker.image.BLACK
+import io.github.cacack.keginker.image.ColourImage
 import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.image.GrayImage
+import io.github.cacack.keginker.image.WHITE
 import io.github.cacack.keginker.image.testPattern
 import io.github.cacack.keginker.nfc.FoundTag
 import io.github.cacack.keginker.nfc.ImageWriter
@@ -64,14 +67,17 @@ private val imageWriter = ImageWriter(pause = {})
 private fun session() = WriteSession(LabelDisplay.WAVESHARE_2IN7, imageWriter)
 
 /** The commands a tag of [isoDep]'s kind receives when [view] is written to it. */
-private suspend fun commandsFor(view: BooleanArray, isoDep: Boolean): List<List<Byte>> {
+private suspend fun commandsFor(view: ByteArray, isoDep: Boolean): List<List<Byte>> {
     val tag = ScriptedTag(isoDep, instant = true)
     imageWriter.write(tag.found() as FoundTag.Writable, WavesharePanel.EPD_2IN7, view) {}
     return tag.sent
 }
 
+/** A grey image, as the session takes it. */
+private fun greyImage(width: Int, height: Int, pixels: ByteArray) = ColourImage.fromGray(GrayImage(width, height, pixels))
+
 /** A small random image; the session scales it to the display. */
-private fun Random.nextImage() = GrayImage(8, 6, nextBytes(8 * 6))
+private fun Random.nextImage() = greyImage(8, 6, nextBytes(8 * 6))
 
 /** How often the random sequences reached the situations worth checking. */
 private class Coverage {
@@ -92,13 +98,13 @@ class WriteSessionTest {
         runCurrent()
         assertIs<WriteState.Writing>(session.controller.state.value)
 
-        session.imageLoaded(FittedImage(GrayImage(1, 1, byteArrayOf(0))))
+        session.imageLoaded(FittedImage(greyImage(1, 1, byteArrayOf(0))))
 
         assertContentEquals(written, session.view.value)
         advanceUntilIdle()
         assertEquals(commandsFor(written, isoDep = false), tag.sent)
         // The new image is shown, so "Done" (which was about the old one) is cleared.
-        assertTrue(session.view.value.none { it })
+        assertTrue(session.view.value.none { it == WHITE })
         assertEquals(WriteState.Idle, session.controller.state.value)
     }
 
@@ -110,10 +116,10 @@ class WriteSessionTest {
         runCurrent()
         assertIs<WriteState.Writing>(session.controller.state.value)
 
-        session.imageLoaded(FittedImage(GrayImage(1, 1, byteArrayOf(0))))
+        session.imageLoaded(FittedImage(greyImage(1, 1, byteArrayOf(0))))
         advanceUntilIdle()
 
-        assertTrue(session.view.value.none { it })
+        assertTrue(session.view.value.none { it == WHITE })
         assertIs<WriteState.Failed>(session.controller.state.value)
     }
 
@@ -124,7 +130,7 @@ class WriteSessionTest {
         session.onTag(ScriptedTag(isoDep = false, instant = true).found())
         assertTrue(assertIs<WriteState.Done>(session.controller.state.value).report.testPattern)
 
-        session.imageLoaded(FittedImage(GrayImage(1, 1, byteArrayOf(0))))
+        session.imageLoaded(FittedImage(greyImage(1, 1, byteArrayOf(0))))
         session.write()
         session.onTag(ScriptedTag(isoDep = false, instant = true).found())
         assertEquals(false, assertIs<WriteState.Done>(session.controller.state.value).report.testPattern)
@@ -140,8 +146,10 @@ class WriteSessionTest {
 
         session.toggleDither()
         session.setThreshold(10)
+        session.toggleColour()
 
         assertContentEquals(written, session.view.value)
+        assertTrue(session.colour.value)
         advanceUntilIdle()
         assertIs<WriteState.Done>(session.controller.state.value)
     }
@@ -149,7 +157,7 @@ class WriteSessionTest {
     @Test
     fun choosingADisplayReRendersAtItsSizeAndIsIgnoredDuringAWrite() = runTest {
         val session = session()
-        session.imageLoaded(FittedImage(GrayImage(2, 1, byteArrayOf(0, -1))))
+        session.imageLoaded(FittedImage(greyImage(2, 1, byteArrayOf(0, -1))))
         session.toggleDither()
         session.write()
 
@@ -159,7 +167,7 @@ class WriteSessionTest {
         assertEquals(LabelDisplay.EZ_SIGN_2IN9, session.controller.display)
         assertEquals(128 * 296, session.view.value.size)
         // The same image, cropped to the new shape, and the dither choice kept.
-        val expected = renderView(LabelDisplay.EZ_SIGN_2IN9, GrayImage(2, 1, byteArrayOf(0, -1)), session.dither.value)
+        val expected = renderView(LabelDisplay.EZ_SIGN_2IN9, greyImage(2, 1, byteArrayOf(0, -1)), session.dither.value)
         assertContentEquals(expected, session.view.value)
         assertIs<Dither.Threshold>(session.dither.value)
         // The armed Waveshare view was dropped.
@@ -181,12 +189,27 @@ class WriteSessionTest {
     }
 
     @Test
+    fun colourIsOnUntilTurnedOffAndDisarmsAWaitingWrite() = runTest {
+        val session = session()
+        session.choose(LabelDisplay.EZ_SIGN_4IN2)
+        session.imageLoaded(FittedImage(ColourImage.fromArgb(1, 1, intArrayOf(0xFFFF0000.toInt()))))
+        assertTrue(session.colour.value)
+        assertTrue(session.view.value.all { it == 3.toByte() }, "red stays red")
+        session.write()
+
+        session.toggleColour()
+
+        assertTrue(session.view.value.all { it == BLACK || it == WHITE })
+        assertEquals(WriteState.Idle, session.controller.state.value)
+    }
+
+    @Test
     fun theTestPatternIsRegeneratedAtTheNewSize() = runTest {
         val session = session()
 
         session.choose(LabelDisplay.EZ_SIGN_4IN2)
 
-        assertContentEquals(renderView(LabelDisplay.EZ_SIGN_4IN2, testPattern(400, 300)), session.view.value)
+        assertContentEquals(renderView(LabelDisplay.EZ_SIGN_4IN2, ColourImage.fromGray(testPattern(400, 300))), session.view.value)
     }
 
     /**
@@ -219,7 +242,7 @@ class WriteSessionTest {
         val tags = mutableListOf<ScriptedTag>()
         val tagJobs = mutableListOf<Job>()
         // The view the controller holds, tracked from outside: arming is ignored mid-write.
-        var armed: BooleanArray? = null
+        var armed: ByteArray? = null
 
         repeat(STEPS_PER_SEQUENCE) {
             when (random.nextInt(8)) {
@@ -236,9 +259,14 @@ class WriteSessionTest {
                     }
                 }
                 1 -> {
-                    val level = random.nextInt(-10, 266)
-                    steps += "threshold $level"
-                    session.setThreshold(level)
+                    if (random.nextInt(4) == 0) {
+                        steps += "toggle colour"
+                        session.toggleColour()
+                    } else {
+                        val level = random.nextInt(-10, 266)
+                        steps += "threshold $level"
+                        session.setThreshold(level)
+                    }
                 }
                 2 -> {
                     steps += "image loaded"

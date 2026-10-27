@@ -81,7 +81,7 @@ class WriteController(
 
     private val deadlineMs get() = if (display.isEzSign) EZ_SIGN_WRITE_DEADLINE_MS else WRITE_DEADLINE_MS
 
-    private var view: BooleanArray? = null
+    private var view: ByteArray? = null
     private var testPattern = false
 
     /** A write in progress: its tag and exchanges, and the protocol its report names. */
@@ -101,7 +101,7 @@ class WriteController(
      * whichever kind of tag turns up. [testPattern] says, for reports, whether
      * it shows the built-in test pattern. Ignored while a write is running.
      */
-    fun arm(view: BooleanArray, testPattern: Boolean = false) {
+    fun arm(view: ByteArray, testPattern: Boolean = false) {
         require(view.size == display.viewWidth * display.viewHeight) {
             "View is ${view.size} pixels; ${display.name} needs ${display.viewWidth}×${display.viewHeight}"
         }
@@ -230,7 +230,7 @@ class WriteController(
     private suspend fun writeEzSign(
         transport: Transport,
         write: RunningWrite,
-        view: BooleanArray,
+        view: ByteArray,
         onProgress: (Int) -> Unit,
     ): WriteState {
         val identified = when (val identity = identifyEzSign(transport, write.log)) {

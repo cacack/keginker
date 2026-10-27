@@ -1,5 +1,7 @@
 package io.github.cacack.keginker.waveshare
 
+import io.github.cacack.keginker.image.BLACK
+import io.github.cacack.keginker.image.WHITE
 import io.github.cacack.keginker.image.forEachSeed
 import io.github.cacack.keginker.image.testPattern
 import io.github.cacack.keginker.nfc.FoundTag
@@ -24,7 +26,7 @@ private enum class Board(
 /** Writes [view] through [ImageWriter] to a simulated [board] and returns what its display shows. */
 private suspend fun displayed(board: Board, panel: WavesharePanel, view: BooleanArray): List<Boolean?>? {
     val simulated = board.simulate(panel)
-    val result = ImageWriter { }.write(board.tag(simulated), panel, view) {}
+    val result = ImageWriter { }.write(board.tag(simulated), panel, ByteArray(view.size) { if (view[it]) WHITE else BLACK }) {}
     assertEquals(WriteResult.Success, result, "$board ${panel.name}")
     return simulated.shown
 }

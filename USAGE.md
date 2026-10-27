@@ -8,8 +8,8 @@ KegInker is in early development.
 |---|---|---|
 | Waveshare | 2.7" NFC e-Paper, Rev2.2 board (black/white) | Works on iPhone; Android untested |
 | Waveshare | 2.7" NFC e-Paper, earlier boards (black/white) | Implemented, not yet tested on hardware |
-| EZ Sign | 2.9" NFC e-paper, 4-colour (labels in black/white) | Works on iPhone; Android untested |
-| EZ Sign | 4.2" NFC e-paper, 4-colour (labels in black/white) | Works on iPhone; Android untested |
+| EZ Sign | 2.9" NFC e-paper, 4-colour | Works on iPhone; Android untested |
+| EZ Sign | 4.2" NFC e-paper, 4-colour | Works on iPhone; Android untested |
 
 The board revision is printed on the back of the driver board.
 
@@ -28,6 +28,8 @@ families involved.
    Images up to 120 megapixels open (on Android, files up to 64 MB).
    Turn **Dither** off for text and logos; the slider that appears sets which
    greys become black. Raise it if light text in your image breaks up.
+   On a 4-colour display, **Colour** keeps the image's reds and yellows;
+   greys stay black and white. Turn it off for a black-and-white label.
 3. Tap **Write to tag**, then hold the phone against the tag and keep it
    still until it says **Done**: on Android, the back of the phone; on
    iPhone, the top edge, while the NFC sheet is showing.

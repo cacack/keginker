@@ -32,6 +32,16 @@ const val TEST_WRITE_LOST_MESSAGE = "Lost contact with the display. Hold it stil
 /** Shown when a test write stopped with an error in KegInker itself; the report has the details. */
 const val TEST_WRITE_ERROR_MESSAGE = "The test write stopped with an error in KegInker. Try again, or share the report so it can be fixed."
 
+/**
+ * Asked, optionally, before retrying a failed test write, so a write that
+ * starts working once the phone moves doesn't look random in the report (#138, #143).
+ */
+val POSITION_CHANGED_QUESTION = TestQuestion(
+    id = "position-changed",
+    text = "Did you change how the phone sits on the display?",
+    options = listOf("Yes", "No", "Not sure"),
+)
+
 sealed interface TestWriteState {
     /** Test writes are offered; nothing is written until the user opts in. */
     data object Offered : TestWriteState
@@ -90,6 +100,12 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
     /** The write whose questions are being asked. */
     private var unanswered: TestWriteOutcome? = null
 
+    /** Whether the next attempt written retries a failure; set by [retry], used up by [record]. */
+    private var pendingRetry = false
+
+    /** The answer to [POSITION_CHANGED_QUESTION] given with [retry]; used up by [record] with [pendingRetry]. */
+    private var pendingPositionChanged: String? = null
+
     /** The user's opt-in: waits for the display to write the first pattern. Ignored unless offered. */
     fun optIn() {
         if (mutableState.value == TestWriteState.Offered) mutableState.value = nextState()
@@ -106,7 +122,7 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
         val outcome = unanswered ?: return
         if (choices.size != asking.questions.size) return
         if (asking.questions.zip(choices).any { (question, choice) -> choice !in question.options }) return
-        recorded += TestWriteRecord(asking.pattern.title, outcome, asking.questions.zip(choices) { question, choice ->
+        record(asking.pattern, outcome, asking.questions.zip(choices) { question, choice ->
             TestAnswer(question.id, question.text, choice)
         })
         unanswered = null
@@ -114,9 +130,18 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
         mutableState.value = nextState()
     }
 
-    /** After a failure, waits for the display to write the same pattern again. Ignored otherwise. */
-    fun retry() {
-        if (mutableState.value is TestWriteState.Failed) mutableState.value = nextState()
+    /**
+     * After a failure, waits for the display to write the same pattern again.
+     * [positionChanged], the answer to [POSITION_CHANGED_QUESTION] or null when
+     * unanswered, goes on the record of the next attempt actually written,
+     * which a lost contact before writing doesn't count as; an answer that
+     * isn't one of its options is dropped. Ignored unless failed.
+     */
+    fun retry(positionChanged: String? = null) {
+        if (mutableState.value !is TestWriteState.Failed) return
+        pendingRetry = true
+        pendingPositionChanged = positionChanged?.takeIf { it in POSITION_CHANGED_QUESTION.options }
+        mutableState.value = nextState()
     }
 
     /**
@@ -129,7 +154,7 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
         if (mutableState.value is TestWriteState.Writing) return
         val pattern = (mutableState.value as? TestWriteState.Asking)?.pattern
         val outcome = unanswered
-        if (pattern != null && outcome != null) recorded += TestWriteRecord(pattern.title, outcome, emptyList())
+        if (pattern != null && outcome != null) record(pattern, outcome, emptyList())
         unanswered = null
         mutableState.value = TestWriteState.Done(records)
     }
@@ -172,13 +197,9 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
         }
         val failure = outcome.failure
         mutableState.value = when {
-            failure != null -> {
-                val record = TestWriteRecord(pattern.title, outcome, emptyList())
-                recorded += record
-                TestWriteState.Failed(record, message ?: failure.userMessage)
-            }
+            failure != null -> TestWriteState.Failed(record(pattern, outcome, emptyList()), message ?: failure.userMessage)
             pattern.questions.isEmpty() -> {
-                recorded += TestWriteRecord(pattern.title, outcome, emptyList())
+                record(pattern, outcome, emptyList())
                 index++
                 nextState()
             }
@@ -217,6 +238,18 @@ class TestWriteController(private val family: TestWriteFamily, probedUid: ByteAr
             val failure = WriteResult.Failure(lastStep(), FailureKind.UNEXPECTED_REPLY, "the writer stopped with an error", e)
             TestWriteOutcome(log, null, failure) to TEST_WRITE_ERROR_MESSAGE
         }
+    }
+
+    /**
+     * Records a write of [pattern]. The only place a record is made, so the
+     * only place [pendingRetry] and [pendingPositionChanged] are used up.
+     */
+    private fun record(pattern: TestWritePattern, outcome: TestWriteOutcome, answers: List<TestAnswer>): TestWriteRecord {
+        val record = TestWriteRecord(pattern.title, outcome, answers, pendingRetry, pendingPositionChanged)
+        pendingRetry = false
+        pendingPositionChanged = null
+        recorded += record
+        return record
     }
 
     /** Waiting for the pattern at [index], or done after the last. */

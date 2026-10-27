@@ -1,6 +1,7 @@
 package io.github.cacack.keginker
 
 import io.github.cacack.keginker.nfc.FoundTag
+import io.github.cacack.keginker.nfc.SimulatedTagLostException
 import io.github.cacack.keginker.nfc.TagInfo
 import io.github.cacack.keginker.nfc.TagKind
 import io.github.cacack.keginker.nfc.Transport
@@ -31,8 +32,15 @@ class EzSignTag(serial: ByteArray? = null) : Transport {
     val sent = mutableListOf<ByteArray>()
     private val deviceInfoReply = PANEL_TLV + (serial?.let { bytes(0xC0, it.size) + it } ?: ByteArray(0)) + OK
 
+    /** How many more commands, other than the device-information query, are lost as if the tag moved away. */
+    var lostCommands = 0
+
     override suspend fun transceive(command: ByteArray, timeoutMs: Long): ByteArray {
         sent += command
+        if (lostCommands > 0 && !command.contentEquals(DEVICE_INFO_QUERY)) {
+            lostCommands--
+            throw SimulatedTagLostException()
+        }
         return when {
             command.contentEquals(DEVICE_INFO_QUERY) -> deviceInfoReply
             // The busy poll: not busy.

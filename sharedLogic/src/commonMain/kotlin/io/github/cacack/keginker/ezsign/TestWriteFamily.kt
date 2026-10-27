@@ -88,4 +88,11 @@ class TestWriteRecord(
     val pattern: String,
     val outcome: TestWriteOutcome,
     val answers: List<TestAnswer>,
+    /** Whether this attempt retried a failed write of the same pattern. */
+    val retry: Boolean = false,
+    /**
+     * For a [retry], the option chosen when asked whether the phone moved on
+     * the display; null when not a retry, or the user didn't answer.
+     */
+    val positionChanged: String? = null,
 )

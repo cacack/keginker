@@ -109,10 +109,27 @@ struct TestWriteView: View {
                 .disabled(asking.questions.contains { choices[$0.id] == nil })
             }
         case let failed as TestWriteStateFailed:
+            let question = TestWriteControllerKt.POSITION_CHANGED_QUESTION
             Section {
                 Text(failed.message).foregroundStyle(.red)
-                Button("Retry") { writer.retry() }
-                    .disabled(writer.isBusy)
+            }
+            // Optional: Retry works without an answer.
+            Section {
+                Picker(question.text, selection: choice(question.id)) {
+                    ForEach(question.options, id: \.self) { Text($0).tag(Optional($0)) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } header: {
+                Text(question.text).textCase(nil)
+            }
+            Section {
+                Button("Retry") {
+                    let positionChanged = choices[question.id]
+                    choices = [:]
+                    writer.retry(positionChanged: positionChanged)
+                }
+                .disabled(writer.isBusy)
                 Button("Finish and see report") { writer.finish() }
             }
         default:

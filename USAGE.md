@@ -75,7 +75,9 @@ says about itself helps add it.
    to the phone once and keep it still: a colour display can take half a
    minute to redraw. If it stops while updating, turn the phone a quarter
    turn over the display and try again: a larger display needs a good
-   position to draw enough power. Then answer a few questions about what it shows,
+   position to draw enough power. Before **Retry**, you can say whether
+   you changed how the phone sits on the display. The report shows your
+   answer, or "not answered", with the next attempt. Then answer a few questions about what it shows,
    starting with which way you're holding it. Your answers and how long each
    refresh took are added to the report you share.
 6. Tap **Open a GitHub issue** to open the **New display report** form in

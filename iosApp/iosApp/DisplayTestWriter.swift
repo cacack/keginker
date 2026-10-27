@@ -68,8 +68,9 @@ final class DisplayTestWriter: NSObject, ObservableObject {
         write()
     }
 
-    func retry() {
-        controller.retry()
+    /// Writes the failed pattern again; [positionChanged] answers `POSITION_CHANGED_QUESTION`, or is nil.
+    func retry(positionChanged: String?) {
+        controller.retry(positionChanged: positionChanged)
         write()
     }
 

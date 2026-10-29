@@ -26,7 +26,7 @@ tool-bouncycastle = "1.85"
 tool-commonsLang3 = "3.18.0"
 tool-httpclient = "4.5.14"
 tool-jdom2 = "2.0.6.1"
-tool-jose4j = "0.9.6"
+tool-jose4j = "0.9.7"
 tool-opentelemetry = "1.67.0"
 
 [libraries]

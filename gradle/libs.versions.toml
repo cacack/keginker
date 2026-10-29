@@ -22,7 +22,7 @@ roborazzi = "1.76.0"
 androidx-compose = "1.12.1"
 # Floors for libraries the build tools bring in (AGP, Android lint, Kotlin swift
 # export), raised past known vulnerabilities; root build.gradle.kts applies them.
-tool-bouncycastle = "1.85"
+tool-bouncycastle = "1.86"
 tool-commonsLang3 = "3.18.0"
 tool-httpclient = "4.5.14"
 tool-jdom2 = "2.0.6.1"

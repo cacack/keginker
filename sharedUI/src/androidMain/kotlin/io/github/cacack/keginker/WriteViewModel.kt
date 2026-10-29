@@ -5,7 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.cacack.keginker.image.Dither
-import io.github.cacack.keginker.image.ColourImage
+import io.github.cacack.keginker.image.ColorImage
 import io.github.cacack.keginker.nfc.FoundTag
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -32,8 +32,8 @@ class WriteViewModel(display: LabelDisplay = LabelDisplay.WAVESHARE_2IN7) : View
     val probe = ProbeController()
     val dither: StateFlow<Dither> = session.dither
 
-    /** Whether labels are in colour on displays that show it. */
-    val colour: StateFlow<Boolean> = session.colour
+    /** Whether labels are in color on displays that show it. */
+    val color: StateFlow<Boolean> = session.color
 
     /** The image exactly as the display will show it: indices into its palette. */
     val view: StateFlow<ByteArray> = session.view
@@ -101,9 +101,9 @@ class WriteViewModel(display: LabelDisplay = LabelDisplay.WAVESHARE_2IN7) : View
 
     fun toggleDither() = session.toggleDither()
 
-    fun toggleColour() = session.toggleColour()
+    fun toggleColor() = session.toggleColor()
 
-    /** Sets where grey becomes black (0–255) when dithering is off. */
+    /** Sets where gray becomes black (0–255) when dithering is off. */
     fun setThreshold(level: Int) = session.setThreshold(level)
 
     private var loading: Job? = null
@@ -113,7 +113,7 @@ class WriteViewModel(display: LabelDisplay = LabelDisplay.WAVESHARE_2IN7) : View
     }
 
     /** Loads an image from [read], cancelling any load still running, so the latest pick wins. */
-    internal fun load(read: suspend () -> ColourImage): Job {
+    internal fun load(read: suspend () -> ColorImage): Job {
         loading?.cancel()
         return viewModelScope.launch {
             // Scaled off the main thread; a read that finishes after a later pick cancelled it isn't shown.

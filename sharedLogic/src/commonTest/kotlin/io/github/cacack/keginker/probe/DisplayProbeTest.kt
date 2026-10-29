@@ -318,7 +318,7 @@ class DisplayProbeTest {
 
         val vendor = result.exchanges.filter { it.pass == ProbePass.VENDOR }
         assertEquals(listOf(selectAid(NDEF_APPLICATION_AID).toList()), vendor.map { it.command.toList() })
-        assertEquals(listOf(ProbeStep.SELECT_AID), vendor.map { it.step }, "A vendor query's SELECT is labelled as one")
+        assertEquals(listOf(ProbeStep.SELECT_AID), vendor.map { it.step }, "A vendor query's SELECT is labeled as one")
         assertTrue(tag.sent.none { it.contentEquals(DEVICE_INFO) })
         assertEquals(1, result.vendorQueriesSent)
     }

@@ -155,7 +155,7 @@ private fun StringBuilder.ezSignSection(info: EzSignDeviceInfo, hex: (ByteArray)
     appendLine("EZ Sign device information")
     val native = if (info.nativeWidth != info.viewWidth) " (native ${info.nativeWidth} × ${info.nativeHeight})" else ""
     field("Resolution", "${info.viewWidth} × ${info.viewHeight}$native")
-    field("Colours", "${info.colourNames.size} (${info.colourNames.joinToString(", ")}), mode ${byteHex(info.colourMode)}")
+    field("Colors", "${info.colorNames.size} (${info.colorNames.joinToString(", ")}), mode ${byteHex(info.colorMode)}")
     field("Rows per block", info.rowsPerBlock.toString())
     info.otherTlvs.forEach { (tag, value) -> field(byteHex(tag), hex(value).ifEmpty { "(empty)" }) }
     field("Decoded from", EZ_SIGN_DECODER_SOURCE)

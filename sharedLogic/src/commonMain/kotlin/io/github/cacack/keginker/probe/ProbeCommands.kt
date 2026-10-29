@@ -78,8 +78,8 @@ internal class VendorQuery(val name: String, val kind: TagKind, val commands: Li
 
 /**
  * EZ Sign "Get Device Information" (also sent by the Waveshare and Santek
- * apps). INS D1 is WRITE BINARY in ISO/IEC 7816-4, so only vendor behaviour
- * makes it a read. Its reply data is TLVs: A0 the panel geometry and colour
+ * apps). INS D1 is WRITE BINARY in ISO/IEC 7816-4, so only vendor behavior
+ * makes it a read. Its reply data is TLVs: A0 the panel geometry and color
  * mode, A1 more panel flags, C0 a 10-character ASCII serial, C1 a 4-byte
  * device ID. Reports shorten C0 and C1, as they do the UID.
  */

@@ -41,10 +41,10 @@ body:
     validations:
       required: false
   - type: dropdown
-    id: colours
+    id: colors
     attributes:
-      label: Colours
-      description: How many colours the display can show.
+      label: Colors
+      description: How many colors the display can show.
       options:
         - 2 (black and white)
         - 3 (black, white, red)

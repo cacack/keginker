@@ -15,23 +15,23 @@ private fun bytes(vararg values: Int) = ByteArray(values.size) { values[it].toBy
 internal fun infoFrom(data: ByteArray): EzSignDeviceInfo =
     (parseEzSignDeviceInfo(data + bytes(0x90, 0x00)) as EzSignDeviceInfoParse.Decoded).info
 
-/** A made-up panel's info: an A0 TLV giving [width] × [height] at [colourMode]. */
-internal fun panelInfo(width: Int, height: Int, colourMode: Int): EzSignDeviceInfo {
-    val bpp = if (colourMode == 0x07) 2 else 1
+/** A made-up panel's info: an A0 TLV giving [width] × [height] at [colorMode]. */
+internal fun panelInfo(width: Int, height: Int, colorMode: Int): EzSignDeviceInfo {
+    val bpp = if (colorMode == 0x07) 2 else 1
     val raw = height * bpp
-    return infoFrom(bytes(0xA0, 0x07, 0xF0, colourMode, 0x20, raw shr 8, raw and 0xFF, width shr 8, width and 0xFF))
+    return infoFrom(bytes(0xA0, 0x07, 0xF0, colorMode, 0x20, raw shr 8, raw and 0xFF, width shr 8, width and 0xFF))
 }
 
 internal val PANEL_29 get() = infoFrom(EZ_SIGN_29_DEVICE_INFO)
 internal val PANEL_42 get() = infoFrom(EZ_SIGN_42_DEVICE_INFO)
 
 /** 1 bit per pixel, with rows that aren't a whole number of bytes. */
-internal val PANEL_MONO_122 get() = panelInfo(width = 122, height = 250, colourMode = 0x01)
+internal val PANEL_MONO_122 get() = panelInfo(width = 122, height = 250, colorMode = 0x01)
 
 class EzSignFrameTest {
     @Test
     fun aRowsFirstByteHoldsItsLastPixelsLowestBitsFirst() {
-        val info = panelInfo(width = 8, height = 1, colourMode = 0x07)
+        val info = panelInfo(width = 8, height = 1, colorMode = 0x07)
 
         val packed = packFrame(bytes(0, 1, 2, 3, 3, 2, 1, 0), info)
 
@@ -41,7 +41,7 @@ class EzSignFrameTest {
 
     @Test
     fun oneBitRowsArePaddedWithIndex0AtTheirRightHandEnd() {
-        val info = panelInfo(width = 10, height = 1, colourMode = 0x01)
+        val info = panelInfo(width = 10, height = 1, colorMode = 0x01)
 
         val packed = packFrame(ByteArray(10) { 1 }, info)
 

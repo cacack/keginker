@@ -64,12 +64,12 @@ private val REPORT_APP = AppInfo(version = "1.4.0", buildType = "release", commi
 private val REPORT_DEVICE = DeviceInfo(manufacturer = "Google", model = "Pixel 8", os = "Android 15", nfcEnabled = true)
 
 private val SIDE = TestQuestion("side", "Which side?", listOf("Left", "Right"))
-private val COLOUR = TestQuestion("colour", "Which colour?", listOf("Black", "Red"))
+private val COLOR = TestQuestion("color", "Which color?", listOf("Black", "Red"))
 
 /** Two patterns; sends one command per write and fails the first [failures] writes. */
 private class FakeFamily(private val failures: Int = 0) : TestWriteFamily {
     override val name = "Fake"
-    override val patterns = listOf(pattern("one", SIDE, COLOUR), pattern("two", SIDE))
+    override val patterns = listOf(pattern("one", SIDE, COLOR), pattern("two", SIDE))
     val written = mutableListOf<String>()
 
     override suspend fun write(
@@ -175,7 +175,7 @@ class TestWriteControllerTest {
 
         controller.onTag(display(first))
         val asking = assertIs<TestWriteState.Asking>(controller.state.value)
-        assertEquals(listOf(SIDE, COLOUR), asking.questions)
+        assertEquals(listOf(SIDE, COLOR), asking.questions)
         controller.answer(listOf("Left", "Red"))
         assertEquals(1, assertIs<TestWriteState.Waiting>(controller.state.value).index)
         controller.onTag(display(second))
@@ -184,7 +184,7 @@ class TestWriteControllerTest {
         val done = assertIs<TestWriteState.Done>(controller.state.value)
         assertEquals(listOf("Pattern one", "Pattern two"), done.records.map { it.pattern })
         assertEquals(listOf("Left", "Red"), done.records[0].answers.map { it.answer })
-        assertEquals(listOf("side", "colour"), done.records[0].answers.map { it.questionId })
+        assertEquals(listOf("side", "color"), done.records[0].answers.map { it.questionId })
         assertEquals(listOf("Right"), done.records[1].answers.map { it.answer })
         assertEquals(1200, done.records[1].outcome.refreshMs)
         assertTrue(first.closed && second.closed)

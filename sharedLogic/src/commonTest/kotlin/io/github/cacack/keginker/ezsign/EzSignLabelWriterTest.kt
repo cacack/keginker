@@ -42,9 +42,9 @@ internal fun deviceInfoData(display: LabelDisplay): ByteArray = when (display) {
 internal fun simulatedEzSign(data: ByteArray, clock: TestTimeSource? = null, busyMs: Long? = null) =
     SimulatedEzSignTag(infoFrom(data), clock = clock, busyMs = busyMs, deviceInfoReply = data + OK)
 
-/** A random view of [display], in every colour of its palette. */
+/** A random view of [display], in every color of its palette. */
 internal fun randomView(display: LabelDisplay, random: kotlin.random.Random) =
-    ByteArray(display.viewWidth * display.viewHeight) { random.nextInt(display.palette.colours.size).toByte() }
+    ByteArray(display.viewWidth * display.viewHeight) { random.nextInt(display.palette.colors.size).toByte() }
 
 private fun isRefresh(command: ByteArray) = command[1] == 0xD4.toByte()
 

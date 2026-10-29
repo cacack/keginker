@@ -162,7 +162,7 @@ class SimulatedEzSignTag(
 
     private val blockCount get() = (memory.size + BLOCK_SIZE - 1) / BLOCK_SIZE
 
-    /** [shown] as colour indices, row-major in the native layout; each row's bytes run from its right-hand end. */
+    /** [shown] as color indices, row-major in the native layout; each row's bytes run from its right-hand end. */
     fun shownPixels(): ByteArray? {
         val memory = shown ?: return null
         val bpp = info.bitsPerPixel

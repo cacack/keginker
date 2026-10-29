@@ -18,7 +18,7 @@ const val EZ_SIGN_DECODER_SOURCE = "alt-core/nfc-eink https://github.com/alt-cor
 /** The device-information TLVs that identify one device, never kept and never reported: C0 its serial, C1 its ID. */
 internal val DEVICE_ID_TLVS = setOf(0xC0, 0xC1)
 
-/** The A0 TLV: `[flags, colour mode, rows per block, height × bpp (2 bytes), width (2 bytes)]`. */
+/** The A0 TLV: `[flags, color mode, rows per block, height × bpp (2 bytes), width (2 bytes)]`. */
 private const val PANEL_TLV = 0xA0
 private const val PANEL_TLV_BYTES = 7
 
@@ -29,11 +29,11 @@ private const val PANEL_TLV_BYTES = 7
  */
 internal const val MAX_PANEL_PIXELS = 2_000_000L
 
-/** Bits per pixel for each A0 colour mode alt-core knows. */
+/** Bits per pixel for each A0 color mode alt-core knows. */
 private val BITS_PER_PIXEL = mapOf(0x01 to 1, 0x07 to 2, 0x47 to 1)
 
-/** Colour names by pixel value, per alt-core: 1 bpp is black and white, 2 bpp adds yellow and red. */
-private val COLOUR_NAMES = listOf("black", "white", "yellow", "red")
+/** Color names by pixel value, per alt-core: 1 bpp is black and white, 2 bpp adds yellow and red. */
+private val COLOR_NAMES = listOf("black", "white", "yellow", "red")
 
 /**
  * What an EZ Sign tag's device-information reply says about its panel.
@@ -41,11 +41,11 @@ private val COLOUR_NAMES = listOf("black", "white", "yellow", "red")
  * landscape, so it swaps them when the native width is the shorter side.
  */
 class EzSignDeviceInfo internal constructor(
-    /** The A0 colour-mode byte. */
-    val colourMode: Int,
+    /** The A0 color-mode byte. */
+    val colorMode: Int,
     val bitsPerPixel: Int,
     /** By pixel value: index 0 is black, 1 white, and on 2 bpp panels 2 yellow, 3 red. */
-    val colourNames: List<String>,
+    val colorNames: List<String>,
     val rowsPerBlock: Int,
     val nativeWidth: Int,
     val nativeHeight: Int,
@@ -83,9 +83,9 @@ fun parseEzSignDeviceInfo(reply: ByteArray): EzSignDeviceInfoParse {
     val a0 = values[PANEL_TLV] ?: return fail("it has no A0 TLV")
     if (a0.size < PANEL_TLV_BYTES) return fail("its A0 TLV is ${a0.size} bytes, not $PANEL_TLV_BYTES")
     fun u8(index: Int) = a0[index].toInt() and 0xFF
-    val colourMode = u8(1)
-    val bitsPerPixel = BITS_PER_PIXEL[colourMode]
-        ?: return fail("colour mode ${a0.copyOfRange(1, 2).toHex()} isn't one alt-core/nfc-eink knows")
+    val colorMode = u8(1)
+    val bitsPerPixel = BITS_PER_PIXEL[colorMode]
+        ?: return fail("color mode ${a0.copyOfRange(1, 2).toHex()} isn't one alt-core/nfc-eink knows")
     val nativeWidth = u8(5) shl 8 or u8(6)
     // A0 holds the height times the bits per pixel.
     val nativeHeight = (u8(3) shl 8 or u8(4)) / bitsPerPixel
@@ -97,9 +97,9 @@ fun parseEzSignDeviceInfo(reply: ByteArray): EzSignDeviceInfoParse {
     val portrait = nativeWidth < nativeHeight
     return EzSignDeviceInfoParse.Decoded(
         EzSignDeviceInfo(
-            colourMode = colourMode,
+            colorMode = colorMode,
             bitsPerPixel = bitsPerPixel,
-            colourNames = COLOUR_NAMES.take(1 shl bitsPerPixel),
+            colorNames = COLOR_NAMES.take(1 shl bitsPerPixel),
             rowsPerBlock = u8(2),
             nativeWidth = nativeWidth,
             nativeHeight = nativeHeight,

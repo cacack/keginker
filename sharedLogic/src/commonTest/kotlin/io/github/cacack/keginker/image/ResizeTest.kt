@@ -12,7 +12,7 @@ private fun GrayImage.values() = (0 until height).flatMap { y -> (0 until width)
 
 class ResizeTest {
     @Test
-    fun cropsAWideImageToItsCentre() {
+    fun cropsAWideImageToItsCenter() {
         val wide = gray(4, 2, 0, 100, 200, 50, 0, 100, 200, 50)
 
         assertEquals(listOf(100, 200, 100, 200), wide.fill(2, 2).values())
@@ -75,14 +75,14 @@ class ResizeTest {
 
     @Test
     fun aUniformImageStaysUniform() = forEachSeed { random ->
-        val grey = random.nextInt(0, 256)
+        val gray = random.nextInt(0, 256)
         val width = random.nextInt(1, 41)
         val height = random.nextInt(1, 41)
-        val image = GrayImage(width, height, ByteArray(width * height) { grey.toByte() })
+        val image = GrayImage(width, height, ByteArray(width * height) { gray.toByte() })
 
         val out = image.fill(random.nextInt(1, 41), random.nextInt(1, 41))
 
-        assertTrue(out.grays().all { it == grey }, "Expected all $grey, got ${out.grays()}")
+        assertTrue(out.grays().all { it == gray }, "Expected all $gray, got ${out.grays()}")
     }
 
     @Test

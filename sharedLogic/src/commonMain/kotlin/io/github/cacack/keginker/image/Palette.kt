@@ -7,12 +7,12 @@ const val BLACK: Byte = 0
 const val WHITE: Byte = 1
 
 /**
- * The colours a display can show, by the index its panel memory holds them
+ * The colors a display can show, by the index its panel memory holds them
  * at. Views (from `renderView`) are row-major arrays of these indices.
  */
 enum class Palette(
     /** `0xRRGGBB` by palette index: dithering aims for these, and previews show them. */
-    val colours: List<Int>,
+    val colors: List<Int>,
 ) {
     BLACK_WHITE(listOf(0x000000, 0xFFFFFF)),
 
@@ -20,11 +20,11 @@ enum class Palette(
     BLACK_WHITE_YELLOW_RED(listOf(0x000000, 0xFFFFFF, 0xFFFF00, 0xFF0000)),
     ;
 
-    /** Whether it has colours beyond black and white. */
-    val hasColour: Boolean get() = colours.size > 2
+    /** Whether it has colors beyond black and white. */
+    val hasColor: Boolean get() = colors.size > 2
 
     /** [view] as opaque `0xAARRGGBB` pixels, for previewing. */
-    fun argb(view: ByteArray): IntArray = IntArray(view.size) { colours[view[it].toInt()] or OPAQUE }
+    fun argb(view: ByteArray): IntArray = IntArray(view.size) { colors[view[it].toInt()] or OPAQUE }
 }
 
 private const val OPAQUE = 0xFF shl 24

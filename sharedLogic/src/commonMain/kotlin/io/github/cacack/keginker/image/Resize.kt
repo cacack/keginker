@@ -1,7 +1,7 @@
 package io.github.cacack.keginker.image
 
 /**
- * Scales to exactly [width] × [height], centre-cropping to keep the aspect
+ * Scales to exactly [width] × [height], center-cropping to keep the aspect
  * ratio (never letterboxing). Each output pixel is the average of the source
  * pixels it covers, weighted by how much of each it covers, so the crop and
  * the scaling are symmetric: mirroring the input mirrors the output.
@@ -9,7 +9,7 @@ package io.github.cacack.keginker.image
 fun GrayImage.fill(width: Int, height: Int): GrayImage {
     require(width > 0 && height > 0) { "Target must be at least 1×1, was ${width}×$height" }
     // Measured in units of 1 / (2 × width × height) of a source pixel, the
-    // centred crop and every output cell have whole-unit edges. The crop is
+    // centered crop and every output cell have whole-unit edges. The crop is
     // the largest region of the target's aspect ratio: in source pixels it is
     // crop / height wide and crop / width tall, where crop is the smaller of
     // the two cross-products. In units that is 2 × crop × width across and

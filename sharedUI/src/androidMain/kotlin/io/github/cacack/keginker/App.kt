@@ -86,7 +86,7 @@ fun App(
     val model: WriteViewModel = viewModel { WriteViewModel(displaySetting.display) }
     val state by model.controller.state.collectAsState()
     val dither by model.dither.collectAsState()
-    val colour by model.colour.collectAsState()
+    val color by model.color.collectAsState()
     val view by model.view.collectAsState()
     val loadError by model.loadError.collectAsState()
     val display by model.display.collectAsState()
@@ -202,12 +202,12 @@ fun App(
                         onClick = model::toggleDither,
                         label = { Text("Dither") },
                     )
-                    if (display.palette.hasColour) {
+                    if (display.palette.hasColor) {
                         FilterChip(
-                            selected = colour,
+                            selected = color,
                             enabled = !busy,
-                            onClick = model::toggleColour,
-                            label = { Text("Colour") },
+                            onClick = model::toggleColor,
+                            label = { Text("Color") },
                         )
                     }
                 }
@@ -265,11 +265,11 @@ private fun DisplayPicker(display: LabelDisplay, enabled: Boolean, onChoose: (La
     }
 }
 
-/** Where grey becomes black when dithering is off; higher keeps light greys black. */
+/** Where gray becomes black when dithering is off; higher keeps light grays black. */
 @Composable
 private fun ThresholdControl(level: Int, enabled: Boolean, onChange: (Int) -> Unit) {
     Column(Modifier.width(260.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Black below grey level $level", style = MaterialTheme.typography.bodySmall)
+        Text("Black below gray level $level", style = MaterialTheme.typography.bodySmall)
         Slider(
             value = level.toFloat(),
             onValueChange = { onChange(it.roundToInt()) },

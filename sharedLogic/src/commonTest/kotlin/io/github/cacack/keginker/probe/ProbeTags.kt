@@ -158,7 +158,7 @@ fun type2Memory(data: ByteArray, pages: Int = 64): ByteArray {
 
 /**
  * A [DEVICE_INFO] reply's data, laid out as niw/EPaperNFCSwift and
- * alt-core/nfc-eink parse it: A0 (4-colour, 400×300), A1, the C0 serial
+ * alt-core/nfc-eink parse it: A0 (4-color, 400×300), A1, the C0 serial
  * "SEAA000282" and a C1 ID.
  */
 val EZ_SIGN_DEVICE_INFO = bytes(0xA0, 0x07, 0x00, 0x07, 0x14, 0x02, 0x58, 0x01, 0x90) +
@@ -176,10 +176,10 @@ private fun ezSignTlvsAfter(b1: Int) = bytes(0xA1, 0x07, 0x01, 0x12, 0x00, 0x30,
     bytes(0xD1, 0x07, 0x01, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00) +
     bytes(0xC0, 0x0A) + MADE_UP_SERIAL + bytes(0xC1, 0x04) + MADE_UP_ID
 
-/** A 2.9" EZ Sign panel's [DEVICE_INFO] reply data: 4 colours, native 128 × 296. */
+/** A 2.9" EZ Sign panel's [DEVICE_INFO] reply data: 4 colors, native 128 × 296. */
 val EZ_SIGN_29_DEVICE_INFO = bytes(0xA0, 0x07, 0xF0, 0x07, 0x20, 0x02, 0x50, 0x00, 0x80) + ezSignTlvsAfter(0x1A)
 
-/** A 4.2" EZ Sign panel's [DEVICE_INFO] reply data: 4 colours, native 400 × 300. */
+/** A 4.2" EZ Sign panel's [DEVICE_INFO] reply data: 4 colors, native 400 × 300. */
 val EZ_SIGN_42_DEVICE_INFO = bytes(0xA0, 0x07, 0xF0, 0x07, 0x20, 0x02, 0x58, 0x01, 0x90) + ezSignTlvsAfter(0x08)
 
 /** An NTAG213's GET_VERSION reply: NXP, NTAG, 50 pF, version 1.0, 128 to 256 bytes, ISO 14443-3. */

@@ -23,7 +23,7 @@ private fun reason(reply: ByteArray) = assertIs<EzSignDeviceInfoParse.NotDecoded
 
 /**
  * A random device-information reply: TLVs that may include an A0 (with a
- * known colour mode or not), a C0 and a C1, maybe cut short, maybe with a
+ * known color mode or not), a C0 and a C1, maybe cut short, maybe with a
  * status other than `90 00`, or sometimes just random bytes.
  */
 internal fun Random.nextDeviceInfoReply(serial: ByteArray, id: ByteArray): ByteArray {
@@ -51,9 +51,9 @@ class EzSignDeviceInfoTest {
     fun aPortraitA0IsShownLandscape() {
         val info = decoded(EZ_SIGN_29_DEVICE_INFO + OK)
 
-        assertEquals(0x07, info.colourMode)
+        assertEquals(0x07, info.colorMode)
         assertEquals(2, info.bitsPerPixel)
-        assertEquals(listOf("black", "white", "yellow", "red"), info.colourNames)
+        assertEquals(listOf("black", "white", "yellow", "red"), info.colorNames)
         assertEquals(0x20, info.rowsPerBlock)
         assertEquals(128 to 296, info.nativeWidth to info.nativeHeight)
         assertEquals(296 to 128, info.viewWidth to info.viewHeight)
@@ -65,7 +65,7 @@ class EzSignDeviceInfoTest {
 
         assertEquals(400 to 300, info.nativeWidth to info.nativeHeight)
         assertEquals(400 to 300, info.viewWidth to info.viewHeight)
-        assertEquals(4, info.colourNames.size)
+        assertEquals(4, info.colorNames.size)
     }
 
     @Test
@@ -82,18 +82,18 @@ class EzSignDeviceInfoTest {
 
     @Test
     fun aOneBitModeKeepsTheRawHeight() {
-        // Colour mode 47: 1 bpp, so the raw height is the height.
+        // Color mode 47: 1 bpp, so the raw height is the height.
         val info = decoded(bytes(0xA0, 0x07, 0x00, 0x47, 0x20, 0x01, 0x2C, 0x01, 0x90) + OK)
 
         assertEquals(1, info.bitsPerPixel)
-        assertEquals(listOf("black", "white"), info.colourNames)
+        assertEquals(listOf("black", "white"), info.colorNames)
         assertEquals(400 to 300, info.viewWidth to info.viewHeight)
     }
 
     @Test
-    fun anUnknownColourModeIsNotDecoded() {
+    fun anUnknownColorModeIsNotDecoded() {
         assertEquals(
-            "colour mode 99 isn't one alt-core/nfc-eink knows",
+            "color mode 99 isn't one alt-core/nfc-eink knows",
             reason(bytes(0xA0, 0x07, 0xF0, 0x99, 0x20, 0x02, 0x58, 0x01, 0x90) + OK),
         )
     }

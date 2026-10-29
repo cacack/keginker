@@ -95,8 +95,8 @@ class WaveshareFrameTest {
     }
 
     @Test
-    fun encodesALandscapeImageByCroppingToTheCentredPortraitView() {
-        // 352×264 crops to the centred 176 columns starting at x = 88.
+    fun encodesALandscapeImageByCroppingToTheCenteredPortraitView() {
+        // 352×264 crops to the centered 176 columns starting at x = 88.
         val pixels = ByteArray(352 * 264) { 0xFF.toByte() }
         pixels[0] = 0 // cropped away
         pixels[88] = 0 // becomes view top-left

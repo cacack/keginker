@@ -6,7 +6,7 @@ panel (176 x 264). The loader tests write a missing golden and fail, so
 after regenerating a photo, delete its golden, run the Android loader test,
 check the new golden by eye and commit it.
 
-Edges sit on 8-pixel boundaries and greys are neutral (r = g = b), so the
+Edges sit on 8-pixel boundaries and grays are neutral (r = g = b), so the
 JPEG decodes exactly on every platform.
 
 The size-limit photos have no golden: the tests check only that they load
@@ -22,7 +22,7 @@ BLACK, WHITE = (0, 0, 0), (255, 255, 255)
 
 
 def exif_rotated():
-    """Upright: a black block top left, a dark grey band at the bottom. Stored
+    """Upright: a black block top left, a dark gray band at the bottom. Stored
     sideways with EXIF orientation 6 (rotate 90 degrees clockwise to view)."""
     upright = Image.new("RGB", (352, 528), WHITE)
     draw = ImageDraw.Draw(upright)
@@ -36,7 +36,7 @@ def exif_rotated():
 
 def transparent():
     """Transparent black background, an opaque black square and a half-
-    transparent black band: white, black and mid grey once over white. A
+    transparent black band: white, black and mid gray once over white. A
     half-transparent white band stays white only if the loader undoes
     premultiplied alpha (white at alpha 128 round-trips exactly)."""
     image = Image.new("RGBA", (176, 264), (0, 0, 0, 0))
@@ -48,18 +48,18 @@ def transparent():
 
 
 def saturated():
-    """Eight bands of pure colour, whose greys show the luma weights."""
-    colours = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
+    """Eight bands of pure color, whose grays show the luma weights."""
+    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
                (0, 255, 255), (255, 0, 255), WHITE, BLACK]
     image = Image.new("RGB", (176, 264))
     draw = ImageDraw.Draw(image)
-    for i, colour in enumerate(colours):
-        draw.rectangle((0, i * 33, 175, i * 33 + 32), fill=colour)
+    for i, color in enumerate(colors):
+        draw.rectangle((0, i * 33, 175, i * 33 + 32), fill=color)
     image.save(HERE / "saturated.png")
 
 
 def wide():
-    """1,000 x 150, black but for the 100 x 150 centre crop: white with a
+    """1,000 x 150, black but for the 100 x 150 center crop: white with a
     black bar across it."""
     image = Image.new("RGB", (1000, 150), BLACK)
     draw = ImageDraw.Draw(image)
@@ -69,7 +69,7 @@ def wide():
 
 
 def tall():
-    """100 x 1,000, black but for the 100 x 150 centre crop: white with a
+    """100 x 1,000, black but for the 100 x 150 center crop: white with a
     black bar down it."""
     image = Image.new("RGB", (100, 1000), BLACK)
     draw = ImageDraw.Draw(image)
@@ -79,7 +79,7 @@ def tall():
 
 
 def tiny():
-    """2 x 3 pixels of different greys, scaled up 88 times."""
+    """2 x 3 pixels of different grays, scaled up 88 times."""
     image = Image.new("L", (2, 3))
     image.putdata([0, 255, 255, 0, 85, 170])
     image.convert("RGB").save(HERE / "tiny.png")

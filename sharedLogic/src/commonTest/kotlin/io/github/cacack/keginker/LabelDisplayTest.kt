@@ -4,7 +4,7 @@ import io.github.cacack.keginker.ezsign.ezSignLabelPixels
 import io.github.cacack.keginker.ezsign.infoFrom
 import io.github.cacack.keginker.ezsign.packFrame
 import io.github.cacack.keginker.image.BLACK
-import io.github.cacack.keginker.image.ColourImage
+import io.github.cacack.keginker.image.ColorImage
 import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.image.GrayImage
 import io.github.cacack.keginker.image.Palette
@@ -100,9 +100,9 @@ class LabelDisplayTest {
 
         assertContentEquals(
             ByteArray(white.size) { if (white[it]) WHITE else BLACK },
-            renderView(LabelDisplay.WAVESHARE_2IN7, ColourImage.fromGray(image)),
+            renderView(LabelDisplay.WAVESHARE_2IN7, ColorImage.fromGray(image)),
         )
-        assertEquals(400 * 300, renderView(LabelDisplay.EZ_SIGN_4IN2, ColourImage.fromGray(image)).size)
+        assertEquals(400 * 300, renderView(LabelDisplay.EZ_SIGN_4IN2, ColorImage.fromGray(image)).size)
     }
 
     @Test
@@ -113,30 +113,30 @@ class LabelDisplayTest {
     }
 
     @Test
-    fun colourPhotosKeepTheirColoursOnlyWhereShownAndAsked() {
+    fun colorPhotosKeepTheirColorsOnlyWhereShownAndAsked() {
         // Left half red, right half yellow.
-        val photo = ColourImage.fromArgb(4, 2, IntArray(8) { if (it % 4 < 2) 0xFFFF0000.toInt() else 0xFFFFFF00.toInt() })
+        val photo = ColorImage.fromArgb(4, 2, IntArray(8) { if (it % 4 < 2) 0xFFFF0000.toInt() else 0xFFFFFF00.toInt() })
         val display = LabelDisplay.EZ_SIGN_4IN2
 
         for (dither in listOf(Dither.FloydSteinberg, Dither.Threshold())) {
-            val colour = renderView(display, photo, dither, colour = true)
-            assertEquals(3.toByte(), colour[0], "$dither: left is red")
-            assertEquals(2.toByte(), colour[display.viewWidth - 1], "$dither: right is yellow")
+            val color = renderView(display, photo, dither, color = true)
+            assertEquals(3.toByte(), color[0], "$dither: left is red")
+            assertEquals(2.toByte(), color[display.viewWidth - 1], "$dither: right is yellow")
 
-            val plain = renderView(display, photo, dither, colour = false)
-            assertTrue(plain.all { it == BLACK || it == WHITE }, "$dither: colour off")
+            val plain = renderView(display, photo, dither, color = false)
+            assertTrue(plain.all { it == BLACK || it == WHITE }, "$dither: color off")
             assertTrue(renderView(LabelDisplay.WAVESHARE_2IN7, photo, dither).all { it == BLACK || it == WHITE })
         }
     }
 
     @Test
-    fun greyImagesRenderTheSameInColourAsInBlackAndWhite() {
-        val image = ColourImage.fromGray(GrayImage(40, 30, ByteArray(1200) { (it * 13).toByte() }))
+    fun grayImagesRenderTheSameInColorAsInBlackAndWhite() {
+        val image = ColorImage.fromGray(GrayImage(40, 30, ByteArray(1200) { (it * 13).toByte() }))
 
         for (dither in listOf(Dither.FloydSteinberg, Dither.Threshold(), Dither.Threshold(200))) {
             assertContentEquals(
-                renderView(LabelDisplay.EZ_SIGN_4IN2, image, dither, colour = false),
-                renderView(LabelDisplay.EZ_SIGN_4IN2, image, dither, colour = true),
+                renderView(LabelDisplay.EZ_SIGN_4IN2, image, dither, color = false),
+                renderView(LabelDisplay.EZ_SIGN_4IN2, image, dither, color = true),
                 "$dither",
             )
         }

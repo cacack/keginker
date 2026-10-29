@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 /** The pixel at native ([x], [y]). */
 private fun TestWritePattern.at(x: Int, y: Int): Int = pixels[y * width + x].toInt()
 
-/** The set of native pixels with colour index [index]. */
+/** The set of native pixels with color index [index]. */
 private fun TestWritePattern.pixelsOf(index: Int): Set<Pair<Int, Int>> =
     pixels.indices.filter { pixels[it].toInt() == index }.map { it % width to it / width }.toSet()
 
@@ -35,9 +35,9 @@ class TestPatternsTest {
     }
 
     @Test
-    fun theColourBandsRunAlongNativeRowsFromRow0() {
+    fun theColorBandsRunAlongNativeRowsFromRow0() {
         for ((info, bandRows) in listOf(PANEL_29 to 74, PANEL_42 to 75)) {
-            val pattern = colourPattern(info)
+            val pattern = colorPattern(info)
 
             for (y in 0 until pattern.height) {
                 val band = y / bandRows
@@ -47,14 +47,14 @@ class TestPatternsTest {
     }
 
     @Test
-    fun aFourColourPanelGetsBothPatternsAndATwoColourOneOnlyTheCorner() {
-        assertEquals(listOf("corner", "colours"), ezSignTestPatterns(PANEL_42).map { it.id })
+    fun aFourColorPanelGetsBothPatternsAndATwoColorOneOnlyTheCorner() {
+        assertEquals(listOf("corner", "colors"), ezSignTestPatterns(PANEL_42).map { it.id })
         assertEquals(listOf("corner"), ezSignTestPatterns(PANEL_MONO_122).map { it.id })
     }
 
     @Test
     fun eachPatternAsksItsQuestionsHeldTheWayUpYouReadIt() {
-        val (corner, colours) = ezSignTestPatterns(PANEL_42)
+        val (corner, colors) = ezSignTestPatterns(PANEL_42)
 
         assertEquals(listOf("hold", "square", "line"), corner.questions.map { it.id })
         assertEquals(
@@ -66,9 +66,9 @@ class TestPatternsTest {
             corner.questions[1].options,
         )
         assertEquals(listOf("Along the top or bottom edge", "Along a side edge", "No line"), corner.questions[2].options)
-        assertEquals(listOf("band1", "band2", "band3", "band4"), colours.questions.map { it.id })
-        assertTrue(colours.questions.all { it.options == listOf("Black", "White", "Yellow", "Red", "Other") })
-        for (pattern in listOf(corner, colours)) {
+        assertEquals(listOf("band1", "band2", "band3", "band4"), colors.questions.map { it.id })
+        assertTrue(colors.questions.all { it.options == listOf("Black", "White", "Yellow", "Red", "Other") })
+        for (pattern in listOf(corner, colors)) {
             assertTrue(pattern.questions.first().text.startsWith("Hold the display the way up you'd read it."), pattern.id)
         }
     }

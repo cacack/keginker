@@ -39,13 +39,13 @@ class ImageLoadingTest {
     fun transparencyIsWhite() = checkGolden("transparent.png")
 
     @Test
-    fun coloursBecomeRec601Greys() = checkGolden("saturated.png")
+    fun colorsBecomeRec601Grays() = checkGolden("saturated.png")
 
     @Test
-    fun wideImageIsCentreCropped() = checkGolden("wide.png")
+    fun wideImageIsCenterCropped() = checkGolden("wide.png")
 
     @Test
-    fun tallImageIsCentreCropped() = checkGolden("tall.png")
+    fun tallImageIsCenterCropped() = checkGolden("tall.png")
 
     @Test
     fun tinyImageIsScaledUp() = checkGolden("tiny.png")

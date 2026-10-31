@@ -24,7 +24,10 @@ families involved.
    that display's size; it starts with a test pattern whose solid corner
    marks the top-left. If you hold a different display to the phone,
    nothing is written and KegInker tells you which display to choose.
-2. Optionally tap **Choose image**. Photos are center-cropped to the panel.
+2. Optionally tap **Choose image**. Photos are center-cropped to fill the
+   display; turn on **Fit** to show the whole image instead, with white
+   where its shape doesn't fill the display, as for a label made for a
+   different display.
    Images up to 120 megapixels open (on Android, files up to 64 MB).
    Turn **Dither** off for text and logos; the slider that appears sets which
    grays become black. Raise it if light text in your image breaks up.

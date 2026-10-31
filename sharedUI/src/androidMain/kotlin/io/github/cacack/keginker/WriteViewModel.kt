@@ -35,6 +35,9 @@ class WriteViewModel(display: LabelDisplay = LabelDisplay.WAVESHARE_2IN7) : View
     /** Whether labels are in color on displays that show it. */
     val color: StateFlow<Boolean> = session.color
 
+    /** Whether the whole image shows, on white; otherwise it's cropped to fill the view. */
+    val letterbox: StateFlow<Boolean> = session.letterbox
+
     /** The image exactly as the display will show it: indices into its palette. */
     val view: StateFlow<ByteArray> = session.view
 
@@ -102,6 +105,8 @@ class WriteViewModel(display: LabelDisplay = LabelDisplay.WAVESHARE_2IN7) : View
     fun toggleDither() = session.toggleDither()
 
     fun toggleColor() = session.toggleColor()
+
+    fun toggleLetterbox() = session.toggleLetterbox()
 
     /** Sets where gray becomes black (0–255) when dithering is off. */
     fun setThreshold(level: Int) = session.setThreshold(level)

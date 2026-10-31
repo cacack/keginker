@@ -33,7 +33,7 @@ class WriteSession(
     private var source: FittedImage? = null
 
     /** [source], or the test pattern, cropped and scaled to the display's view. */
-    private var fitted = fit(null, display)
+    private var fitted = fit(null, display, letterbox = false)
 
     private val sourceIsTestPattern get() = source == null
 
@@ -47,6 +47,11 @@ class WriteSession(
 
     /** Whether labels are in color on displays that show it; otherwise black and white. */
     val color: StateFlow<Boolean> = mutableColor
+
+    private val mutableLetterbox = MutableStateFlow(false)
+
+    /** Whether the whole image shows, on white; otherwise it's center-cropped to fill the view. */
+    val letterbox: StateFlow<Boolean> = mutableLetterbox
 
     /** The image exactly as the display will show it: indices into its palette. */
     private val mutableView = MutableStateFlow(renderView(display, fitted, mutableDither.value, mutableColor.value))
@@ -82,7 +87,7 @@ class WriteSession(
         if (writing || display == mutableDisplay.value) return
         mutableDisplay.value = display
         controller.choose(display)
-        fitted = fit(source, display)
+        fitted = fit(source, display, mutableLetterbox.value)
         rerender()
     }
 
@@ -98,6 +103,14 @@ class WriteSession(
     fun toggleColor() {
         if (writing) return
         mutableColor.value = !mutableColor.value
+        rerender()
+    }
+
+    /** Switches between filling the view and showing the whole image. Ignored while a write is running. */
+    fun toggleLetterbox() {
+        if (writing) return
+        mutableLetterbox.value = !mutableLetterbox.value
+        fitted = fit(source, mutableDisplay.value, mutableLetterbox.value)
         rerender()
     }
 
@@ -123,7 +136,7 @@ class WriteSession(
     private fun show(image: FittedImage, keepFailure: Boolean = false) {
         pendingSource = null
         source = image
-        fitted = fit(image, mutableDisplay.value)
+        fitted = fit(image, mutableDisplay.value, mutableLetterbox.value)
         rerender(keepFailure)
     }
 
@@ -138,17 +151,20 @@ class WriteSession(
 }
 
 /**
- * A loaded [image] cropped and scaled to every display's view, so choosing a
- * display or re-rendering needs no scaling. Scaling a photo takes a while:
- * make this off the main thread, then hand it to [WriteSession.imageLoaded].
+ * A loaded [image] scaled to every display's view, both cropped and
+ * letterboxed, so choosing a display or re-rendering needs no scaling.
+ * Scaling a photo takes a while: make this off the main thread, then hand it
+ * to [WriteSession.imageLoaded].
  */
 class FittedImage(image: ColorImage) {
-    private val views = LabelDisplay.entries.associateWith { fitView(it, image) }
+    private val filled = LabelDisplay.entries.associateWith { fitView(it, image) }
+    private val letterboxed = LabelDisplay.entries.associateWith { fitView(it, image, letterbox = true) }
 
-    /** The image cropped and scaled to [display]'s view. */
-    internal fun forDisplay(display: LabelDisplay): ColorImage = views.getValue(display)
+    /** The image scaled to [display]'s view: whole on white if [letterbox], otherwise cropped to fill it. */
+    internal fun forDisplay(display: LabelDisplay, letterbox: Boolean): ColorImage =
+        (if (letterbox) letterboxed else filled).getValue(display)
 }
 
-/** [image] for [display], or the test pattern at its size if null. */
-private fun fit(image: FittedImage?, display: LabelDisplay): ColorImage =
-    image?.forDisplay(display) ?: ColorImage.fromGray(testPattern(display.viewWidth, display.viewHeight))
+/** [image] for [display], or the test pattern at its size (which fits either way) if null. */
+private fun fit(image: FittedImage?, display: LabelDisplay, letterbox: Boolean): ColorImage =
+    image?.forDisplay(display, letterbox) ?: ColorImage.fromGray(testPattern(display.viewWidth, display.viewHeight))

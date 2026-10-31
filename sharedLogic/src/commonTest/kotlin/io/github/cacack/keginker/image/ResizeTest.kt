@@ -19,6 +19,27 @@ class ResizeTest {
     }
 
     @Test
+    fun letterboxesAWideImageBetweenWhiteBarsAboveAndBelow() {
+        val wide = gray(4, 2, 0, 100, 200, 50, 0, 100, 200, 50)
+
+        assertEquals(listOf(255, 255, 50, 125, 255, 255), wide.letterbox(2, 3).values())
+    }
+
+    @Test
+    fun letterboxesATallImageBetweenWhiteBarsLeftAndRight() {
+        val tall = gray(2, 4, 0, 0, 100, 100, 200, 200, 50, 50)
+
+        assertEquals(listOf(255, 50, 255, 255, 125, 255), tall.letterbox(3, 2).values())
+    }
+
+    @Test
+    fun anImageOfTheTargetsShapeLetterboxesAsItFills() {
+        val image = gray(4, 2, 0, 40, 200, 255, 80, 120, 10, 30)
+
+        assertEquals(image.fill(2, 1).values(), image.letterbox(2, 1).values())
+    }
+
+    @Test
     fun downscalingAveragesEachBlock() {
         val image = gray(
             4, 4,

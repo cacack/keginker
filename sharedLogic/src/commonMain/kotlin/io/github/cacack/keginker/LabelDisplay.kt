@@ -6,6 +6,7 @@ import io.github.cacack.keginker.image.Dither
 import io.github.cacack.keginker.image.Palette
 import io.github.cacack.keginker.image.WHITE
 import io.github.cacack.keginker.image.fill
+import io.github.cacack.keginker.image.letterbox
 import io.github.cacack.keginker.image.toBlackWhite
 import io.github.cacack.keginker.image.toPalette
 import io.github.cacack.keginker.waveshare.WavesharePanel
@@ -97,15 +98,18 @@ enum class LabelDisplay(
 }
 
 /**
- * [image] center-cropped and scaled to [display]'s view, ready for
- * [renderView]: in color where the display shows it, otherwise just the gray.
+ * [image] scaled to [display]'s view, ready for [renderView]: center-cropped
+ * to fill it, or whole on white if [letterbox]. In color where the display
+ * shows it, otherwise just the gray.
  */
-fun fitView(display: LabelDisplay, image: ColorImage): ColorImage =
-    if (display.palette.hasColor) {
-        image.fill(display.viewWidth, display.viewHeight)
+fun fitView(display: LabelDisplay, image: ColorImage, letterbox: Boolean = false): ColorImage {
+    val shown = if (display.palette.hasColor) image else ColorImage.fromGray(image.gray)
+    return if (letterbox) {
+        shown.letterbox(display.viewWidth, display.viewHeight)
     } else {
-        ColorImage.fromGray(image.gray.fill(display.viewWidth, display.viewHeight))
+        shown.fill(display.viewWidth, display.viewHeight)
     }
+}
 
 /**
  * The image exactly as [display] will show it: row-major indices into its

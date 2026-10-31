@@ -137,7 +137,7 @@ class WriteSessionTest {
     }
 
     @Test
-    fun ditherAndThresholdAreIgnoredDuringAWrite() = runTest {
+    fun renderingChangesAreIgnoredDuringAWrite() = runTest {
         val session = session()
         val written = session.view.value
         session.write()
@@ -147,9 +147,11 @@ class WriteSessionTest {
         session.toggleDither()
         session.setThreshold(10)
         session.toggleColor()
+        session.toggleLetterbox()
 
         assertContentEquals(written, session.view.value)
         assertTrue(session.color.value)
+        assertEquals(false, session.letterbox.value)
         advanceUntilIdle()
         assertIs<WriteState.Done>(session.controller.state.value)
     }
@@ -200,6 +202,25 @@ class WriteSessionTest {
         session.toggleColor()
 
         assertTrue(session.view.value.all { it == BLACK || it == WHITE })
+        assertEquals(WriteState.Idle, session.controller.state.value)
+    }
+
+    @Test
+    fun fitShowsTheWholeImageOnWhiteAndDisarmsAWaitingWrite() = runTest {
+        val session = session()
+        session.choose(LabelDisplay.EZ_SIGN_2IN9)
+        session.imageLoaded(FittedImage(grayImage(2, 2, ByteArray(4))))
+        assertEquals(false, session.letterbox.value)
+        assertTrue(session.view.value.all { it == BLACK }, "a black square fills the view")
+        session.write()
+
+        session.toggleLetterbox()
+
+        // 128 × 296: the square scales to 128 × 128, with 84 white rows above and below.
+        val rows = session.view.value.toList().chunked(128)
+        assertTrue(rows.take(84).flatten().all { it == WHITE })
+        assertTrue(rows.drop(84).take(128).flatten().all { it == BLACK })
+        assertTrue(rows.drop(212).flatten().all { it == WHITE })
         assertEquals(WriteState.Idle, session.controller.state.value)
     }
 
@@ -260,8 +281,13 @@ class WriteSessionTest {
                 }
                 1 -> {
                     if (random.nextInt(4) == 0) {
-                        steps += "toggle color"
-                        session.toggleColor()
+                        if (random.nextBoolean()) {
+                            steps += "toggle color"
+                            session.toggleColor()
+                        } else {
+                            steps += "toggle letterbox"
+                            session.toggleLetterbox()
+                        }
                     } else {
                         val level = random.nextInt(-10, 266)
                         steps += "threshold $level"

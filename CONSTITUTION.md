@@ -60,7 +60,7 @@ Pixel phones.**
 Check: judgement call — measured by hand on real tags and phones, because CI
 has no NFC hardware; the tally of attempts and first-tap successes in the
 [hardware test log](docs/operations/hardware-test-log.md) settles it for each
-release, phone and board.
+phone and board.
 
 **C2 — Every failed write tells the user what happened and offers a retry.**
 Check: `./gradlew :sharedLogic:testAndroidHostTest :sharedUI:testAndroidHostTest :sharedLogic:iosSimulatorArm64Test`

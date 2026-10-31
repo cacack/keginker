@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/cacack/keginker/compare/v0.7.0...v0.8.0) (2026-10-31)
+
+
+### Features
+
+* **image:** fit the whole image to the display ([49fd886](https://github.com/cacack/keginker/commit/49fd88642ff0d0a428b68f750b2e47997cb88b6a)), closes [#156](https://github.com/cacack/keginker/issues/156)
+* **image:** write colour labels to 4-colour EZ Sign displays ([0b82135](https://github.com/cacack/keginker/commit/0b8213590dbafeefc93eb65bd438ed0d11d8fed4)), closes [#152](https://github.com/cacack/keginker/issues/152)
+
 ## [0.7.0](https://github.com/cacack/keginker/compare/v0.6.0...v0.7.0) (2026-10-27)
 
 

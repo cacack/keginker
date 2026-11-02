@@ -32,6 +32,8 @@ Requires JDK 21. iOS builds require macOS with Xcode.
 - iOS app tests (transports, image loading, the write screen; macOS): `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'platform=iOS Simulator,name=<an iPhone simulator>' CODE_SIGNING_ALLOWED=NO test`
 - Mutation testing (on demand, not in CI): `./gradlew :sharedLogic:pitest`; see
   [docs/reviews/testing/2026-10-18-mutation-testing.md](docs/reviews/testing/2026-10-18-mutation-testing.md)
+- Fuzzing the tag-reply parsers: `./gradlew :fuzz:fuzz`; see
+  [docs/operations/ci.md](docs/operations/ci.md#fuzzing)
 - Android debug APK: `./gradlew :androidApp:assembleDebug`
 - iOS app: open `iosApp/` in Xcode and run.
 

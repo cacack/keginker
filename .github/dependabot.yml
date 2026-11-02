@@ -11,6 +11,13 @@ updates:
       codeql-action:
         patterns:
           - "github/codeql-action*"
+  # The ClusterFuzzLite base image, pinned by digest.
+  - package-ecosystem: "docker"
+    directory: "/.clusterfuzzlite"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci(deps)"
   - package-ecosystem: "gradle"
     directory: "/"
     schedule:

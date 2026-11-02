@@ -79,15 +79,19 @@ Shared tests job compiles `:fuzz` to keep it so. Run every target locally,
 ```
 
 `-Pfuzz.seconds=<n>` changes the time, and `./gradlew :fuzz:fuzzNdef` (or
-another target's task) runs one. Jazzer writes the input that crashed a
-target to `fuzz/build/fuzz/crash-*`, with the stack trace in the output.
+another target's task) runs one. A crash fails the build and skips the
+targets after it; add `--continue` to run them anyway. Jazzer writes the
+input that crashed a target to `fuzz/build/fuzz/<Name>/crash-*`, with the
+stack trace in the output. Fix the crash with a `sharedLogic` test built from
+those bytes, so it stays fixed.
 
 In CI, [`.clusterfuzzlite/`](../../.clusterfuzzlite) builds the same targets
 in ClusterFuzzLite's JVM image. Scorecard's Fuzzing check detects them there.
 That image brings its own Jazzer, so CI and local runs can use different
 Jazzer versions. Dependabot updates the image digest and the version catalog
 separately.
-A new target needs only a `<Name>Fuzzer` object in `fuzz/` with a static
+A new target needs only a `<Name>Fuzzer` object, in a file of the same name
+in the `io.github.cacack.keginker.fuzz` package, with a static
 `fuzzerTestOneInput(FuzzedDataProvider)`: the Gradle tasks and the
 ClusterFuzzLite build both find targets by that suffix.
 

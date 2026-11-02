@@ -16,7 +16,10 @@ internal class FuzzTransport(private val data: FuzzedDataProvider) : Transport {
     }
 
     private companion object {
-        /** Longer than any reply the parsers expect: an ISO-DEP read of 256 bytes, plus its status word. */
-        const val MAX_REPLY = 300
+        /**
+         * Well past the longest reply any command asks for (an ISO-DEP read of
+         * 250 bytes plus its status word), so replies longer than asked are tried too.
+         */
+        const val MAX_REPLY = 1024
     }
 }

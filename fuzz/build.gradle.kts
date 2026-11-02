@@ -30,22 +30,25 @@ dependencies {
     jazzer(libs.jazzer)
 }
 
-/** The fuzz targets, each a `<Name>Fuzzer`, by the name of their `fuzz<Name>` task. */
-val targets = fileTree("src/main/kotlin") { include("**/*Fuzzer.kt") }
+/**
+ * The fuzz targets, each a `<Name>Fuzzer` object in a file of that name in the
+ * fuzz package, by the name of their `fuzz<Name>` task.
+ */
+val targets = fileTree("src/main/kotlin") { include("io/github/cacack/keginker/fuzz/*Fuzzer.kt") }
     .map { it.nameWithoutExtension.removeSuffix("Fuzzer") }
     .sorted()
 
 // ./gradlew :fuzz:fuzz runs each target for fuzz.seconds (default 30);
-// ./gradlew :fuzz:fuzzNdef runs one. Crashes land in fuzz/build/fuzz.
+// ./gradlew :fuzz:fuzzNdef runs one. Each target's crashes land in fuzz/build/fuzz/<Name>.
 val fuzzTasks = targets.map { name ->
     tasks.register<JavaExec>("fuzz$name") {
         description = "Fuzzes ${name}Fuzzer with Jazzer."
         group = "verification"
         val seconds = providers.gradleProperty("fuzz.seconds").orElse("30")
-        val corpus = layout.buildDirectory.dir("fuzz/corpus/$name").get().asFile
+        val corpus = layout.buildDirectory.dir("fuzz/$name/corpus").get().asFile
         classpath(jazzer, sourceSets.main.map { it.runtimeClasspath })
         mainClass = "com.code_intelligence.jazzer.Jazzer"
-        workingDir = corpus.parentFile.parentFile
+        workingDir = corpus.parentFile
         argumentProviders.add(CommandLineArgumentProvider {
             listOf(
                 "--target_class=io.github.cacack.keginker.fuzz.${name}Fuzzer",

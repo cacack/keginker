@@ -92,14 +92,6 @@ final class ScreenshotTests: XCTestCase {
         // Recording reports every image it writes as a failure; only a mismatch is one here.
         if let failure, record == .never { XCTFail(failure, file: file, line: line) }
     }
-
-    private func wait(until condition: @autoclosure () -> Bool, timeout: TimeInterval = 30, file: StaticString = #filePath, line: UInt = #line) {
-        let deadline = Date(timeIntervalSinceNow: timeout)
-        while !condition() && Date() < deadline {
-            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
-        }
-        XCTAssertTrue(condition(), "Timed out", file: file, line: line)
-    }
 }
 
 private struct WrongSimulator: Error, CustomStringConvertible {

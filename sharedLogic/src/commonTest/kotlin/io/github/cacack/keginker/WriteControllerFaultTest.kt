@@ -17,6 +17,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.test.runTest
 
 private val DISPLAY = LabelDisplay.WAVESHARE_2IN7
@@ -35,8 +36,10 @@ private val imageWriter = ImageWriter(pause = {})
  * tag is released, and a retry works at once.
  */
 class WriteControllerFaultTest {
+    // The body never suspends, so the timeout only measures the runner's speed;
+    // a slow CI simulator once ran it past runTest's default 60 s (#165).
     @Test
-    fun everyFailedCommandEndsInAClearFailureAndAWorkingRetry() = runTest {
+    fun everyFailedCommandEndsInAClearFailureAndAWorkingRetry() = runTest(timeout = 5.minutes) {
         for (protocol in Protocol.ALL) {
             val commands = protocol.cleanWrite().size
             for (failAt in 0 until commands) {

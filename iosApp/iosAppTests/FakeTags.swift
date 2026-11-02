@@ -88,21 +88,42 @@ let tagLost = NFCReaderError(.readerTransceiveErrorTagConnectionLost)
 
 extension XCTestCase {
     /// Calls `transport` from a background thread, as Kotlin coroutines may,
-    /// and waits for its reply.
-    func transceive(_ transport: any Transport, _ command: [UInt8]) -> Result<[UInt8], any Error> {
-        let done = expectation(description: "transceive completes")
+    /// and waits on the main run loop, which the transports send on, for its
+    /// reply. A reply that doesn't come within 5 s fails the test at the
+    /// caller and returns a failure, so the rest of the run goes on (#110).
+    /// A late reply is dropped; an expectation fulfilled that late would
+    /// crash the test app.
+    func transceive(
+        _ transport: any Transport,
+        _ command: [UInt8],
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> Result<[UInt8], any Error> {
         var result: Result<[UInt8], any Error>?
         DispatchQueue.global().async {
             transport.transceive(command: SwiftInteropKt.kotlinBytes(data: Data(command)), timeoutMs: 1000) { reply, error in
-                if let reply {
-                    result = .success([UInt8](SwiftInteropKt.nsData(bytes: reply) as Data))
+                let reply: Result<[UInt8], any Error> = if let reply {
+                    .success([UInt8](SwiftInteropKt.nsData(bytes: reply) as Data))
                 } else {
-                    result = .failure(error!)
+                    .failure(error!)
                 }
-                done.fulfill()
+                // Some replies come on the calling thread; keep `result` on the main thread.
+                DispatchQueue.main.async { result = reply }
             }
         }
-        wait(for: [done], timeout: 5)
-        return result!
+        wait(until: result != nil, timeout: 5, file: file, line: line)
+        return result ?? .failure(NSError(domain: "keginker", code: 2, userInfo: [
+            NSLocalizedDescriptionKey: "No reply from transceive within 5 s",
+        ]))
+    }
+
+    /// Runs the main run loop until `condition` holds, failing the test at
+    /// the caller if it doesn't within `timeout` seconds.
+    func wait(until condition: @autoclosure () -> Bool, timeout: TimeInterval = 30, file: StaticString = #filePath, line: UInt = #line) {
+        let deadline = Date(timeIntervalSinceNow: timeout)
+        while !condition() && Date() < deadline {
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+        }
+        XCTAssertTrue(condition(), "Timed out", file: file, line: line)
     }
 }

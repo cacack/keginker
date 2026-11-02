@@ -49,7 +49,9 @@ triaged as issues.
 Actions are pinned to full commit SHAs, with the version in a comment, and
 the repository's Actions settings reject any other reference. Dependabot
 keeps them current. Every `actions/checkout` sets `persist-credentials: false`, so the
-token isn't left in `.git/config` for the build to read.
+token isn't left in `.git/config` for the build to read. The fuzz workflow
+has no checkout step: ClusterFuzzLite's actions check out the code
+themselves, with a token that can only read.
 
 ## Fuzzing
 
@@ -67,7 +69,10 @@ code never throws:
 | `WriteFuzzer` | A Waveshare write, classic or Rev2.2, against fuzzed replies |
 
 `:fuzz` compiles `sharedLogic`'s common code as a plain JVM project, so it
-builds without the Android SDK. Run every target locally, 30 seconds each:
+builds without the Android SDK. That code must therefore stay plain Kotlin
+with no `expect` declarations and no dependencies beyond coroutines. The
+Shared tests job compiles `:fuzz` to keep it so. Run every target locally,
+30 seconds each:
 
 ```sh
 ./gradlew :fuzz:fuzz
@@ -79,6 +84,9 @@ target to `fuzz/build/fuzz/crash-*`, with the stack trace in the output.
 
 In CI, [`.clusterfuzzlite/`](../../.clusterfuzzlite) builds the same targets
 in ClusterFuzzLite's JVM image. Scorecard's Fuzzing check detects them there.
+That image brings its own Jazzer, so CI and local runs can use different
+Jazzer versions. Dependabot updates the image digest and the version catalog
+separately.
 A new target needs only a `<Name>Fuzzer` object in `fuzz/` with a static
 `fuzzerTestOneInput(FuzzedDataProvider)`: the Gradle tasks and the
 ClusterFuzzLite build both find targets by that suffix.

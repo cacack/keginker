@@ -14,12 +14,14 @@ import kotlinx.coroutines.runBlocking
 object WriteFuzzer {
     private val writer = ImageWriter(pause = {})
 
+    /** An all-white view for each panel; only the replies vary. */
+    private val views = WavesharePanel.entries.associateWith { ByteArray(it.viewWidth * it.viewHeight) { WHITE } }
+
     @JvmStatic
     fun fuzzerTestOneInput(data: FuzzedDataProvider) {
         val panel = data.pickValue(WavesharePanel.entries)
         val transport = FuzzTransport(data)
         val tag = if (data.consumeBoolean()) FoundTag.Waveshare(transport) else FoundTag.WaveshareIsoDep(transport)
-        val view = ByteArray(panel.viewWidth * panel.viewHeight) { WHITE }
-        runBlocking { writer.write(tag, panel, view) {} }
+        runBlocking { writer.write(tag, panel, views.getValue(panel)) {} }
     }
 }

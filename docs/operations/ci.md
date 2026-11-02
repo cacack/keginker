@@ -39,13 +39,49 @@ weekly, on pushes to `main` and when branch protection changes, publishes
 the score shown in the README badge, and uploads its findings to code
 scanning.
 
-Neither feeds `CI Success`, so findings never block a merge; they are
+[`.github/workflows/fuzz.yml`](../../.github/workflows/fuzz.yml) runs the
+fuzz targets (see [Fuzzing](#fuzzing)) through ClusterFuzzLite: 5 minutes on
+every pull request and 30 minutes weekly.
+
+None of these feeds `CI Success`, so findings never block a merge; they are
 triaged as issues.
 
 Actions are pinned to full commit SHAs, with the version in a comment, and
 the repository's Actions settings reject any other reference. Dependabot
 keeps them current. Every `actions/checkout` sets `persist-credentials: false`, so the
 token isn't left in `.git/config` for the build to read.
+
+## Fuzzing
+
+A tag's replies are the app's main untrusted input. The
+[Jazzer](https://github.com/CodeIntelligenceTesting/jazzer) targets in
+[`fuzz/`](../../fuzz/src/main/kotlin/io/github/cacack/keginker/fuzz) feed
+arbitrary bytes to the code that reads them. Each target checks that this
+code never throws:
+
+| Target | What it fuzzes |
+|---|---|
+| `NdefFuzzer` | An NDEF message from tag memory: parsing it and describing its records |
+| `DisplayProbeFuzzer` | The display probe on an ISO-DEP, NFC-A or NFC-V tag whose every reply is fuzzed, then the report written from it |
+| `EzSignDeviceInfoFuzzer` | The EZ Sign device information reply |
+| `WriteFuzzer` | A Waveshare write, classic or Rev2.2, against fuzzed replies |
+
+`:fuzz` compiles `sharedLogic`'s common code as a plain JVM project, so it
+builds without the Android SDK. Run every target locally, 30 seconds each:
+
+```sh
+./gradlew :fuzz:fuzz
+```
+
+`-Pfuzz.seconds=<n>` changes the time, and `./gradlew :fuzz:fuzzNdef` (or
+another target's task) runs one. Jazzer writes the input that crashed a
+target to `fuzz/build/fuzz/crash-*`, with the stack trace in the output.
+
+In CI, [`.clusterfuzzlite/`](../../.clusterfuzzlite) builds the same targets
+in ClusterFuzzLite's JVM image. Scorecard's Fuzzing check detects them there.
+A new target needs only a `<Name>Fuzzer` object in `fuzz/` with a static
+`fuzzerTestOneInput(FuzzedDataProvider)`: the Gradle tasks and the
+ClusterFuzzLite build both find targets by that suffix.
 
 ## Gradle dependency verification
 
@@ -66,7 +102,7 @@ home=$(mktemp -d)
 ./gradlew -g "$home" --write-verification-metadata sha256 \
   check :androidApp:assembleDebug :androidApp:assembleRelease \
   :sharedLogic:linkReleaseFrameworkIosArm64 :sharedLogic:linkDebugFrameworkIosSimulatorArm64 \
-  :sharedLogic:pitest
+  :sharedLogic:pitest :fuzz:fuzzLibs :fuzz:fuzzNdef -Pfuzz.seconds=1
 ./gradlew -g "$home" --write-verification-metadata sha256 --no-configuration-cache \
   -I gradle/verification-linux.init.gradle.kts resolveLinuxAapt2
 rm -rf "$home"

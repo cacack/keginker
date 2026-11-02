@@ -28,5 +28,6 @@ dependencyResolutionManagement {
 }
 
 include(":androidApp")
+include(":fuzz")
 include(":sharedLogic")
 include(":sharedUI")
